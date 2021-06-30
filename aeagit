@@ -1,0 +1,64 @@
+#!/bin/bash
+AEASRC=git@bitbucket.org:aeaverification
+call=$0
+urlbase=https://aeadataeditors.atlassian.net/browse/AEAREP-
+os=$(uname)
+codeeditor=$(which code)
+
+function code {
+    case $os in
+	    Linux|Darwin)
+		    $codeeditor $1
+		    ;;
+	    *)
+		    echo "Open $1 with editor of your choice"
+		    ;;
+
+    esac
+    }
+
+if [[ -z $1 ]]
+then
+  cat << EOF
+  $0 (number)
+
+  will check out the repo from the AEA repository at
+    $AEASRC
+  into the local directory, enter the directory, and open 
+  an editor with the REPLICATION.md file.
+EOF
+else
+manuscript=$1
+repo=aearep-$manuscript
+[[ -z $2 ]] || dourl=1
+
+if [[ -d $repo ]]
+then 
+  echo "Repo $repo already exists - updating only"
+else
+  git clone $AEASRC/$repo.git
+fi
+
+# directory should exist now
+if [[ -d $repo ]]
+then
+  cd $repo && git pull
+    [[ $dourl == 1 && "$os" == "Linux" ]] && xdg-open $urlbase$manuscript
+    [[ $dourl == 1 && "$os" == "Darwin" ]] && open $urlbase$manuscript
+  [[ -f REPLICATION.md && "$os" == "Linux" ]] && code REPLICATION.md
+  [[ -f REPLICATION.md && "$os" == "Darwin" ]] && open -a "Visual Studio Code" REPLICATION.md
+else
+  echo "Git clone failed"
+fi
+
+echo "Done"
+echo "Type cd $repo"
+case $os in
+	Linux)
+echo "cd $repo" | xclip -selection c
+;;
+   Darwin)
+     echo "cd $repo" | pbcopy
+     ;;
+esac
+fi

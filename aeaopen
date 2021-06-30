@@ -1,0 +1,21 @@
+#!/bin/bash
+baseURL=https://aeadataeditors.atlassian.net/browse/AEAREP-
+issue=$1
+if [[ -z $issue ]]
+then
+	# check if we are in a Git repo
+	gitchk=$(git remote -v  2>/dev/null | head -1  )
+	if [[ ! -z $gitchk ]]
+	then
+		issue=$(echo $gitchk | cut -d. -f 2 | cut -d- -f 2)
+	fi
+fi
+[[ -z $issue ]] && exit 2
+openURL=${baseURL}$issue
+if which xdg-open > /dev/null
+then
+  xdg-open $openURL
+elif which gnome-open > /dev/null
+then
+  gnome-open $openURL
+fi

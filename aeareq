@@ -1,0 +1,9 @@
+#!/bin/bash
+
+
+if [[ "$1" == "sug" ]]
+then
+	sed -i.bak2 '/-------/r'<(grep SUGGESTED REPLICATION.md | sed 's/>/-/') REPLICATION.md
+fi
+sed -i.bak '/-------/r'<(grep REQUIRED REPLICATION.md | sed 's/>/-/') REPLICATION.md
+

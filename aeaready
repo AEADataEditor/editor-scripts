@@ -1,0 +1,157 @@
+#!/bin/bash
+os=$(uname)
+apperror=0
+#set -e
+CSSURL=https://gist.githubusercontent.com/dashed/6714393/raw/ae966d9d0806eb1e24462d88082a0264438adc50/github-pandoc.css
+CSSLOCAL=.local.css
+ICPSRMSG="Details in the full report, which you will receive via ScholarOne shortly. Please provide your response to the items listed above via the openICPSR Project Communication log, specifying AEAREP-xxx. Other items in the report may need to be addressed via ScholarOne."
+
+if [[ -z $1 ]]
+then
+	echo "Please add issue number"
+	exit 2
+fi
+num=$1
+shift
+nopdf=0
+if [[ "$1" == "nopdf" ]]
+then
+   nopdf=1
+   shift
+fi
+
+extramsg=$*
+
+exit_on_error() {
+    exit_code=$1
+    exit_message=${@:2}
+    if [ $exit_code -ne 0 ]; then
+        >&2 echo "${exit_message}, exit code ${exit_code}."
+        exit $exit_code
+    fi
+}
+
+set -o history -o histexpand
+
+
+case $os in
+	    Linux)
+		    pandoc=$(which pandoc)
+            [[ -f $pandoc ]] || apperror=1
+            wkhtmltopdf=$(which wkhtmltopdf)
+            [[ -f $wkhtmltopdf ]] || apperror=1
+	    export QT_STYLE_OVERRIDE=fusion 
+	    # get the CSS
+	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="-c $CSSLOCAL"
+		    ;;
+            Darwin)
+            # for MacOS, might want to install Rstudio (comes with pandoc) and replace the line above with the outcome of
+            #   find /Applications -name pandoc -type f
+            pandoc=/Applications/RStudio.app/Contents/MacOS/pandoc/pandoc
+            # let's see if its there
+            if [[ ! -f $pandoc ]]
+            then
+              echo "We suggest using pandoc from the RStudio install. Searching for a different one..."
+              pandoc=$(find /Applications -name pandoc -type f)
+            fi
+            echo "Found pandoc at $pandoc"
+	    # get the CSS
+	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="-c $CSSLOCAL"
+            ;;
+	    *)
+		    echo "Please review the script to define your OS"
+            apperror=1
+		    ;;
+esac
+
+# update the CSS
+
+if [[ -f $CSSLOCAL ]]
+then
+   echo 'pre, code { white-space: pre-wrap !important; } ' >> $CSSLOCAL
+fi
+
+# other stuff 
+
+if [[ "$apperror" == "1" ]]
+then
+    echo "We need pandoc and wkhtmltopdf"
+    echo "One or the other not found"
+    case $os in
+        Darwin)
+            echo "Install Rstudio to get pandoc"
+            echo "Try: brew cask install wkhtmltopdf"
+            ;;
+        *)
+            echo "Please install"
+            ;;
+    esac
+    [[ "$nopdf" == "1" ]] || exit_on_error 2 pandoc or wkhtmltopdf missing
+fi 
+
+commitmsg="AEAREP-$num #comment Ready to submit $extramsg"
+
+## Test if we are where we think we should be
+
+if [[ ! -d ".git" ]]
+then 
+   exit_on_error 2 Not in right directory
+fi
+
+if [[ ! -f "REPLICATION.md" ]]
+then
+   exit_on_error 2 Missing REPLICATION.md -required-
+fi
+
+# convert to PDF, just in case
+# requires: wkhtmltopdf and pandoc
+
+if [[ "$nopdf" == "0" ]]
+then
+   $pandoc REPLICATION.md -f gfm -t html5 -o REPLICATION.pdf --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA
+else
+   echo "Skipping PDF generation as requested"
+fi
+
+rm $CSSLOCAL
+
+echo "-------- Current git status -----------"
+git status
+
+echo "---------------------------------------"
+git add REPLICATION.md
+git add REPLICATION.pdf
+if [[ -f "for openICPSR.md" ]]
+then 
+   # check for standard language in ICPSR file
+   grep ScholarOne "for openICPSR.md" 1>/dev/null
+   icpsr_check=$?
+   case $icpsr_check in
+      0)
+      # tag is already in
+      echo "ICPSR file is ready for addition"
+      ;;
+      *)
+      # tag needs to be added
+      echo "" >> "for openICPSR.md"
+      echo "" >> "for openICPSR.md"
+      echo "$ICPSRMSG" | sed "s/xxx/$num/" >> "for openICPSR.md"
+      echo "---------------------------------------"
+      cat "for openICPSR.md"
+      echo "---------------------------------------"
+      echo "::: Does this look fine?"
+      read
+      ;;
+   esac
+   git add "for openICPSR.md"
+   commitmsg="$commitmsg with notes for openICPSR"
+fi
+echo "-------- Updated git status -----------"
+git status
+
+echo "::: Ready to commit/ push? "
+echo "::: Msg:"
+echo "    $commitmsg"
+read
+git commit -m "$commitmsg"
+git push

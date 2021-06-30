@@ -1,0 +1,3 @@
+#!/bin/bash
+
+sed -i.bak 's/- \[REQUIRED\]/> [We REQUESTED]/;s/> \[REQUIRED\]/> [We REQUESTED]/' REPLICATION.md
