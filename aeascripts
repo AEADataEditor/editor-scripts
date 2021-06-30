@@ -30,7 +30,7 @@ git clone $REPOLOC $SUBDIR
 
 # adding to PATH
 echo "# Added by aeascripts / Lars Vilhuber $(date)
-export PATH=$HOME/bin/$SUBDIR:$PATH
+export PATH=$HOME/bin/$SUBDIR:\$PATH
 " >> $BASHRC
 
 echo "Done"
