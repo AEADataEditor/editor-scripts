@@ -6,9 +6,11 @@ These scripts will streamline a few things. They may not work in all environment
 
 `Bash` (git bash should be fine on Windows)
 
+![Tested on Linux](https://img.shields.io/badge/Tested-on%20Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Not yet Tested on Windows](https://img.shields.io/badge/Not%20Yet%20Tested-on%20Windows-yellow)
+
 - Some scripts have additional dependencies:
-  - `pandoc` (will not work on Windows, but can be skipped)
-  - `qpdf` (Linux only - `aeamerge`)
+  - ![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Not Windows](https://img.shields.io/badge/-Windows-red) `pandoc` (will not work on Windows, but can be skipped) 
+  - ![Linux](https://img.shields.io/badge/-Linux-success) ![not macOS](https://img.shields.io/badge/-macOS-red) ![Not Windows](https://img.shields.io/badge/-Windows-red)`qpdf` (Linux only - `aeamerge`)
 
 ## Installation
 
