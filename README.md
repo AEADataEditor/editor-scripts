@@ -10,11 +10,35 @@ These scripts will streamline a few things. They may not work in all environment
   - `pandoc` (will not work on Windows, but can be skipped)
   - `qpdf` (Linux only - `aeamerge`)
 
+## Installation
+
+The repository contains a script which should handle installation. As with anything that downloads scripts that run on your computer, you should exercise caution.
+
+### Method 1
+
+1. Clone the repository into your usual Workspace, and open a Terminal in that directory.
+2. Run `./aeascripts`
+
+### Method 2 (convenient, less secure)
+
+1. Run the following command in a Bash shell:
+
+```
+bash <(wget -qO - https://raw.githubusercontent.com/AEADataEditor/editor-scripts/main/aeascripts)
+```
+
+## Updating
+
+```
+cd $HOME/bin/aea-scripts
+git pull
+```
+
 ## Descriptions
 
 ### `aeascripts`
 
-This script can be downloaded manually, or as part of a separate `git clone`. It will clone this repo into `$HOME/bin/aea-scripts` and add that PATH to the `$PATH` variable in the `bash` profile.
+This script can be downloaded manually, or as part of a separate `git clone`. It will clone this repo into `$HOME/bin/aea-scripts` and add that PATH to the `$PATH` variable in the `bash` profile. It is not otherwise used.
 
 ### `aeagit` [issue]
 
