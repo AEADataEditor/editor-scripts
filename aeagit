@@ -3,12 +3,12 @@ AEASRC=git@bitbucket.org:aeaverification
 call=$0
 urlbase=https://aeadataeditors.atlassian.net/browse/AEAREP-
 os=$(uname)
-codeeditor=$(which code)
+codeeditor="$(which code)"
 
 function code {
     case $os in
 	    Linux|Darwin)
-		    $codeeditor $1
+		    "$codeeditor" "$1"
 		    ;;
 	    *)
 		    echo "Open $1 with editor of your choice"
