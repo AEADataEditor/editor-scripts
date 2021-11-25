@@ -45,9 +45,8 @@ then
   cd $repo && git pull
     [[ $dourl == 1 && "$os" == "Linux" ]] && xdg-open $urlbase$manuscript
     [[ $dourl == 1 && "$os" == "Darwin" ]] && open $urlbase$manuscript
-  [[ -f REPLICATION.md && "$os" == "Linux" ]] && code REPLICATION.md
-  [[ -f REPLICATION.md && "$os" == "Darwin" ]] && open -a "Visual Studio Code" REPLICATION.md
-else
+  [[ -f REPLICATION.md && "$os" == "Linux" ]] && code .
+  [[ -f REPLICATION.md && "$os" == "Darwin" ]] && open -a "Visual Studio Code" .
   echo "Git clone failed"
 fi
 
