@@ -1,0 +1,42 @@
+#!/bin/bash
+os=$(uname)
+apperror=0
+baseURL=https://aeadataeditors.atlassian.net/issues/?jql=%22openICPSR%20Project%20Number%5BNumber%5D%22%20%3D%20%22XXXX%22%20order%20by%20created%20DESC
+#set -e
+
+if [[ -z $1 ]]
+then
+	echo "Please add deposit number"
+	exit 2
+fi
+num=$1
+
+
+exit_on_error() {
+    exit_code=$1
+    exit_message=${@:2}
+    if [ $exit_code -ne 0 ]; then
+        >&2 echo "${exit_message}, exit code ${exit_code}."
+        exit $exit_code
+    fi
+}
+
+set -o history -o histexpand
+
+
+case $os in
+	    Linux)
+		    open=$(which xdg-open)
+            [[ -f $open ]] || apperror=1
+		    ;;
+            Darwin)
+            open=open
+            ;;
+	    *)
+		    echo "Please review the script to define your OS"
+            apperror=1
+		    ;;
+esac
+
+openURL=$(echo $baseURL | sed "s/XXXX/$num/")
+$open $openURL
