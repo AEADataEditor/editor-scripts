@@ -43,6 +43,8 @@ case $2 in
        ;;
 esac
 
+authinfo=$3
+
 # construct URL and query other parameters if necessary
 
 case $method in
@@ -51,11 +53,20 @@ case $method in
     ;;
   https)
     # we need username and PAT
-    echo "We will use pre-configured credentials for git."
-    echo "If this does not work, run 'git config --global credential.helper store' "
-    echo "and try again."
-    echo " --- "
-    GITURL="https://$AEAHSRC/$repo.git"
+    if [[ -z $authinfo ]]
+    then
+      echo "We will use pre-configured credentials for git."
+      echo "If this does not work, run 'git config --global credential.helper store' "
+      echo "and try again, using the following syntax:"
+      echo "   $0 $repo https USERNAME:PAT"
+      echo "where "
+      echo "    USERNAME is your Bitbucket username"
+      echo "    PAT is your Bitbucket personal access token (note the colon)"
+      echo " --- "
+      GITURL="https://$AEAHSRC/$repo.git"
+    else
+      GITURL="https://${authinfo}@$AEAHSRC/$repo.git"
+    fi
     ;;
 esac
 
