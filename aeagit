@@ -1,7 +1,7 @@
 #!/bin/bash
 AEASRC=git@bitbucket.org:aeaverification
+AEAHSRC=bitbucket.org/aeaverification
 call=$0
-urlbase=https://aeadataeditors.atlassian.net/browse/AEAREP-
 os=$(uname)
 codeeditor="$(which code)"
 
@@ -30,21 +30,46 @@ EOF
 else
 manuscript=$1
 repo=aearep-$manuscript
-[[ -z $2 ]] || dourl=1
+
+case $2 in
+    s*|S*)
+       method=ssh
+       ;;
+    h*|H*)
+       method=https
+       ;;
+    *)
+       method=ssh
+       ;;
+esac
+
+# construct URL and query other parameters if necessary
+
+case $method in
+  ssh)
+    GITURL="$AEASRC/$repo.git"
+    ;;
+  https)
+    # we need username and PAT
+    echo "We will use pre-configured credentials for git."
+    echo "If this does not work, run 'git config --global credential.helper store' "
+    echo "and try again."
+    echo " --- "
+    GITURL="https://$AEAHSRC/$repo.git"
+    ;;
+esac
 
 if [[ -d $repo ]]
 then 
   echo "Repo $repo already exists - updating only"
 else
-  git clone $AEASRC/$repo.git
+  git clone $GITURL
 fi
 
 # directory should exist now
 if [[ -d $repo ]]
 then
   cd $repo && git pull
-    [[ $dourl == 1 && "$os" == "Linux" ]] && xdg-open $urlbase$manuscript
-    [[ $dourl == 1 && "$os" == "Darwin" ]] && open $urlbase$manuscript
   [[ -f REPLICATION.md && "$os" == "Linux" ]] && code . REPLICATION.md
   [[ -f REPLICATION.md && "$os" == "Darwin" ]] && open -a "Visual Studio Code" . REPLICATION.md
 else
@@ -55,7 +80,7 @@ echo "Done"
 echo "Type cd $repo"
 case $os in
 	Linux)
-echo "cd $repo" | xclip -selection c
+  [[ -z $(which xclip) ]] || echo "cd $repo" | xclip -selection c
 ;;
    Darwin)
      echo "cd $repo" | pbcopy
