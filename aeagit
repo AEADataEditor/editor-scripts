@@ -53,10 +53,17 @@ case $method in
     ;;
   https)
     # we need username and PAT
+    if [[ -f $HOME/.git-credentials ]]
+      then
+        authinfo=$(grep bitbucket $HOME/.git-credentials)
+        authinfo=${authinfo##*/}
+        authinfo=${authinfo%@*}
+    fi
     if [[ -z $authinfo ]]
     then
       echo "We will use pre-configured credentials for git."
-      echo "If this does not work, run 'git config --global credential.helper store' "
+      echo "If this does not work, run "
+      echo "   git config --global credential.helper store "
       echo "and try again, using the following syntax:"
       echo "   $0 $repo https USERNAME:PAT"
       echo "where "
