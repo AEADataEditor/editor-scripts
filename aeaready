@@ -1,9 +1,13 @@
 #!/bin/bash
 os=$(uname)
 apperror=0
+#
+# A few alternative looks
+# CSSURL=https://gist.githubusercontent.com/ryangray/1882525/raw/2a6e53f645b960f0bed16d686ba3df36505f839f/buttondown.css
 #set -e
 CSSURL=https://gist.githubusercontent.com/dashed/6714393/raw/ae966d9d0806eb1e24462d88082a0264438adc50/github-pandoc.css
 CSSLOCAL=.local.css
+WKHTMLOPTS="-V margin-top=1in -V margin-left=1in -V margin-right=1in -V margin-bottom=1in"
 ICPSRMSG="Details in the full report, which you will receive via ScholarOne shortly. Please provide your response to the items listed above via the openICPSR Project Communication log, specifying AEAREP-xxx. Other items in the report may need to be addressed via ScholarOne."
 
 if [[ -z $1 ]]
@@ -42,7 +46,7 @@ case $os in
             [[ -f $wkhtmltopdf ]] || apperror=1
 	    export QT_STYLE_OVERRIDE=fusion 
 	    # get the CSS
-	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="-c $CSSLOCAL"
+	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="$WKHTMLOPTS -c $CSSLOCAL"
 		    ;;
             Darwin)
             # for MacOS, might want to install Rstudio (comes with pandoc) and replace the line above with the outcome of
@@ -56,7 +60,7 @@ case $os in
             fi
             echo "Found pandoc at $pandoc"
 	    # get the CSS
-	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="-c $CSSLOCAL"
+	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="$WKHTMLOPTS -c $CSSLOCAL"
             ;;
 	    *)
 		    echo "Please review the script to define your OS"
