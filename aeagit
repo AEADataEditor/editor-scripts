@@ -65,7 +65,7 @@ case $method in
       echo "If this does not work, run "
       echo "   git config --global credential.helper store "
       echo "and try again, using the following syntax:"
-      echo "   $0 $repo https USERNAME:PAT"
+      echo "   $0 $manuscript https USERNAME:PAT"
       echo "where "
       echo "    USERNAME is your Bitbucket username"
       echo "    PAT is your Bitbucket personal access token (note the colon)"
