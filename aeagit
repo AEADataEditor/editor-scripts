@@ -39,7 +39,8 @@ case $2 in
        method=https
        ;;
     *)
-       method=ssh
+       [[ -z $CODESPACE_NAME ]] && method=ssh || method=https
+       
        ;;
 esac
 
@@ -58,6 +59,9 @@ case $method in
         authinfo=$(grep bitbucket $HOME/.git-credentials)
         authinfo=${authinfo##*/}
         authinfo=${authinfo%@*}
+    elif [[ ! -z $P_BITBUCKET_PAT && ! -z $P_BITBUCKET_USERNAME ]]
+    then
+       authinfo=${P_BITBUCKET_USERNAME}:${P_BITBUCKET_PAT}
     fi
     if [[ -z $authinfo ]]
     then
