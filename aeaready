@@ -52,6 +52,8 @@ case $os in
             # for MacOS, might want to install Rstudio (comes with pandoc) and replace the line above with the outcome of
             #   find /Applications -name pandoc -type f
             pandoc=/Applications/RStudio.app/Contents/MacOS/pandoc/pandoc
+            # later versions have it bundled in the quarto directory
+            [[ ! -f $pandoc ]] && pandoc=/Applications/RStudio.app/Contents/MacOS/quarto/bin/pandoc
             # let's see if its there
             if [[ ! -f $pandoc ]]
             then
