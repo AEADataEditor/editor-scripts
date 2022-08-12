@@ -44,6 +44,7 @@ case $os in
             [[ -f $pandoc ]] || apperror=1
             wkhtmltopdf=$(which wkhtmltopdf)
             [[ -f $wkhtmltopdf ]] || apperror=1
+	    pdfengine="--pdf-engine wkhtmltopdf"
 	    export QT_STYLE_OVERRIDE=fusion 
 	    # get the CSS
 	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="$WKHTMLOPTS -c $CSSLOCAL"
@@ -114,7 +115,7 @@ fi
 
 if [[ "$nopdf" == "0" ]]
 then
-   $pandoc REPLICATION.md -f gfm -t html5 -o REPLICATION.pdf --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA
+   $pandoc $pdfengine REPLICATION.md -f gfm -t html5 -o REPLICATION.pdf --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA
 else
    echo "Skipping PDF generation as requested"
 fi
