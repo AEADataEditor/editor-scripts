@@ -7,7 +7,7 @@ codeeditor="$(which code)"
 
 function code {
     case $os in
-	    Linux|Darwin)
+	    Linux|Darwin|MING*)
 		    "$codeeditor" "$1"
 		    ;;
 	    *)
@@ -95,14 +95,23 @@ fi
 if [[ -d $repo ]]
 then
   cd $repo && git pull
-  [[ -f REPLICATION.md && "$os" == "Linux" ]] && code . REPLICATION.md
-  [[ -f REPLICATION.md && "$os" == "Darwin" ]] && open -a "Visual Studio Code" . REPLICATION.md
+  if [[ -f REPLICATION.md ]]
+  then
+     case $os in
+        Linux|MING*) 
+	  code . REPLICATION.md
+	  ;;
+	Darwin)
+	  open -a "Visual Studio Code" . REPLICATION.md
+	  ;;
+    esac
+  fi
 else
   echo "Git clone failed"
 fi
 
 echo "Done"
-echo "Type cd $repo"
+echo "Type cd $repo or code $repo and start your work."
 case $os in
 	Linux)
   [[ -z $(which xclip) ]] || echo "cd $repo" | xclip -selection c
