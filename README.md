@@ -36,27 +36,62 @@ cd $HOME/bin/aea-scripts
 git pull
 ```
 
+## Setup (cloud)
+
+For the git actions undertaken by these scripts, two methods are available:
+
+- ssh
+- https
+
+The connection method should default to the right thing according to the environment. 
+
+For ssh, you need to have set up the SSH key.
+
+For https, it will use other authentication methods on your  machine (e.g., Github Desktop) if available. 
+
+In the cloud, set the variables P_BITBUCKET_PAT and P_BITBUCKET_USERNAME, which can be done in the [Codespaces secrets space](https://github.com/settings/codespaces) in your personal Github space, or from the command line (if you have `gh` installed):
+
+```
+gh secret set P_BITBUCKET_PAT --user
+gh secret set P_BITBUCKET_USERNAME --user 
+```
+
+
 ## Descriptions
 
 ### `aeascripts`
 
 This script can be downloaded manually, or as part of a separate `git clone`. It will clone this repo into `$HOME/bin/aea-scripts` and add that PATH to the `$PATH` variable in the `bash` profile. It is not otherwise used.
 
-### `aeagit` [issue]
+### `aeagit` (issue)
 
 This script will `git clone` the repository corresponding to `AEAREP-[issue]`, and where possible, open VS Code in the directory with the `REPLICATION.md` preloaded. Used during editing and sign-off
 
-### `aeaready` [issue]
+### `aeaready` (issue) (pre|approve) [nopdf] [additional comments]
 
-This script will compile the PDF from the Markdown `REPLICATION.md`, add some text to any `for openICPSR.md` notes, and commit all of these files, updating the issue (ticket). Used once the report has been edited, and is ready to be signed off on. Sign off still happens manually on Jira.
+Used once the report has been edited, and is ready to be signed off on. This script will compile the PDF from the Markdown `REPLICATION.md`, add some text to any `for openICPSR.md` notes, and commit all of these files, updating the issue (ticket). **Sign off still happens manually on Jira.**
+
+Arguments:
+
+- Required:
+  - (issue): the AEAREP-nnnn numerical part of the **JIRA issue** (not the repository!)
+  - pre|approved: (can be abbreviated to "a" or "p") Defines the message and action: preapproval or approval. This is purely in terms of the note added to the Git commit message, all actual (pre) approvals still need to be done manually on JIRA.
+
+- Optional:
+  - nopdf: No abbreviations. On systems that cannot automatically create the PDF (Windows, some Macs), the PDF must be generated manually before creating the script. `nopdf` then indicates to the script not to try to generate a PDF.
+  - additional comments: any words added after the required and `nopdf` arguments are taken verbatim and added to the commit message.
 
 ### `aeamerge` 
 
 This script will merge the PDF from an external reviewer report to the AEA official report in PDF format, and commit the merged report, ready to be sent to the author.
 
+- This only works on Linux, untested on Codespaces.
+
 ### `aeaopen`
 
 This script will open the Jira issue corresponding to a (properly named) Bitbucket repository.
+
+- May not work on Windows or Codespaces
 
 ### `aeareq` (sug)
 

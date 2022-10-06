@@ -10,12 +10,28 @@ CSSLOCAL=.local.css
 WKHTMLOPTS="-V margin-top=1in -V margin-left=1in -V margin-right=1in -V margin-bottom=1in"
 ICPSRMSG="Details in the full report, which you will receive via ScholarOne shortly. Please provide your response to the items listed above via the openICPSR Project Communication log, specifying AEAREP-xxx. Other items in the report may need to be addressed via ScholarOne."
 
+# validating inputs
 if [[ -z $1 ]]
 then
 	echo "Please add issue number"
 	exit 2
 fi
 num=$1
+shift
+case $1 in
+  a*|approve)
+     preapprove="Approved. Ready to submit."
+     shift
+     ;;
+  p*|preapprove)
+     preapprove="Preapproved. Ready for approval."
+     shift
+     ;;
+  *)
+    echo "Please define approval status: [a]pproved or [p]reapproved"
+    exit 2
+    ;;
+esac
 shift
 nopdf=0
 if [[ "$1" == "nopdf" ]]
@@ -97,7 +113,7 @@ then
     [[ "$nopdf" == "1" ]] || exit_on_error 2 pandoc or wkhtmltopdf missing
 fi 
 
-commitmsg="AEAREP-$num #comment Ready to submit $extramsg"
+commitmsg="AEAREP-$num #comment $preapprove $extramsg"
 
 ## Test if we are where we think we should be
 

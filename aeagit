@@ -20,12 +20,23 @@ function code {
 if [[ -z $1 ]]
 then
   cat << EOF
-  $0 (number)
+  $0 (number) [(method)]
 
   will check out the repo from the AEA repository at
     $AEASRC
   into the local directory, enter the directory, and open 
   an editor with the REPLICATION.md file.
+
+  Arguments:
+    (number): the numerical part of the AEAREP-nnnn *repository* 
+              (not ticket)
+    (method): (optional) method of connecting (ssh or https, 
+               can be abbreviated)
+  The connection method should default to the right thing according
+  to the environment. For ssh, you need to have set up the SSH key.
+  For https, it will use other authentication methods on your 
+  machine (e.g., Github Desktop) if available. In the cloud, 
+  set the variables P_BITBUCKET_PAT and P_BITBUCKET_USERNAME, see README.
 EOF
 else
 manuscript=$1
@@ -39,9 +50,15 @@ case $2 in
        method=https
        ;;
     *)
+       # this sets it to HTTPS for CodeSpace
        [[ -z $CODESPACE_NAME ]] && method=ssh || method=https
-       
-       ;;
+       # This defaults to HTTPS when running on Git Bash
+       case $os in
+	        MING*)
+		       method=https
+		    ;;
+	     esac
+    ;;
 esac
 
 authinfo=$3
