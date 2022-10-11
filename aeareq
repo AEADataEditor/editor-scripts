@@ -5,5 +5,46 @@
 #then
 #	sed -i.bak2 '/-------/r'<(grep SUGGESTED REPLICATION.md | sed 's/>/-/') REPLICATION.md
 #fi
-sed -i.bak '/-----action items go here------/r'<(grep -E "REQUIRED|SUGGESTED" REPLICATION.md | sed 's/>/-/') REPLICATION.md
+
+force=FALSE
+if [[ "$1" == "force" ]]
+then
+   force=TRUE
+   shift
+fi
+
+actionitems=$(grep -n 'action items go here' REPLICATION.md|awk -F: '{ print $1}')
+
+if [[ -z $actionitems && $force == FALSE ]]
+then
+   echo "The report does not contain a line with "
+   echo "----action items go here----"
+   echo "To prevent errors, refusing to do anything."
+   echo "If you wish to nevertheless let this script work,"
+   echo "append the argument 'force' when calling the script,"
+   echo "or add the line"
+   echo "----action items go here----"
+   echo "back into the report."
+   echo "After successfully inserting any REQUIRED and"
+   echo "SUGGESTED tags, the line will be deleted again"
+   echo ""
+   echo "$0 force"
+   exit 2
+else
+   # count them
+   count=$(grep -E "REQUIRED|SUGGESTED" REPLICATION.md|sort|uniq|wc -l)
+   sed -i.bak '/Action Items (openICPSR)/r'<(grep -E "REQUIRED|SUGGESTED" REPLICATION.md | sort | uniq | sed 's/>/-/') REPLICATION.md 
+   result=$?
+   case $result in 
+    0)
+      sed -i "${actionitems}d" REPLICATION.md
+      echo ":: REPLICATION.md successfully updated."
+      echo ":: ${count} tags found, sorted, unique"
+      ;;
+    *)
+      echo "::: An error was produced: $result"
+      ;;
+   esac
+fi
+
 
