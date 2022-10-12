@@ -118,6 +118,17 @@ This script will open the Jira issue corresponding to a (properly named) Bitbuck
 
 This script will parse the `REPLICATION.md` for any tags with the word `REQUIRED` (and, if using the optional parameter `sug`, the word `SUGGESTED`), and pre-pend these to the top of the `REPLICATION.md`. Useful for pre-approvers and approvers. The resulting file still needs to be edited, and unduplicated. 
 
+### `aeaclean`
+
+This script will parse the `REPLICATION.md` for lines with:
+
+```
+----action items go here----
+> INSTRUCTIONS
+```
+
+and remove them.
+
 ### `aearevision`
 
 This script will parse the `REPLICATION.md` and convert all `REQUIRED` tags into "[We REQUESTED]" tags, ready to be checked by a replicator working on a revision report.
