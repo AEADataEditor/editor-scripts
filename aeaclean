@@ -1,0 +1,37 @@
+#!/bin/bash
+
+force=FALSE
+if [[ "$1" == "force" ]]
+then
+   force=TRUE
+   shift
+fi
+
+actionitems=$(grep -n '\-\-action items go here\-\-' REPLICATION.md|awk -F: '{ print $1}')
+
+if [[ -z $actionitems && $force == FALSE ]]
+then
+   echo "The report does not contain a line with "
+   echo "----action items go here----"
+else
+   echo "'action items' found at line $actionitems ."
+   sed -i "${actionitems}d" REPLICATION.md
+   [[ $? = 0 ]] && echo "Removed." || echo "Something failed."
+fi
+
+
+instructions=$(grep -cE "^> INSTRUCTIONS" REPLICATION.md)
+
+if [[ $instructions == 0 && $force == FALSE ]]
+then
+   echo "The report does not contain lines with "
+   echo "> INSTRUCTIONS"
+   exit 2
+else
+   for line in $(grep -nE "^> INSTRUCTIONS" REPLICATION.md | awk -F: ' { print $1 } ')
+   do 
+     echo "Instruction found at line $line ."
+     sed -i "${line}d" REPLICATION.md
+     [[ $? = 0 ]] && echo "Removed." || echo "Something failed."
+   done
+fi

@@ -32,7 +32,6 @@ case $1 in
     exit 2
     ;;
 esac
-shift
 nopdf=0
 if [[ "$1" == "nopdf" ]]
 then

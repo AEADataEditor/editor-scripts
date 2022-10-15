@@ -29,7 +29,7 @@ case $os in
 		    open=$(which xdg-open)
             [[ -f $open ]] || apperror=1
 		    ;;
-            Darwin)
+        Darwin)
             open=open
             ;;
 	    *)

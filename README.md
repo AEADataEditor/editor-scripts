@@ -6,10 +6,12 @@ These scripts will streamline a few things. They may not work in all environment
 
 `Bash` (git bash should be fine on Windows)
 
-![Tested on Linux](https://img.shields.io/badge/Tested-on%20Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Not yet Tested on Windows](https://img.shields.io/badge/Not%20Yet%20Tested-on%20Windows-yellow)
+![Tested on Linux](https://img.shields.io/badge/Tested-on%20Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Partially Tested on Windows](https://img.shields.io/badge/Partially%20Tested-on%20Windows-yellow)
 
 - Some scripts have additional dependencies:
-  - ![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Not Windows](https://img.shields.io/badge/-Windows-red) `pandoc` (will not work on Windows, but can be skipped) 
+  - ![Linux](https://img.shields.io/badge/-Linux-success) ![maybe macOS](https://img.shields.io/badge/-macOS-orange) ![Not Windows](https://img.shields.io/badge/-Windows-red) `pandoc` 
+    - will not work on Windows, but can be skipped
+    - used to work on MacOS, but only if an older version of Rstudio is installed; currently broken
   - ![Linux](https://img.shields.io/badge/-Linux-success) ![not macOS](https://img.shields.io/badge/-macOS-red) ![Not Windows](https://img.shields.io/badge/-Windows-red)`qpdf` (Linux only - `aeamerge`)
 
 ## Installation
@@ -18,10 +20,28 @@ The repository contains a script which should handle installation. As with anyth
 
 ### Method 1
 
+Use this method if you have no other scripts in `$HOME/bin`. That directory is usually part of the command search path in bash and Git-bash. 
+
+1. Check if there are scripts in `$HOME/bin`: `ls $HOME/bin`
+   - If the above gives you an error, there is no `bin` directory, and you can safely use this method.
+   - If the above methods does not give an error, but shows no files, you can also (probably) use this method.
+2. If the directory `$HOME/bin` exists, this will delete it (but will safely fail if there are files there): `rmdir $HOME/bin`
+3. Now you are ready to clone into `$HOME/bin`:
+
+```{bash}
+cd $HOME
+rmdir bin
+git clone https://github.com/AEADataEditor/editor-scripts.git bin
+```
+
+
+
+### Method 2
+
 1. Clone the repository into your usual Workspace, and open a Terminal in that directory.
 2. Run `./aeascripts`
 
-### Method 2 (convenient, less secure)
+### Method 3 (convenient, less secure)
 
 1. Run the following command in a Bash shell:
 
@@ -32,7 +52,8 @@ bash <(wget -qO - https://raw.githubusercontent.com/AEADataEditor/editor-scripts
 ## Updating
 
 ```
-cd $HOME/bin/aea-scripts
+cd $HOME/bin/
+[[ -d aea-scripts ]] && cd aea-scripts
 git pull
 ```
 
@@ -63,9 +84,9 @@ gh secret set P_BITBUCKET_USERNAME --user
 
 This script can be downloaded manually, or as part of a separate `git clone`. It will clone this repo into `$HOME/bin/aea-scripts` and add that PATH to the `$PATH` variable in the `bash` profile. It is not otherwise used.
 
-### `aeagit` (issue)
+### `aeagit` (bitbutcket number)
 
-This script will `git clone` the repository corresponding to `AEAREP-[issue]`, and where possible, open VS Code in the directory with the `REPLICATION.md` preloaded. Used during editing and sign-off
+This script will `git clone` the repository corresponding to `aeaverification/aearep-[bitbucket number]` (which should be the *original* `AEAREP-[issue]`), and where possible, open VS Code in the directory with the `REPLICATION.md` preloaded. Used during editing and sign-off
 
 ### `aeaready` (issue) (pre|approve) [nopdf] [additional comments]
 
@@ -97,9 +118,55 @@ This script will open the Jira issue corresponding to a (properly named) Bitbuck
 
 This script will parse the `REPLICATION.md` for any tags with the word `REQUIRED` (and, if using the optional parameter `sug`, the word `SUGGESTED`), and pre-pend these to the top of the `REPLICATION.md`. Useful for pre-approvers and approvers. The resulting file still needs to be edited, and unduplicated. 
 
+### `aeaclean`
+
+This script will parse the `REPLICATION.md` for lines with:
+
+```
+----action items go here----
+> INSTRUCTIONS
+```
+
+and remove them.
+
 ### `aearevision`
 
 This script will parse the `REPLICATION.md` and convert all `REQUIRED` tags into "[We REQUESTED]" tags, ready to be checked by a replicator working on a revision report.
+
+## Convenience scripts
+
+The following scripts may or may not work for some people:
+
+### `icpsrsearch`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Not Windows](https://img.shields.io/badge/-Windows-red)
+
+Searches for a specific openICPSR deposit on Jira. Opens a browser.
+
+### `system-info.sh`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Not Windows](https://img.shields.io/badge/-Windows-red)
+
+Prints information about the replicator's system.
+
+### `stataNN` 
+
+where `NN` is `16` or `17`. Will run Stata using the Docker image. Requires a local license for Stata, and of course Docker.
+
+Usage: `stata17 nameofdofile.do`
+
+Note: Sets the working directory to that of the do file, which may not work in all cases.
+
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Maybe Windows](https://img.shields.io/badge/-Windows-orange)
+
+### `stata17sh`
+
+same as above, but instead of running Stata, will provide a shell within the Stata17 docker image.
+
+
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Maybe Windows](https://img.shields.io/badge/-Windows-orange)
 
 ## Note for neophytes
 
