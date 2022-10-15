@@ -8,6 +8,7 @@ MYNAME=${SOFTWARE}${VERSION}
 MYIMG=$MYHUBID/${MYNAME}:${TAG}
 [[ -z $STATALIC ]] && STATALIC=$(find $HOME/Dropbox/ -name stata.lic.$VERSION| tail -1)
 [[ -z $STATALIC ]] && STATALIC=$(find $(pwd)/ -name stata.lic* | sort | tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $HOME/ -name stata.lic* | sort | tail -1)
 
 if [[ -z $STATALIC ]]
 then
@@ -22,6 +23,8 @@ docker run -it --rm \
   --entrypoint /bin/bash \
   $MYIMG $@
 
+date
+echo "Exit: $(date +%F)"
 system-info.sh
 echo ""
 printf "%s " "*" $(docker --version)
