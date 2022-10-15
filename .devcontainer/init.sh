@@ -12,7 +12,7 @@ fi
 # install editor scripts in image
 # this is from https://github.com/AEADataEditor/editor-scripts/blob/main/aeascripts
 
-REPOLOC=git@github.com:AEADataEditor/editor-scripts.git
+REPOLOC=https://github.com/AEADataEditor/editor-scripts.git
 BASHRC=$HOME/.bashrc
 ALT=$HOME/.profile
 SUBDIR=aea-scripts
@@ -21,10 +21,10 @@ echo "This will clone the AEA repo, and add it to your PATH"
 echo " - Repo: $REPOLOC"
 echo " - Install location: $HOME/bin/$SUBDIR"
 
-if [[ -f $BASHRC ]] 
+if [ -f $BASHRC ]
 then
 	echo " - Adding to $BASHRC"
-elif [[ -f $ALT ]]
+elif [ -f $ALT ]
 then
 	echo " - Adding to $ALT"
 	BASHRC=$ALT
@@ -32,7 +32,7 @@ else
 	echo " Did not find $BASHRC or $ALT - not adding"
 fi
 
-if [[ ! -d $HOME/bin ]] 
+if [ ! -d $HOME/bin ]
 then
     echo " $HOME/bin not found - this will be created"
 fi
@@ -48,7 +48,10 @@ echo "-------------------------------------------"
 
 # clone
 
-[[ -d $HOME/bin ]] || mkdir $HOME/bin
+if [ -d $HOME/bin ]
+then 
+  mkdir $HOME/bin
+fi
 cd $HOME/bin
 git clone $REPOLOC $SUBDIR
 

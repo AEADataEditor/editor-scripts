@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REPOLOC=git@github.com:AEADataEditor/editor-scripts.git
+REPOLOC=https://github.com/AEADataEditor/editor-scripts.git
 BASHRC=$HOME/.bashrc
 ALT=$HOME/.profile
 SUBDIR=aea-scripts
