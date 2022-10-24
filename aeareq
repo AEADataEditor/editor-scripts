@@ -32,7 +32,7 @@ then
    exit 2
 else
    # grab them
-   grep -E "REQUIRED|SUGGESTED" REPLICATION.md| grep -E "^>" | sort|uniq | sed 's/>/-/'> REPLICATION.tmp
+   grep -E "REQUIRED|SUGGESTED" REPLICATION.md| grep -E "^>|^-" | sort|uniq | sed 's/>/-/'> REPLICATION.tmp
    # count them
    count=$(cat REPLICATION.tmp | wc -l)
    sed -i.bak '/Action Items (openICPSR)/rREPLICATION.tmp' REPLICATION.md 
