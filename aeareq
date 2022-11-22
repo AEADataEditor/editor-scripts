@@ -31,9 +31,11 @@ then
    echo "$0 force"
    exit 2
 else
+   # grab them
+   grep -E "REQUIRED|SUGGESTED" REPLICATION.md| grep -E "^>|^-" | sort|uniq | sed 's/>/-/'> REPLICATION.tmp
    # count them
-   count=$(grep -E "REQUIRED|SUGGESTED" REPLICATION.md|sort|uniq|wc -l)
-   sed -i.bak '/Action Items (openICPSR)/r'<(grep -E "REQUIRED|SUGGESTED" REPLICATION.md | sort | uniq | sed 's/>/-/') REPLICATION.md 
+   count=$(cat REPLICATION.tmp | wc -l)
+   sed -i.bak '/Action Items (openICPSR)/rREPLICATION.tmp' REPLICATION.md 
    result=$?
    case $result in 
     0)
