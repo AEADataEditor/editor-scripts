@@ -4,39 +4,23 @@ apperror=0
 #set -e
 CSSURL=https://gist.githubusercontent.com/dashed/6714393/raw/ae966d9d0806eb1e24462d88082a0264438adc50/github-pandoc.css
 CSSLOCAL=.local.css
+WKHTMLOPTS="-V margin-top=1in -V margin-left=1in -V margin-right=1in -V margin-bottom=1in"
 ICPSRMSG="Details in the full report, which you will receive via ScholarOne shortly. Please provide your response to the items listed above via the openICPSR Project Communication log, specifying AEAREP-xxx. Other items in the report may need to be addressed via ScholarOne."
 
-case $os in
-   Linux)
-      echo "OK"
-      ;;
-   *)
-      echo "This script only works on Linux"
-      ;;
-esac
+# print help
 
-if [[ -z $1 ]]
-then
-	echo "Please add issue number"
-	exit 2
-fi
-num=$1
-shift
-nopdf=0
-if [[ "$1" == "nopdf" ]]
-then
-   nopdf=1
-   shift
-fi
-extrafile="$1"
+cat << EOF
 
-if [[ ! -f "$extrafile" ]]
-then
-   echo "Need a second argument that is a file"
-   exit 2
-fi
+$0 (name of extra file)
 
-extramsg=$*
+This script will take 'REPLICATION.md', transform it into a PDF,
+save it as REPLICATION.raw.pdf, then merge it with the second
+argument to create REPLICATION.pdf. 
+
+You will need to then run 'aeaready' with the 'nopdf' option.
+
+EOF
+
 
 exit_on_error() {
     exit_code=$1
@@ -47,6 +31,32 @@ exit_on_error() {
     fi
 }
 
+
+# rest of the stuff
+case $os in
+   Linux)
+      echo "OK"
+      ;;
+   *)
+      echo "This script only works on Linux"
+      ;;
+esac
+nopdf=0
+if [[ "$1" == "nopdf" ]]
+then
+   nopdf=1
+   shift
+fi
+
+extrafile="$1"
+
+if [[ ! -f "$extrafile" ]]
+then
+   #echo "Need a second argument that is a file"
+   exit_on_error 2 "Need a second argument that is a file"
+fi
+
+
 set -o history -o histexpand
 
 
@@ -56,14 +66,20 @@ case $os in
             [[ -f $pandoc ]] || apperror=1
             wkhtmltopdf=$(which wkhtmltopdf)
             [[ -f $wkhtmltopdf ]] || apperror=1
-	    export QT_STYLE_OVERRIDE=fusion 
+	       pdfengine="--pdf-engine wkhtmltopdf"
+	       export QT_STYLE_OVERRIDE=fusion 
 	    # get the CSS
-	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="-c $CSSLOCAL"
+	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="$WKHTMLOPTS -c $CSSLOCAL"
+          qpdf=$(which qpdf)
+          [[ -f $qpdf ]] || apperror=1
 		    ;;
             Darwin)
             # for MacOS, might want to install Rstudio (comes with pandoc) and replace the line above with the outcome of
             #   find /Applications -name pandoc -type f
             pandoc=/Applications/RStudio.app/Contents/MacOS/pandoc/pandoc
+            # later versions have it bundled in the quarto directory
+            [[ ! -f $pandoc ]] && pandoc=/Applications/RStudio.app/Contents/MacOS/quarto/bin/pandoc
+            [[ ! -f $pandoc ]] && pandoc=/Applications/RStudio.app/Contents/MacOS/quarto/bin/tools/pandoc
             # let's see if its there
             if [[ ! -f $pandoc ]]
             then
@@ -72,7 +88,7 @@ case $os in
             fi
             echo "Found pandoc at $pandoc"
 	    # get the CSS
-	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="-c $CSSLOCAL"
+	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="$WKHTMLOPTS -c $CSSLOCAL"
             ;;
 	    *)
 		    echo "Please review the script to define your OS"
@@ -80,9 +96,12 @@ case $os in
 		    ;;
 esac
 
+
+# other stuff 
+
 if [[ "$apperror" == "1" ]]
 then
-    echo "We need pandoc and wkhtmltopdf"
+    echo "We need pandoc, wkhtmltopdf, qpdf"
     echo "One or the other not found"
     case $os in
         Darwin)
@@ -93,10 +112,17 @@ then
             echo "Please install"
             ;;
     esac
-    [[ "$nopdf" == "1" ]] || exit_on_error 2 pandoc or wkhtmltopdf missing
+    exit_on_error 2 pandoc  wkhtmltopdf or qpdf missing
 fi 
 
-commitmsg="AEAREP-$num #comment Ready to submit $extramsg"
+
+
+# update the CSS
+
+if [[ -f $CSSLOCAL ]]
+then
+   echo 'pre, code { white-space: pre-wrap !important; } ' >> $CSSLOCAL
+fi
 
 ## Test if we are where we think we should be
 
@@ -115,54 +141,17 @@ fi
 
 if [[ "$nopdf" == "0" ]]
 then
-   $pandoc REPLICATION.md -f gfm -t html5 -o REPLICATION.raw.pdf --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA
+   $pandoc $pdfengine REPLICATION.md -f gfm -t html5 -o REPLICATION.raw.pdf --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA
 else
-   echo "Skipping PDF generation as requested"
+  echo "Skipping PDF generation as requested"
 fi
 
 rm $CSSLOCAL
 
 # Merge files
 qpdf --empty --pages "REPLICATION.raw.pdf" "$extrafile" -- "REPLICATION.pdf"
-[[ -f REPLICATION.pdf ]] && git add REPLICATION.pdf || exit_on_error 2 Missing PDF -something went wrong-
+[[ -f REPLICATION.pdf ]]  || exit_on_error 2 Missing PDF -something went wrong-
 
 echo "-------- Current git status -----------"
 git status
 
-echo "---------------------------------------"
-git add REPLICATION.md
-git add REPLICATION.raw.pdf
-if [[ -f "for openICPSR.md" ]]
-then 
-   # check for standard language in ICPSR file
-   grep ScholarOne "for openICPSR.md" 1>/dev/null
-   icpsr_check=$?
-   case $icpsr_check in
-      0)
-      # tag is already in
-      echo "ICPSR file is ready for addition"
-      ;;
-      *)
-      # tag needs to be added
-      echo "" >> "for openICPSR.md"
-      echo "" >> "for openICPSR.md"
-      echo "$ICPSRMSG" | sed "s/xxx/$num/" >> "for openICPSR.md"
-      echo "---------------------------------------"
-      cat "for openICPSR.md"
-      echo "---------------------------------------"
-      echo "::: Does this look fine?"
-      read
-      ;;
-   esac
-   git add "for openICPSR.md"
-   commitmsg="$commitmsg with notes for openICPSR"
-fi
-echo "-------- Updated git status -----------"
-git status
-
-echo "::: Ready to commit/ push? "
-echo "::: Msg:"
-echo "    $commitmsg"
-read
-git commit -m "$commitmsg"
-git push
