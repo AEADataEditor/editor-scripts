@@ -4,6 +4,7 @@ AEAHSRC=bitbucket.org/aeaverification
 call=$0
 os=$(uname)
 codeeditor="$(which code)"
+silent=""
 
 function code {
     case $os in
@@ -41,8 +42,17 @@ EOF
 else
 manuscript=$1
 repo=aearep-$manuscript
+_method=$2
 
-case $2 in
+case $_method in 
+  silent)
+  silent="echo"
+  ;;
+  *)
+  silent=""
+esac
+
+case $_method in
     s*|S*)
        method=ssh
        ;;
@@ -116,10 +126,10 @@ then
   then
      case $os in
         Linux|MING*) 
-	  code . REPLICATION.md
+	  $silent code . REPLICATION.md
 	  ;;
 	Darwin)
-	  open -a "Visual Studio Code" . REPLICATION.md
+	  $silent open -a "Visual Studio Code" . REPLICATION.md
 	  ;;
     esac
   fi
