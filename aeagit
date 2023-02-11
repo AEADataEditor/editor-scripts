@@ -5,6 +5,7 @@ call=$0
 os=$(uname)
 codeeditor="$(which code)"
 silent=""
+DEPTH=1
 
 function code {
     case $os in
@@ -121,7 +122,7 @@ fi
 # directory should exist now
 if [[ -d $repo ]]
 then
-  cd $repo && git pull
+  cd $repo && git pull --depth $DEPTH
   if [[ -f REPLICATION.md ]]
   then
      case $os in
