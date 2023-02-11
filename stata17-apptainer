@@ -1,0 +1,35 @@
+#!/bin/bash
+
+SOFTWARE=stata
+VERSION=17
+TAG=2023-01-10
+MYHUBID=dataeditors
+MYNAME=${SOFTWARE}${VERSION}
+MYIMG=$MYHUBID/${MYNAME}:${TAG}
+[[ -z $STATALIC ]] && STATALIC=$(find $HOME/Dropbox/SharedProjects/AEADataEditor/aea-licenses -name stata.lic.$VERSION| tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $(pwd)/ -name stata.lic* | sort | tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $HOME/ -name stata.lic* | sort | tail -1)
+
+if [[ -z $STATALIC ]]
+then
+	echo "Could not find Stata license"
+	grep STATALIC $0
+	exit 2
+fi
+singularity run  \
+  -B "${STATALIC}":/usr/local/stata/stata.lic \
+  -B "$(pwd)":/project \
+  -H /project \
+  docker://$MYIMG $@
+
+date
+echo "Exit: $(date +%F)"
+system-info.sh
+echo ""
+printf "%s " "*" $(singularity --version)
+echo ""
+printf "* %s version %d (Docker image %s)" $SOFTWARE $VERSION $MYIMG
+echo ""
+
+
+
