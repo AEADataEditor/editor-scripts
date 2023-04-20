@@ -82,15 +82,22 @@ case $method in
     ;;
   https)
     # we need username and PAT
+    # try git credentials first
     if [[ -f $HOME/.git-credentials ]]
       then
         authinfo=$(grep bitbucket $HOME/.git-credentials)
         authinfo=${authinfo##*/}
         authinfo=${authinfo%@*}
-    elif [[ ! -z $P_BITBUCKET_PAT && ! -z $P_BITBUCKET_USERNAME ]]
-    then
-       authinfo=${P_BITBUCKET_USERNAME}:${P_BITBUCKET_PAT}
     fi
+    # Check to see if that's good, if not use environment variables
+    if [[ -z $authinfo ]]
+    then
+      if [[ ! -z $P_BITBUCKET_PAT && ! -z $P_BITBUCKET_USERNAME ]]
+      then
+       authinfo=${P_BITBUCKET_USERNAME}:${P_BITBUCKET_PAT}
+      fi
+    fi
+    # now lets see where we are at.
     if [[ -z $authinfo ]]
     then
       echo "We will use pre-configured credentials for git."
