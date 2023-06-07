@@ -5,7 +5,7 @@ call=$0
 os=$(uname)
 codeeditor="$(which code)"
 silent=""
-DEPTH=1
+DEPTH=10
 
 function code {
     case $os in
