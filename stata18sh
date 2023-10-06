@@ -1,0 +1,36 @@
+#!/bin/bash
+
+SOFTWARE=stata
+VERSION=18
+TAG=2023-08-30
+MYHUBID=dataeditors
+MYNAME=${SOFTWARE}${VERSION}
+MYIMG=$MYHUBID/${MYNAME}:${TAG}
+[[ -z $STATALIC ]] && STATALIC=$(find $HOME/Dropbox/ -name stata.lic.$VERSION| tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $(pwd)/ -name stata.lic* | sort | tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $HOME/ -name stata.lic* | sort | tail -1)
+
+if [[ -z $STATALIC ]]
+then
+	echo "Could not find Stata license"
+	grep STATALIC $0
+	exit 2
+fi
+docker run -it --rm \
+  -v "${STATALIC}":/usr/local/stata/stata.lic \
+  -v "$(pwd)":/project \
+  -w /project \
+  --entrypoint /bin/bash \
+  $MYIMG $@
+
+date
+echo "Exit: $(date +%F)"
+system-info.sh
+echo ""
+printf "%s " "*" $(docker --version)
+echo ""
+printf "* %s version %d (Docker image %s)" $SOFTWARE $VERSION $MYIMG
+echo ""
+
+
+
