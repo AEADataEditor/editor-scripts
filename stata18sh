@@ -1,8 +1,8 @@
 #!/bin/bash
 
 SOFTWARE=stata
-VERSION=17
-TAG=2023-07-18
+VERSION=18
+TAG=2023-08-30
 MYHUBID=dataeditors
 MYNAME=${SOFTWARE}${VERSION}
 MYIMG=$MYHUBID/${MYNAME}:${TAG}
@@ -20,6 +20,7 @@ docker run -it --rm \
   -v "${STATALIC}":/usr/local/stata/stata.lic \
   -v "$(pwd)":/project \
   -w /project \
+  --entrypoint /bin/bash \
   $MYIMG $@
 
 date
