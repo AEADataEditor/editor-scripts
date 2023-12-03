@@ -71,7 +71,7 @@ case $os in
             # later versions have it bundled in the quarto directory
             [[ ! -f $pandoc ]] && pandoc=/Applications/RStudio.app/Contents/MacOS/quarto/bin/pandoc
             [[ ! -f $pandoc ]] && pandoc=/Applications/RStudio.app/Contents/MacOS/quarto/bin/tools/pandoc
-            [[ ! -f $pandoc ]] && pandoc=/Applications/RStudio.app/Contents/Resources/app/pandoc
+            [[ ! -f $pandoc ]] && pandoc=/Applications/RStudio.app/Contents/Resources/app/quarto/bin/tools/pandoc
             # let's see if its there
             if [[ ! -f $pandoc ]]
             then
