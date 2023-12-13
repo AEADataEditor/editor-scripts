@@ -4,6 +4,8 @@ AEAHSRC=bitbucket.org/aeaverification
 call=$0
 os=$(uname)
 codeeditor="$(which code)"
+silent=""
+DEPTH=10
 
 function code {
     case $os in
@@ -41,8 +43,17 @@ EOF
 else
 manuscript=$1
 repo=aearep-$manuscript
+_method=$2
 
-case $2 in
+case $_method in 
+  silent)
+  silent="echo"
+  ;;
+  *)
+  silent=""
+esac
+
+case $_method in
     s*|S*)
        method=ssh
        ;;
@@ -71,15 +82,22 @@ case $method in
     ;;
   https)
     # we need username and PAT
+    # try git credentials first
     if [[ -f $HOME/.git-credentials ]]
       then
         authinfo=$(grep bitbucket $HOME/.git-credentials)
         authinfo=${authinfo##*/}
         authinfo=${authinfo%@*}
-    elif [[ ! -z $P_BITBUCKET_PAT && ! -z $P_BITBUCKET_USERNAME ]]
-    then
-       authinfo=${P_BITBUCKET_USERNAME}:${P_BITBUCKET_PAT}
     fi
+    # Check to see if that's good, if not use environment variables
+    if [[ -z $authinfo ]]
+    then
+      if [[ ! -z $P_BITBUCKET_PAT && ! -z $P_BITBUCKET_USERNAME ]]
+      then
+       authinfo=${P_BITBUCKET_USERNAME}:${P_BITBUCKET_PAT}
+      fi
+    fi
+    # now lets see where we are at.
     if [[ -z $authinfo ]]
     then
       echo "We will use pre-configured credentials for git."
@@ -111,15 +129,15 @@ fi
 # directory should exist now
 if [[ -d $repo ]]
 then
-  cd $repo && git pull
+  cd $repo && git pull --depth $DEPTH
   if [[ -f REPLICATION.md ]]
   then
      case $os in
         Linux|MING*) 
-	  code . REPLICATION.md
+	  $silent code . REPLICATION.md
 	  ;;
 	Darwin)
-	  open -a "Visual Studio Code" . REPLICATION.md
+	  $silent open -a "Visual Studio Code" . REPLICATION.md
 	  ;;
     esac
   fi
