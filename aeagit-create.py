@@ -32,7 +32,7 @@ def initialize_repo(consumer_user, consumer_key, workspace, project_key, repo_sl
         "scm": "git",
         "project": {"key": project_key}, 
         "forkable": "true",
-        "import_url": import_repo_url
+        "mainbranch": "master"
     }
     
     # Make API call
