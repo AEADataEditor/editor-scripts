@@ -46,7 +46,7 @@ def initialize_repo(consumer_user, consumer_key, workspace, project_key, repo_sl
     if response.status_code in (200,201):
         print(f"Successfully created repository {repo_slug} to {workspace}")  
         print(f"URL: {response.json()['links']['html']['href']}") 
-        import_repo_code(auth, workspace, repo_slug, import_repo_url)
+        #import_repo_code(auth, workspace, repo_slug, import_repo_url)
     else:
         print(f"Failed to import repository: {response.status_code}, {response.reason}")
 
