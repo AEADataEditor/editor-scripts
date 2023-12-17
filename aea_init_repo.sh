@@ -13,7 +13,7 @@ then
    echo "Updating tools"
    echo "Repository:"
    git remote -v | head -1
-   if [[ $report_file  ]]
+   if [[ "$report_file" == "0"  ]]
    then
       echo "There is already a REPLICATION.md here!"
       echo "Cowardly refusing to process"
