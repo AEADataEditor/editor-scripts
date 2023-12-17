@@ -43,6 +43,7 @@ if [ -f ./tools/download_openicpsr-private.py ]; then python3 ./tools/download_o
 
 # Step 4: run the main script
 
+export CI=TRUE
 ./tools/pipeline-steps1-4.sh $openICPSRID force
 
 
