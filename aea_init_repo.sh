@@ -4,9 +4,9 @@
 
 tools_url=https://raw.githubusercontent.com/AEADataEditor/replication-template-development/development/tools/init_repo.sh
 
-tools_dir=$(test -d tools & echo $?)
-git_dir=$(test -d .git & echo $?)
-report_file=$(test -f REPLICATION.md & echo $?)
+tools_dir=$(test -d tools && echo $?)
+git_dir=$(test -d .git && echo $?)
+report_file=$(test -f REPLICATION.md && echo $?)
 
 if [[  $git_dir  ]]
 then

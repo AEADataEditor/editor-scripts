@@ -4,9 +4,9 @@
 
 tools_url=https://raw.githubusercontent.com/AEADataEditor/replication-template-development/development/tools/update_tools.sh
 
-tools_dir=$(test -d tools & echo $?)
-git_dir=$(test -d .git & echo $?)
-report_file=$(test -f REPLICATION.md & echo $?)
+tools_dir=$(test -d tools && echo $?)
+git_dir=$(test -d .git && echo $?)
+report_file=$(test -f REPLICATION.md && echo $?)
 
 if [[ $tools_dir && $git_dir && $report_file ]]
 then
