@@ -13,7 +13,7 @@ then
    echo "Updating tools"
    echo "Repository:"
    git remote -v | head -1
-   wget -O - $tools_url | bash -x
+   wget -O - $tools_url | bash -x $@
 else
    echo "Not the right directory."
    exit 1
