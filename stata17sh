@@ -2,7 +2,7 @@
 
 SOFTWARE=stata
 VERSION=17
-TAG=2022-07-19
+TAG=2023-07-18
 MYHUBID=dataeditors
 MYNAME=${SOFTWARE}${VERSION}
 MYIMG=$MYHUBID/${MYNAME}:${TAG}
@@ -16,7 +16,12 @@ then
 	grep STATALIC $0
 	exit 2
 fi
-docker run -it --rm \
+
+dockerbin=$(which docker1 2>/dev/null)
+[[ -z $dockerbin ]] && dockerbin=$(which docker)
+[[ -z $dockerbin ]] && exit 2
+
+$dockerbin run -it --rm \
   -v "${STATALIC}":/usr/local/stata/stata.lic \
   -v "$(pwd)":/project \
   -w /project \
