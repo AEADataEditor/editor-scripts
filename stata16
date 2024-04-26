@@ -2,11 +2,11 @@
 
 SOFTWARE=stata
 VERSION=16
-TAG=2022-10-14
+TAG=2023-06-13
 MYHUBID=dataeditors
 MYNAME=${SOFTWARE}${VERSION}
 MYIMG=$MYHUBID/${MYNAME}:${TAG}
-[[ -z $STATALIC ]] && STATALIC=$(find $HOME/Dropbox/ -name stata.lic.$VERSION| tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $HOME/Dropbox/ -name stata.lic.??| sort | tail -1)
 [[ -z $STATALIC ]] && STATALIC=$(find $(pwd)/ -name stata.lic* | sort | tail -1)
 [[ -z $STATALIC ]] && STATALIC=$(find $HOME/ -name stata.lic* | sort | tail -1)
 

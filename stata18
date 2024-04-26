@@ -2,11 +2,11 @@
 
 SOFTWARE=stata
 VERSION=18
-TAG=2023-08-30
+TAG=2024-04-04
 MYHUBID=dataeditors
 MYNAME=${SOFTWARE}${VERSION}
 MYIMG=$MYHUBID/${MYNAME}:${TAG}
-[[ -z $STATALIC ]] && STATALIC=$(find $HOME/Dropbox/ -name stata.lic.$VERSION| tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $HOME/Dropbox/ -name stata.lic.??| sort | tail -1)
 [[ -z $STATALIC ]] && STATALIC=$(find $(pwd)/ -name stata.lic* | sort | tail -1)
 [[ -z $STATALIC ]] && STATALIC=$(find $HOME/ -name stata.lic* | sort | tail -1)
 
@@ -15,6 +15,8 @@ then
 	echo "Could not find Stata license"
 	grep STATALIC $0
 	exit 2
+else 
+  echo "Using Stata license: $STATALIC"
 fi
 dockerbin=$(which docker1 2>/dev/null)
 [[ -z $dockerbin ]] && dockerbin=$(which docker)
