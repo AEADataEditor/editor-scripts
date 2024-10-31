@@ -3,7 +3,8 @@ AEASRC=git@bitbucket.org:aeaverification
 AEAHSRC=bitbucket.org/aeaverification
 call=$0
 os=$(uname)
-codeeditor="$(which code)"
+codeeditor="$(which code 2>/dev/null)"
+codeeditor=${codeeditor:-echo}
 silent=""
 DEPTH=50
 
