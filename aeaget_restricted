@@ -1,0 +1,56 @@
+#!/bin/bash
+rclone_connection=box
+rclone_remotedir="LDI Replication Lab/Office of AEA Data Editor/Restricted-Access-Data"
+rclonebin=$(which rclone 2>/dev/null)
+if [[ -z $rclonebin ]]
+then
+   echo "this script needs rclone - not found"
+   exit 2
+fi
+
+
+call=$0
+os=$(uname)
+silent=""
+
+if [[ -z $1 ]]
+then
+  cat << EOF
+  $0 (number) [restricted-data]
+
+  will get the restricted data from the AEA Box folder and put it into the "restricted" folder.
+
+  Arguments:
+    (number): the numerical part of the AEAREP-nnnn *repository* 
+              (not ticket)
+    (folder): (optional) name of the folder, if not default.
+
+  The Box connection for rclone needs to be preconfigured, and the 
+  connection needs to be called "box".
+EOF
+exit 1
+fi
+
+manuscript=$1
+repo=aearep-$manuscript
+_outdir=${2:-restricted-data}
+_indir="${rclone_remotedir}/${repo}/"
+
+# report how we will run this
+
+echo "We will sync the following:"
+echo "- Input : $rclone_connection:$_indir"
+echo "- Output: $_outdir"
+echo "Ready? [Y/n]"
+
+read -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+  echo "Starting rclone sync"
+  $rclonebin sync $rclone_connection:$_indir $_outdir
+else
+  echo "Aborted"
+fi
+
+
