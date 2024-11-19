@@ -12,7 +12,7 @@ CSSLOCAL=.local.css
 pdfengine=""
 case $pdfengine in
    "")
-      WKHTMLOPTS="-s Letter --disable-smart-shrinking"
+      WKHTMLOPTS="-s Letter --disable-smart-shrinking --enable-local-file-access"
       ;;
    *)
       WKHTMLOPTS="-V margin-top=1in -V margin-left=1in -V margin-right=1in -V margin-bottom=1in"
