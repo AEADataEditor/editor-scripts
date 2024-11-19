@@ -1,14 +1,27 @@
 #!/bin/bash
 os=$(uname)
 apperror=0
+version=1.1
 #
 # A few alternative looks
 # CSSURL=https://gist.githubusercontent.com/ryangray/1882525/raw/2a6e53f645b960f0bed16d686ba3df36505f839f/buttondown.css
 #set -e
 CSSURL=https://gist.githubusercontent.com/dashed/6714393/raw/ae966d9d0806eb1e24462d88082a0264438adc50/github-pandoc.css
 CSSLOCAL=.local.css
-WKHTMLOPTS="-V margin-top=1in -V margin-left=1in -V margin-right=1in -V margin-bottom=1in"
+#pdfengine="--pdf-engine wkhtmltopdf"
+pdfengine=""
+case $pdfengine in
+   "")
+      WKHTMLOPTS="-s Letter --disable-smart-shrinking"
+      ;;
+   *)
+      WKHTMLOPTS="-V margin-top=1in -V margin-left=1in -V margin-right=1in -V margin-bottom=1in"
+      ;;
+esac
+# other stuff
 ICPSRMSG="Details in the full report, which you will receive via ScholarOne shortly. Please provide your response to the items listed above via the openICPSR Project Communication log, specifying AEAREP-xxx. Other items in the report may need to be addressed via ScholarOne."
+
+echo "$0 version $version"
 
 # validating inputs
 if [[ -z $1 ]]
@@ -56,15 +69,14 @@ set -o history -o histexpand
 case $os in
 	    Linux)
 		    pandoc=$(which pandoc)
-            [[ -f $pandoc ]] || apperror=1
-            wkhtmltopdf=$(which wkhtmltopdf)
-            [[ -f $wkhtmltopdf ]] || apperror=1
-	    pdfengine="--pdf-engine wkhtmltopdf"
-	    export QT_STYLE_OVERRIDE=fusion 
-	    # get the CSS
-	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="$WKHTMLOPTS -c $CSSLOCAL"
+          [[ -f $pandoc ]] || apperror=1
+          wkhtmltopdf=$(which wkhtmltopdf)
+          [[ -f $wkhtmltopdf ]] || apperror=1
+	       export QT_STYLE_OVERRIDE=fusion 
+	       # get the CSS
+	       curl $CSSURL > $CSSLOCAL 
 		    ;;
-            Darwin)
+       Darwin)
             # for MacOS, might want to install Rstudio (comes with pandoc) and replace the line above with the outcome of
             #   find /Applications -name pandoc -type f
             pandoc=/Applications/RStudio.app/Contents/MacOS/pandoc/pandoc
@@ -79,8 +91,8 @@ case $os in
               pandoc=$(find /Applications -name pandoc -type f)
             fi
             echo "Found pandoc at $pandoc"
-	    # get the CSS
-	    curl $CSSURL > $CSSLOCAL && PANDOCXTRA="$WKHTMLOPTS -c $CSSLOCAL"
+	         # get the CSS
+	         curl $CSSURL > $CSSLOCAL 
             ;;
 	    *)
 		    echo "Please review the script to define your OS"
@@ -93,6 +105,14 @@ esac
 if [[ -f $CSSLOCAL ]]
 then
    echo 'pre, code { white-space: pre-wrap !important; } ' >> $CSSLOCAL
+   case $pdfengine in
+      "")
+         WKHTMLOPTS="$WKHTMLOPTS --user-style-sheet $CSSLOCAL"
+         ;;
+      *)
+         WKHTMLOPTS="$WKHTMLOPTS --css $CSSLOCAL"
+         ;;
+   esac
 fi
 
 # other stuff 
@@ -132,12 +152,30 @@ fi
 
 if [[ "$nopdf" == "0" ]]
 then
-   $pandoc $pdfengine REPLICATION.md -f gfm -t html5 -o REPLICATION.pdf --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA
+   case $pdfengine in
+      "")
+         echo "Using pandoc to generate HTML, then wkhtmltopdf to generate PDF"
+         outfile=REPLICATION.html
+         PANDOCXTRA=""
+         ;;
+      *)
+         echo "Using pandoc and wkhtmltopdf to generate PDF"
+         outfile=REPLICATION.pdf
+         PANDOCXTRA="$WKHTMLOPTS"
+         ;;
+   esac
+   $pandoc $pdfengine REPLICATION.md -f gfm -t html5 -o $outfile --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA
+   # now generate the PDF if using wkhtmltopdf separately
+   if [[ "$pdfengine" == "" ]]
+   then
+      $wkhtmltopdf $WKHTMLOPTS $outfile REPLICATION.pdf
+   fi
 else
    echo "Skipping PDF generation as requested"
 fi
 
 rm $CSSLOCAL
+[[ -f REPLICATION.html ]] && rm REPLICATION.html
 
 echo "-------- Current git status -----------"
 git status
