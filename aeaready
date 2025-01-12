@@ -74,7 +74,13 @@ case $os in
           [[ -f $wkhtmltopdf ]] || apperror=1
 	       export QT_STYLE_OVERRIDE=fusion 
 	       # get the CSS
-	       curl $CSSURL > $CSSLOCAL 
+          if [[ -f $(dirname $0)/$CSSLOCAL ]]
+          then
+            cp $(dirname $0)/$CSSLOCAL $CSSLOCAL
+            else
+            curl $CSSURL > $CSSLOCAL 
+          fi
+	       
 		    ;;
        Darwin)
             # for MacOS, might want to install Rstudio (comes with pandoc) and replace the line above with the outcome of
@@ -92,7 +98,12 @@ case $os in
             fi
             echo "Found pandoc at $pandoc"
 	         # get the CSS
-	         curl $CSSURL > $CSSLOCAL 
+          if [[ -f $(dirname $0)/$CSSLOCAL ]]
+          then
+            cp $(dirname $0)/$CSSLOCAL $CSSLOCAL
+            else
+            curl $CSSURL > $CSSLOCAL 
+          fi
             ;;
 	    *)
 		    echo "Please review the script to define your OS"
