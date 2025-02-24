@@ -20,6 +20,7 @@ case $pdfengine in
 esac
 # other stuff
 ICPSRMSG="Details in the full report, which you will receive via ScholarOne shortly. Please provide your response to the items listed above via the openICPSR Project Communication log, specifying AEAREP-xxx. Other items in the report may need to be addressed via ScholarOne."
+PANDOCOPTS="--fail-if-warnings"
 
 echo "$0 version $version"
 
@@ -175,11 +176,13 @@ then
          PANDOCXTRA="$WKHTMLOPTS"
          ;;
    esac
-   $pandoc $pdfengine REPLICATION.md -f gfm -t html5 -o $outfile --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA
+   $pandoc $PANDOCOPTS $pdfengine REPLICATION.md -f gfm -t html5 -o $outfile --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA 
+   exit_on_error $? "Pandoc failed to generate $outfile"
    # now generate the PDF if using wkhtmltopdf separately
    if [[ "$pdfengine" == "" ]]
    then
       $wkhtmltopdf $WKHTMLOPTS $outfile REPLICATION.pdf
+      exit_on_error $? "wkhtmltopdf failed to generate REPLICATION.pdf"
    fi
 else
    echo "Skipping PDF generation as requested"
