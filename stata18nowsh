@@ -1,22 +1,20 @@
 #!/bin/bash
 
 SOFTWARE=stata
-VERSION=18-mp-i
+VERSION=18_5-mp-i
 TAG=2024-12-18
 MYHUBID=dataeditors
 MYNAME=${SOFTWARE}${VERSION}
 MYIMG=$MYHUBID/${MYNAME}:${TAG}
-[[ -z $STATALIC ]] && STATALIC=$(find $(pwd)/ -name stata.lic.?? | sort | tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $(pwd)/ -name stata.lic* | sort | tail -1)
 [[ -z $STATALIC ]] && STATALIC=$(find $HOME/Dropbox/ -name stata.lic.??| sort | tail -1)
-[[ -z $STATALIC ]] && STATALIC=$(find $HOME/ -name stata.lic.?? | sort | tail -1)
+[[ -z $STATALIC ]] && STATALIC=$(find $HOME/ -name stata.lic* | sort | tail -1)
 
 if [[ -z $STATALIC ]]
 then
 	echo "Could not find Stata license"
 	grep STATALIC $0
 	exit 2
-else 
-  echo "Using Stata license: $STATALIC"
 fi
 dockerbin=$(which docker1 2>/dev/null)
 [[ -z $dockerbin ]] && dockerbin=$(which docker)
@@ -25,6 +23,7 @@ $dockerbin run -it --rm \
   -v "${STATALIC}":/usr/local/stata/stata.lic \
   -v "$(pwd)":/project \
   -w /project \
+  --entrypoint /bin/bash \
   $MYIMG $@
 
 date

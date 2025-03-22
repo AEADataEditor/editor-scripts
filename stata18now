@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SOFTWARE=stata
-VERSION=18-mp-i
+VERSION=18_5-mp-i
 TAG=2024-12-18
 MYHUBID=dataeditors
 MYNAME=${SOFTWARE}${VERSION}
