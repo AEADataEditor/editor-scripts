@@ -32,7 +32,7 @@ system-info.sh
 echo ""
 printf "%s " "*" $(docker --version)
 echo ""
-printf "* %s version %d (Docker image %s)" $SOFTWARE $VERSION $MYIMG
+printf "* %s version %s (Docker image %s)" $SOFTWARE $VERSION $MYIMG
 echo ""
 
 
