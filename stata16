@@ -27,11 +27,5 @@ $dockerbin run -it --rm \
   $MYIMG $@
 
 system-info.sh
-echo ""
-printf "%s " "*" $(docker --version)
-echo ""
-printf "* %s version %d (Docker image %s)" $SOFTWARE $VERSION $MYIMG
-echo ""
-
-
+docker-info.sh $SOFTWARE $VERSION $MYIMG
 

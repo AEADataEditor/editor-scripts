@@ -3,11 +3,10 @@
 
 os=$(uname)
 
-echo "-------------------------"
 echo ""
-echo "Replicator system"
-echo "-----------------"
-printf "%s " "*"
+echo "**Replicator system**"
+echo ""
+printf "%s " "-"
 case $os in 
     Linux)
       cat /etc/*release | grep PRETTY_NAME | awk -F= ' {print $2 } '

@@ -28,8 +28,4 @@ system-info.sh
 echo ""
 printf "%s " "*" $(singularity --version)
 echo ""
-printf "* %s version %d (Docker image %s)" $SOFTWARE $VERSION $MYIMG
-echo ""
-
-
-
+docker-info.sh $SOFTWARE $VERSION $MYIMG
