@@ -159,6 +159,11 @@ then
    exit_on_error 2 Missing REPLICATION.md -required-
 fi
 
+# Only add checkboxes to lines with '-' that also contain 'REQUIRED' or 'SUGGESTED' and are not already checkboxes
+if [[ -f "REPLICATION.md" ]]; then
+  sed -i.bak '/^- \[ \]/!{/^- /{/REQUIRED\|SUGGESTED/ s/^\(-\) \([^[]\)/- [ ] \2/}}' REPLICATION.md
+fi
+
 # convert to PDF, just in case
 # requires: wkhtmltopdf and pandoc
 
