@@ -32,14 +32,16 @@ then
    exit 2
 else
    # grab them
-   grep -E "REQUIRED|SUGGESTED" REPLICATION.md| grep -E "^>|^-" | sort|uniq | sed 's/>/-/'> REPLICATION.tmp
+   grep -E "REQUIRED|SUGGESTED" REPLICATION.md| grep -E "^>|^-" | sort|uniq | sed 's/>/- [ ]/'> REPLICATION.tmp
    # count them
    count=$(cat REPLICATION.tmp | wc -l)
-   sed -i.bak '/Action Items (openICPSR)/rREPLICATION.tmp' REPLICATION.md 
+   # insert after marker using awk for robust multi-line insertion
+   awk -v marker="action items go here" 'NR==FNR{a[NR]=$0;next} {print} $0~marker{for(i=1;i<=length(a);i++) print a[i]}' REPLICATION.tmp REPLICATION.md > REPLICATION.new && mv REPLICATION.new REPLICATION.md
    result=$?
    case $result in 
     0)
-      sed -i "${actionitems}d" REPLICATION.md
+      # delete the marker line
+      sed -i.bak "/action items go here/d" REPLICATION.md
       echo ":: REPLICATION.md successfully updated."
       echo ":: ${count} tags found, sorted, unique"
       ;;
