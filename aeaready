@@ -161,7 +161,7 @@ fi
 
 # Only add checkboxes to lines with '-' that also contain 'REQUIRED' or 'SUGGESTED' and are not already checkboxes
 if [[ -f "REPLICATION.md" ]]; then
-  sed -i.bak '/^- \[ \]/!{/^- /{/REQUIRED\|SUGGESTED/ s/^\(-\) \([^[]\)/- [ ] \2/}}' REPLICATION.md
+  sed -i.bak -E '/^- *\[ \]/!{/^-.*(REQUIRED|SUGGESTED)/s/^(- *)/- [ ] /}' REPLICATION.md
 fi
 
 # convert to PDF, just in case
