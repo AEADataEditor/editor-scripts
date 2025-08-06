@@ -21,6 +21,8 @@ esac
 # other stuff
 ICPSRMSG="Details in the full report, which you will receive via ScholarOne shortly. Please provide your response to the items listed above via the openICPSR Project Communication log, specifying AEAREP-xxx. Other items in the report may need to be addressed via ScholarOne."
 PANDOCOPTS="--fail-if-warnings"
+template_app="template/REPLICATION_appendix.md"
+appendix="generated/REPLICATION_appendix.md"
 
 echo "$0 version $version"
 
@@ -163,6 +165,29 @@ fi
 if [[ -f "REPLICATION.md" ]]; then
   sed -i.bak -E '/^- *\[ \]/!{/^-.*(REQUIRED|SUGGESTED)/s/^(- *)/- [ ] /}' REPLICATION.md
 fi
+
+# If there is a line with "Automatically Generated Appendices", we remove it and everything after it.
+
+tmpmain=$(mktemp)
+tmpapp=$(mktemp)
+
+cat REPLICATION.md > $tmpmain
+
+if grep -q "Automatically Generated Appendices" $tmpmain
+then
+   sed  '/Automatically Generated Appendices/,$d' $tmpmain > $tmpapp
+else
+   cp $tmpmain $tmpapp
+fi
+
+# Fill in the appendix
+
+python3 tools/replace_placeholders.py --infile ${template_app} --indir "generated" --outfile $appendix
+
+# Append the generated appendix to the base file
+echo "" >> $tmpapp
+cat $tmpapp $appendix > $filled
+
 
 # convert to PDF, just in case
 # requires: wkhtmltopdf and pandoc
