@@ -183,10 +183,12 @@ fi
 # Fill in the appendix
 
 python3 tools/replace_placeholders.py --infile ${template_app} --indir "generated" --outfile $appendix
+git add $appendix
 
 # Append the generated appendix to the base file
 echo "" >> $tmpapp
-cat $tmpapp $appendix > $filled
+cat $tmpapp $appendix > REPLICATION.md
+
 
 
 # convert to PDF, just in case
