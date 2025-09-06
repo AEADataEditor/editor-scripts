@@ -7,7 +7,7 @@ version=1.1
 # CSSURL=https://gist.githubusercontent.com/ryangray/1882525/raw/2a6e53f645b960f0bed16d686ba3df36505f839f/buttondown.css
 #set -e
 #CSSURL=https://gist.githubusercontent.com/dashed/6714393/raw/ae966d9d0806eb1e24462d88082a0264438adc50/github-pandoc.css
-CSSURL=https://gist.githubusercontent.com/larsvilhuber/563ad274945e4d43d1e111972a3b626f/raw/b14edef2de9772e49211fb4328a42d7398be5b90/.aeaready.css
+CSSURL=https://raw.githubusercontent.com/AEADataEditor/editor-scripts/refs/heads/main/.aeaready.css
 CSSLOCAL=.aeaready.css
 DOCKERIMG=aeadataeditor/html-to-pdf:latest
 #pdfengine="--pdf-engine wkhtmltopdf"
