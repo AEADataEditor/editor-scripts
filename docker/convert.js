@@ -1,6 +1,8 @@
 const puppeteer = require("puppeteer");
 const path = require("path");
 
+const VERSION = "2025-09-06";
+
 async function downloadPdfFromHtmlFile(htmlFilePath, outputPath) {
   const browser = await puppeteer.launch({ 
     headless: "new",
@@ -38,12 +40,14 @@ const inputHtmlFile = "REPLICATION.html";
 const tempFile = "/tmp/test.pdf"; // Write to tmp first
 const outputFile = "REPLICATION.pdf"; 
 
+console.log(`PDF Converter v${VERSION}`);
+
 downloadPdfFromHtmlFile(inputHtmlFile, outputFile, tempFile)
   .then(() => {
     console.log(`PDF generated successfully at: ${tempFile}`);
     // Copy from tmp to project directory with proper permissions
     const fs = require('fs');
     fs.copyFileSync(tempFile, outputFile);
-    console.log('PDF copied to project directory');
+    console.log('PDF ${outputFile} copied to project directory');
   })
   .catch((error) => console.error("Error:", error));

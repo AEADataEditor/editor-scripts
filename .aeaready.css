@@ -22,6 +22,19 @@ body {
 	padding-top: 1em;
 }
 
+/* AEA Logo Header */
+body::before {
+	content: '';
+	display: block;
+	width: 88px;
+	height: 88px;
+	background-image: url('.logo-aea-88x88.jpg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	margin: 0 auto 20px auto;
+}
+
 /* Reset margin top for elements */
 h1, h2, h3, h4, h5, h6,
 p, ol, ul, pre {

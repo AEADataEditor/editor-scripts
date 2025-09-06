@@ -9,6 +9,7 @@ version=1.1
 #CSSURL=https://gist.githubusercontent.com/dashed/6714393/raw/ae966d9d0806eb1e24462d88082a0264438adc50/github-pandoc.css
 CSSURL=https://raw.githubusercontent.com/AEADataEditor/editor-scripts/refs/heads/main/.aeaready.css
 CSSLOCAL=.aeaready.css
+LOGOLOCAL=.logo-aea-88x88.jpg
 DOCKERIMG=aeadataeditor/html-to-pdf:latest
 #pdfengine="--pdf-engine wkhtmltopdf"
 #pdfengine=""
@@ -96,6 +97,11 @@ case $os in
             else
             curl $CSSURL > $CSSLOCAL 
           fi
+          # get the logo
+          if [[ -f $(dirname $0)/$LOGOLOCAL ]]
+          then
+            cp $(dirname $0)/$LOGOLOCAL $LOGOLOCAL
+          fi
 	       
 		    ;;
        Darwin)
@@ -119,6 +125,11 @@ case $os in
             cp $(dirname $0)/$CSSLOCAL $CSSLOCAL
             else
             curl $CSSURL > $CSSLOCAL 
+          fi
+          # get the logo
+          if [[ -f $(dirname $0)/$LOGOLOCAL ]]
+          then
+            cp $(dirname $0)/$LOGOLOCAL $LOGOLOCAL
           fi
             ;;
 	    *)
@@ -257,6 +268,9 @@ then
       exit_on_error $? "wkhtmltopdf failed to generate REPLICATION.pdf"
    elif [[ "$pdfengine" == "docker" ]]
    then
+      echo "Pulling latest Docker image..."
+      docker pull $DOCKERIMG
+      exit_on_error $? "Failed to pull Docker image $DOCKERIMG"
       docker run -it --rm -v $(pwd):/home/pptruser/project -w /home/pptruser/project $DOCKERIMG
       exit_on_error $? "Docker failed to generate REPLICATION.pdf"
    fi
@@ -265,6 +279,7 @@ else
 fi
 
 rm $CSSLOCAL
+[[ -f $LOGOLOCAL ]] && rm $LOGOLOCAL
 [[ -f REPLICATION.html ]] && rm REPLICATION.html
 
 echo "-------- Current git status -----------"

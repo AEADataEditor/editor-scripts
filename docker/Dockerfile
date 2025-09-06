@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
 # Switch back to pptruser
 USER pptruser
 
+COPY convert.js /home/pptruser/convert.js
+
 WORKDIR /home/pptruser/project
 
-ENTRYPOINT ["node", "convert.js"]
+ENTRYPOINT ["node", "/home/pptruser/convert.js"]
