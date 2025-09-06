@@ -6,13 +6,19 @@ version=1.1
 # A few alternative looks
 # CSSURL=https://gist.githubusercontent.com/ryangray/1882525/raw/2a6e53f645b960f0bed16d686ba3df36505f839f/buttondown.css
 #set -e
-CSSURL=https://gist.githubusercontent.com/dashed/6714393/raw/ae966d9d0806eb1e24462d88082a0264438adc50/github-pandoc.css
-CSSLOCAL=.local.css
+#CSSURL=https://gist.githubusercontent.com/dashed/6714393/raw/ae966d9d0806eb1e24462d88082a0264438adc50/github-pandoc.css
+CSSURL=https://gist.githubusercontent.com/larsvilhuber/563ad274945e4d43d1e111972a3b626f/raw/b14edef2de9772e49211fb4328a42d7398be5b90/.aeaready.css
+CSSLOCAL=.aeaready.css
+DOCKERIMG=aeadataeditor/html-to-pdf:latest
 #pdfengine="--pdf-engine wkhtmltopdf"
-pdfengine=""
+#pdfengine=""
+pdfengine="docker"
 case $pdfengine in
    "")
       WKHTMLOPTS="-s Letter --disable-smart-shrinking --enable-local-file-access"
+      ;;
+   "docker")
+      DOCKEROPTS=""
       ;;
    *)
       WKHTMLOPTS="-V margin-top=1in -V margin-left=1in -V margin-right=1in -V margin-bottom=1in"
@@ -20,7 +26,7 @@ case $pdfengine in
 esac
 # other stuff
 ICPSRMSG="Details in the full report, which you will receive via ScholarOne shortly. Please provide your response to the items listed above via the openICPSR Project Communication log, specifying AEAREP-xxx. Other items in the report may need to be addressed via ScholarOne."
-PANDOCOPTS="--fail-if-warnings"
+PANDOCOPTS="--fail-if-warnings -s"
 template_app="template/REPLICATION_appendix.md"
 appendix="generated/REPLICATION_appendix.md"
 
@@ -73,8 +79,15 @@ case $os in
 	    Linux)
 		    pandoc=$(which pandoc)
           [[ -f $pandoc ]] || apperror=1
-          wkhtmltopdf=$(which wkhtmltopdf)
-          [[ -f $wkhtmltopdf ]] || apperror=1
+          if [[ "$pdfengine" == "" ]]
+          then
+            wkhtmltopdf=$(which wkhtmltopdf)
+            [[ -f $wkhtmltopdf ]] || apperror=1
+          elif [[ "$pdfengine" == "docker" ]]
+          then
+            docker=$(which docker)
+            [[ -f $docker ]] || apperror=1
+          fi
 	       export QT_STYLE_OVERRIDE=fusion 
 	       # get the CSS
           if [[ -f $(dirname $0)/$CSSLOCAL ]]
@@ -118,10 +131,14 @@ esac
 
 if [[ -f $CSSLOCAL ]]
 then
-   echo 'pre, code { white-space: pre-wrap !important; } ' >> $CSSLOCAL
+   
    case $pdfengine in
       "")
          WKHTMLOPTS="$WKHTMLOPTS --user-style-sheet $CSSLOCAL"
+         ;;
+      "docker")
+         # 
+         PANDOCOPTS="$PANDOCOPTS --css $CSSLOCAL" 
          ;;
       *)
          WKHTMLOPTS="$WKHTMLOPTS --css $CSSLOCAL"
@@ -133,18 +150,36 @@ fi
 
 if [[ "$apperror" == "1" ]]
 then
-    echo "We need pandoc and wkhtmltopdf"
-    echo "One or the other not found"
+    case $pdfengine in
+        "")
+            echo "We need pandoc and wkhtmltopdf"
+            echo "One or the other not found"
+            ;;
+        "docker")
+            echo "We need pandoc and docker"
+            echo "One or the other not found"
+            ;;
+        *)
+            echo "We need pandoc and wkhtmltopdf"
+            echo "One or the other not found"
+            ;;
+    esac
     case $os in
         Darwin)
             echo "Install Rstudio to get pandoc"
-            echo "Try: brew cask install wkhtmltopdf"
+            if [[ "$pdfengine" == "" ]]
+            then
+                echo "Try: brew cask install wkhtmltopdf"
+            elif [[ "$pdfengine" == "docker" ]]
+            then
+                echo "Try: brew install docker"
+            fi
             ;;
         *)
             echo "Please install"
             ;;
     esac
-    [[ "$nopdf" == "1" ]] || exit_on_error 2 pandoc or wkhtmltopdf missing
+    [[ "$nopdf" == "1" ]] || exit_on_error 2 "Required dependencies missing"
 fi 
 
 commitmsg="AEAREP-$num #comment $preapprove $extramsg"
@@ -202,19 +237,28 @@ then
          outfile=REPLICATION.html
          PANDOCXTRA=""
          ;;
+      "docker")
+         echo "Using pandoc to generate HTML, then Docker to generate PDF"
+         outfile=REPLICATION.html
+         PANDOCXTRA=""
+         ;;
       *)
          echo "Using pandoc and wkhtmltopdf to generate PDF"
          outfile=REPLICATION.pdf
          PANDOCXTRA="$WKHTMLOPTS"
          ;;
    esac
-   $pandoc $PANDOCOPTS $pdfengine REPLICATION.md -f gfm -t html5 -o $outfile --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA 
+   $pandoc $PANDOCOPTS REPLICATION.md -f gfm -t html5 -o $outfile --metadata pagetitle="Report for AEAREP-$num" $PANDOCXTRA 
    exit_on_error $? "Pandoc failed to generate $outfile"
-   # now generate the PDF if using wkhtmltopdf separately
+   # now generate the PDF
    if [[ "$pdfengine" == "" ]]
    then
       $wkhtmltopdf $WKHTMLOPTS $outfile REPLICATION.pdf
       exit_on_error $? "wkhtmltopdf failed to generate REPLICATION.pdf"
+   elif [[ "$pdfengine" == "docker" ]]
+   then
+      docker run -it --rm -v $(pwd):/home/pptruser/project -w /home/pptruser/project $DOCKERIMG
+      exit_on_error $? "Docker failed to generate REPLICATION.pdf"
    fi
 else
    echo "Skipping PDF generation as requested"
