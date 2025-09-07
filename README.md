@@ -9,9 +9,13 @@ These scripts will streamline a few things. They may not work in all environment
 ![Tested on Linux](https://img.shields.io/badge/Tested-on%20Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Partially Tested on Windows](https://img.shields.io/badge/Partially%20Tested-on%20Windows-yellow)
 
 - Some scripts have additional dependencies:
-  - ![Linux](https://img.shields.io/badge/-Linux-success) ![maybe macOS](https://img.shields.io/badge/-macOS-orange) ![Not Windows](https://img.shields.io/badge/-Windows-red) `pandoc` 
+  - ![Linux](https://img.shields.io/badge/-Linux-success) ![maybe macOS](https://img.shields.io/badge/-macOS-orange) ![Not Windows](https://img.shields.io/badge/-Windows-red) `pandoc` in `aeaready`
     - will not work on Windows, but can be skipped
     - used to work on MacOS, but only if an older version of Rstudio is installed; currently broken
+  - ![Linux](https://img.shields.io/badge/-Linux-success) ![maybe macOS](https://img.shields.io/badge/-macOS-orange) ![Not Windows](https://img.shields.io/badge/-Windows-red) `wkhtmltopdf`  in `aeaready`
+    - Maybe on MacOS, don't remember; will not work on Windows. See replacement by `docker`
+  - ![Linux](https://img.shields.io/badge/-Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Partially Tested on Windows](https://img.shields.io/badge/Partially%20Tested-on%20Windows-yellow) `docker`  in `aeaready`
+    - Tested on WSL on Windows. Works on MacOS and Linux.
   - ![Linux](https://img.shields.io/badge/-Linux-success) ![not macOS](https://img.shields.io/badge/-macOS-red) ![Not Windows](https://img.shields.io/badge/-Windows-red)`qpdf` (Linux only - `aeamerge`)
 
 ## Installation
