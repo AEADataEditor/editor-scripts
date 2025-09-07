@@ -237,6 +237,15 @@ cat $tmpapp $appendix > REPLICATION.md
 
 
 
+# Create a temporary version of REPLICATION.md with timestamp injection
+tmpfile_before_timestamp=$(mktemp)
+cp REPLICATION.md $tmpfile_before_timestamp 
+timestamp=$(date '+%B %d, %Y  %H:%M %Z')
+sed -i "/^> Some useful links:/i\\
+*Report last created on $timestamp*\\
+\\
+" REPLICATION.md 
+
 # convert to PDF, just in case
 # requires: wkhtmltopdf and pandoc
 
@@ -286,6 +295,9 @@ fi
 rm $CSSLOCAL
 [[ -f $LOGOLOCAL ]] && rm $LOGOLOCAL
 [[ -f REPLICATION.html ]] && rm REPLICATION.html
+
+# Copy the temporary file back
+[[ -f $tmpfile_with_timestamp ]] && mv $tmpfile_with_timestamp REPLICATION.md
 
 echo "-------- Current git status -----------"
 git status
