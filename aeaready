@@ -11,6 +11,7 @@ CSSURL=https://raw.githubusercontent.com/AEADataEditor/editor-scripts/refs/heads
 CSSLOCAL=.aeaready.css
 LOGOLOCAL=.logo-aea-88x88.jpg
 DOCKERIMG=aeadataeditor/html-to-pdf:latest
+dockerbin=$(which docker1 2>/dev/null || which docker)
 #pdfengine="--pdf-engine wkhtmltopdf"
 #pdfengine=""
 pdfengine="docker"
@@ -86,8 +87,7 @@ case $os in
             [[ -f $wkhtmltopdf ]] || apperror=1
           elif [[ "$pdfengine" == "docker" ]]
           then
-            docker=$(which docker)
-            [[ -f $docker ]] || apperror=1
+            [[ -f $dockerbin ]] || apperror=1
           fi
 	       export QT_STYLE_OVERRIDE=fusion 
 	       # get the CSS
@@ -268,10 +268,15 @@ then
       exit_on_error $? "wkhtmltopdf failed to generate REPLICATION.pdf"
    elif [[ "$pdfengine" == "docker" ]]
    then
+      echo "Preparing for Docker execution..."
       echo "Pulling latest Docker image..."
-      docker pull $DOCKERIMG
+      $dockerbin pull $DOCKERIMG
       exit_on_error $? "Failed to pull Docker image $DOCKERIMG"
-      docker run -it --rm -v $(pwd):/home/pptruser/project -w /home/pptruser/project $DOCKERIMG
+      # Set directory permissions to allow Docker (others) to access
+      chmod o+rx .
+      # Remove any pre-existing REPLICATION.pdf
+      rm -f REPLICATION.pdf
+      $dockerbin run -it --rm -v $(pwd):/home/pptruser/project -w /home/pptruser/project $DOCKERIMG
       exit_on_error $? "Docker failed to generate REPLICATION.pdf"
    fi
 else
