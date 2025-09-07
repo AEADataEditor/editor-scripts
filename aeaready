@@ -237,10 +237,11 @@ cat $tmpapp $appendix > REPLICATION.md
 
 
 
-# Create a temporary version of REPLICATION.md with timestamp injection
-tmpfile_before_timestamp=$(mktemp)
-cp REPLICATION.md $tmpfile_before_timestamp 
+# Update timestamp directly in REPLICATION.md
 timestamp=$(date '+%B %d, %Y  %H:%M %Z')
+# Remove any existing timestamp lines
+sed -i '/^\*Report last created on.*\*$/d' REPLICATION.md
+# Add new timestamp before "Some useful links:" line
 sed -i "/^> Some useful links:/i\\
 *Report last created on $timestamp*\\
 \\
@@ -296,8 +297,7 @@ rm $CSSLOCAL
 [[ -f $LOGOLOCAL ]] && rm $LOGOLOCAL
 [[ -f REPLICATION.html ]] && rm REPLICATION.html
 
-# Copy the temporary file back
-[[ -f $tmpfile_with_timestamp ]] && mv $tmpfile_with_timestamp REPLICATION.md
+# No need to restore from backup - timestamp is now permanent in REPLICATION.md
 
 echo "-------- Current git status -----------"
 git status
