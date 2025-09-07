@@ -42,12 +42,12 @@ const outputFile = "REPLICATION.pdf";
 
 console.log(`PDF Converter v${VERSION}`);
 
-downloadPdfFromHtmlFile(inputHtmlFile, outputFile, tempFile)
+downloadPdfFromHtmlFile(inputHtmlFile, tempFile)
   .then(() => {
     console.log(`PDF generated successfully at: ${tempFile}`);
     // Copy from tmp to project directory with proper permissions
     const fs = require('fs');
     fs.copyFileSync(tempFile, outputFile);
-    console.log('PDF ${outputFile} copied to project directory');
+    console.log(`PDF ${outputFile} copied to project directory`);
   })
   .catch((error) => console.error("Error:", error));
