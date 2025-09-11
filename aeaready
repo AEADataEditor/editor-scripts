@@ -284,6 +284,8 @@ then
       exit_on_error $? "Failed to pull Docker image $DOCKERIMG"
       # Set directory permissions to allow Docker (others) to access
       chmod o+rwx .
+      chmod o+r .[a-z]*css
+      chmod o+r REPLICATION.html
       # Remove any pre-existing REPLICATION.pdf
       rm -f REPLICATION.pdf
       $dockerbin run -it --rm -v $(pwd):/home/pptruser/project -w /home/pptruser/project $DOCKERIMG
