@@ -288,7 +288,7 @@ then
       chmod o+r REPLICATION.html
       # Remove any pre-existing REPLICATION.pdf
       rm -f REPLICATION.pdf
-      $dockerbin run -it --rm -v $(pwd):/home/pptruser/project -w /home/pptruser/project $DOCKERIMG
+      $dockerbin run -it --rm --user 10042:999 -v $(pwd):/home/pptruser/project -w /home/pptruser/project $DOCKERIMG
       exit_on_error $? "Docker failed to generate REPLICATION.pdf"
    fi
 else
