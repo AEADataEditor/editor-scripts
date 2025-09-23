@@ -48,6 +48,8 @@ downloadPdfFromHtmlFile(inputHtmlFile, tempFile)
     // Copy from tmp to project directory with proper permissions
     const fs = require('fs');
     fs.copyFileSync(tempFile, outputFile);
-    console.log(`PDF ${outputFile} copied to project directory`);
+    // Set permissions to rw for everybody (664)
+    fs.chmodSync(outputFile, 0o664);
+    console.log(`PDF ${outputFile} copied to project directory with rw permissions for everybody`);
   })
   .catch((error) => console.error("Error:", error));
