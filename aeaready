@@ -280,8 +280,7 @@ then
    then
       echo "Preparing for Docker execution..."
       echo "Pulling latest Docker image..."
-      $dockerbin pull $DOCKERIMG
-      exit_on_error $? "Failed to pull Docker image $DOCKERIMG"
+      $dockerbin pull $DOCKERIMG || echo  "Failed to pull Docker image $DOCKERIMG"
       # Set directory permissions to allow Docker (others) to access
       chmod o+rwx .
       chmod o+r .[a-z]*css
