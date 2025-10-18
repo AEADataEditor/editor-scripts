@@ -45,10 +45,12 @@ shift
 case $1 in
   a*|approve)
      preapprove="Approved. Ready to submit."
+     decision=approve
      shift
      ;;
-  p*|preapprove)
+  p*|pre-approve)
      preapprove="Preapproved. Ready for approval."
+     decision=pre-approve
      shift
      ;;
   *)
@@ -79,6 +81,9 @@ set -o history -o histexpand
 
 case $os in
 	    Linux)
+          pythonbin=$(which python3)
+          [[ -f $pythonbin ]] || pythonbin=$(which python)
+          [[ -f $pythonbin ]] || apperror=1
 		    pandoc=$(which pandoc)
           [[ -f $pandoc ]] || apperror=1
           if [[ "$pdfengine" == "" ]]
@@ -105,6 +110,8 @@ case $os in
 	       
 		    ;;
        Darwin)
+            pythonbin=$(which python)
+            [[ -f $pythonbin ]] || apperror=1
             # for MacOS, might want to install Rstudio (comes with pandoc) and replace the line above with the outcome of
             #   find /Applications -name pandoc -type f
             pandoc=/Applications/RStudio.app/Contents/MacOS/pandoc/pandoc
@@ -340,3 +347,17 @@ echo "    $commitmsg"
 read
 git commit -m "$commitmsg"
 git push
+
+# Now modify the Jira issue accordingly. Ask first, and then call jira_approval_manager.py
+echo "::: Ready to update Jira issue AEAREP-$num ? (Ctrl-C to abort)"
+read
+
+# check first if the script is in the path
+if ! command -v jira_approval_manager.py &> /dev/null
+then
+   echo "jira_approval_manager.py could not be found in PATH. Not modifying Jira issue."
+   echo "You may want to call   aeaopen   ."
+   exit 0
+fi
+
+$pythonbin $(dirname $0)/jira_approval_manager.py aearep-$num $decision 0
