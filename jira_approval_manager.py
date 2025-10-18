@@ -76,9 +76,11 @@ def parse_replication_md(mc_status_value):
         # Mapping for non-RR (standard) recommendations
         standard_mappings = {
             "The replication package is accepted": "Accept",
-            "Conditional on making the requested changes to the": "Accept - with Changes",
             "We look forward to reviewing the final replication package after modifications": "Conditional Accept",
         }
+
+        # Pattern for Accept - with Changes (any text starting with "Conditional on")
+        conditional_pattern = "Conditional on"
 
         # Mapping for RR (Revise and Resubmit) status - Accept conditions
         rr_accept_patterns = [
@@ -99,6 +101,12 @@ def parse_replication_md(mc_status_value):
 
             # For non-RR status, check standard mappings
             else:
+                # Check for "Conditional on" pattern first (Accept - with Changes)
+                if bold_text_clean.lower().startswith(conditional_pattern.lower()):
+                    print(f"📄 Detected from REPLICATION.md: '{bold_text_clean[:80]}...'")
+                    return "Accept - with Changes"
+
+                # Check other standard mappings
                 for pattern, recommendation in standard_mappings.items():
                     if pattern.lower() in bold_text_clean.lower():
                         print(f"📄 Detected from REPLICATION.md: '{bold_text_clean[:80]}...'")
@@ -478,7 +486,11 @@ Notes:
             print("✗ Error: Current recommendation is empty. Please select a recommendation (1-N)")
             sys.exit(1)
         print(f"\nKeeping current recommendation: {field_value}")
-        new_recommendation = field_value
+        # Extract string value if field_value is a Jira object
+        if hasattr(field_value, 'value'):
+            new_recommendation = field_value.value
+        else:
+            new_recommendation = str(field_value)
     elif 1 <= choice <= len(recommendation_options):
         # Change to new recommendation
         new_recommendation = recommendation_options[choice - 1]
@@ -489,7 +501,11 @@ Notes:
         sys.exit(1)
 
     # Check if chosen recommendation contradicts detected recommendation
-    if detected_recommendation and new_recommendation != detected_recommendation:
+    # Normalize for comparison (case-insensitive, ignore spaces/hyphens)
+    def normalize_recommendation(rec):
+        return rec.lower().replace(' ', '').replace('-', '')
+
+    if detected_recommendation and normalize_recommendation(new_recommendation) != normalize_recommendation(detected_recommendation):
         print(f"\n⚠️  WARNING: Your choice differs from detected recommendation! ⚠️")
         print(f"Detected from REPLICATION.md: {detected_recommendation}")
         print(f"Your choice: {new_recommendation}")
