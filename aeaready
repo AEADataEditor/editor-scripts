@@ -81,7 +81,8 @@ set -o history -o histexpand
 
 case $os in
 	    Linux)
-          pythonbin=$(which python3)
+          pythonbin=$(which python3.12)
+          [[ -f $pythonbin ]] || pythonbin=$(which python3)
           [[ -f $pythonbin ]] || pythonbin=$(which python)
           [[ -f $pythonbin ]] || apperror=1
 		    pandoc=$(which pandoc)
