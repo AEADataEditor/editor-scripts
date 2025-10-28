@@ -359,5 +359,5 @@ then
    echo "You may want to call   aeaopen   ."
    exit 0
 fi
-
+set -evx
 $pythonbin $(dirname $0)/jira_approval_manager.py aearep-$num $decision 0
