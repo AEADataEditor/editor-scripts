@@ -63,12 +63,66 @@ def get_jira_client():
         sys.exit(1)
 
 
-def check_issue_ready_for_purge(jira, issue_key, verbose=False):
+def build_field_map(jira):
+    """Build a mapping of field names to field IDs."""
+    field_map = {}
+    try:
+        all_fields = jira.fields()
+        for field in all_fields:
+            field_map[field['name']] = field['id']
+    except Exception as e:
+        pass
+    return field_map
+
+
+def get_field_value(issue, field_map, field_name):
+    """Get the value of a field by name."""
+    field_id = field_map.get(field_name)
+    if not field_id:
+        return None
+
+    try:
+        return getattr(issue.fields, field_id, None)
+    except Exception:
+        return None
+
+
+def get_mc_recommendation(issue, field_map):
+    """Get the appropriate MC Recommendation field based on MCStatus.
+
+    Returns:
+        (field_name: str, field_value: str)
+    """
+    mc_status = get_field_value(issue, field_map, 'MCStatus')
+
+    # Extract string value if mc_status is a Jira object
+    status_value = mc_status
+    if hasattr(mc_status, 'value'):
+        status_value = mc_status.value
+    elif isinstance(mc_status, list) and len(mc_status) > 0 and hasattr(mc_status[0], 'value'):
+        status_value = mc_status[0].value
+
+    # Determine which field to use
+    if status_value == "RR":
+        field_name = "MCRecommendation"
+    else:
+        field_name = "MCRecommendationV2"
+
+    field_value = get_field_value(issue, field_map, field_name)
+
+    # Extract value if it's an object
+    if field_value and hasattr(field_value, 'value'):
+        field_value = field_value.value
+
+    return field_name, (field_value if field_value else "N/A")
+
+
+def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False):
     """
     Check if issue is ready for purging based on status history.
 
     Returns:
-        (ready: bool, current_status: str, message: str)
+        (ready: bool, current_status: str, mc_rec_field_name: str, mc_recommendation: str, message: str)
     """
     # Match status names with case-insensitive and partial matching
     # to handle variations like "Pending publication" vs "Pending Publication"
@@ -82,6 +136,9 @@ def check_issue_ready_for_purge(jira, issue_key, verbose=False):
     try:
         issue = jira.issue(issue_key, expand='changelog')
         current_status = issue.fields.status.name
+
+        # Get MC Recommendation field using the same logic as jira_status_manager
+        mc_rec_field_name, mc_recommendation = get_mc_recommendation(issue, field_map)
 
         # Track all statuses this issue has been in
         historical_statuses = set()
@@ -111,7 +168,8 @@ def check_issue_ready_for_purge(jira, issue_key, verbose=False):
 
         if verbose:
             print(f"\n{issue_key}:")
-            print(f"  Current Status: {current_status}")
+            print(f"  Current MCStatus: {current_status}")
+            print(f"  Current MCRecommendationV2: {mc_recommendation}")
             print(f"  All Statuses: {', '.join(sorted(historical_statuses))}")
             if matched_statuses:
                 print(f"  Matched Required Statuses: {', '.join(matched_statuses)}")
@@ -119,16 +177,17 @@ def check_issue_ready_for_purge(jira, issue_key, verbose=False):
         is_done = current_status == "Done"
 
         if matched_statuses:
-            status_info = f"passed through: {', '.join(matched_statuses)}"
+            status_info = f"Current status: {current_status}; Current MCRecommendation: {mc_recommendation}"
             if is_done:
-                return True, current_status, f"Ready for purge ({status_info}; currently Done)"
+                return True, current_status, mc_recommendation, f"Ready for purge ({status_info})"
             else:
-                return True, current_status, f"Ready for purge ({status_info}; currently: {current_status})"
+                return True, current_status, mc_recommendation, f"Ready for purge ({status_info})"
         else:
-            return False, current_status, f"Never passed through required statuses (Pending openICPSR, Assess openICPSR, Pending Publication)"
+            status_info = f"Current MCstatus: {current_status}; Current MCRecommendationV2: {mc_recommendation}"
+            return False, current_status, mc_recommendation, f"Never passed through required statuses ({status_info})"
 
     except Exception as e:
-        return False, "ERROR", f"Error retrieving issue: {e}"
+        return False, "ERROR", "N/A", f"Error retrieving issue: {e}"
 
 
 def main():
@@ -180,6 +239,17 @@ Environment Variables Required:
     if not args.quiet:
         print(f"✓ Connected\n")
 
+    # Build field map
+    field_map = build_field_map(jira)
+
+    # Print summary statement in verbose mode
+    if args.verbose and not args.quiet:
+        print("Checking if Jira issues ever passed through required statuses:")
+        print("  - Pending openICPSR")
+        print("  - Assess openICPSR")
+        print("  - Pending Publication")
+        print()
+
     # Check each issue
     all_ready = True
     ready_issues = []
@@ -194,15 +264,16 @@ Environment Variables Required:
             if normalized_key.startswith("AEAREP"):
                 normalized_key = normalized_key.replace("AEAREP", "AEAREP-", 1)
 
-        ready, status, message = check_issue_ready_for_purge(jira, normalized_key, args.verbose)
+        ready, status, mc_recommendation, message = check_issue_ready_for_purge(jira, normalized_key, field_map, args.verbose)
 
         if args.quiet:
             if ready:
                 print(normalized_key)
                 ready_issues.append(normalized_key)
         else:
-            symbol = "✓" if ready else "✗"
-            print(f"{symbol} {normalized_key}: {message}")
+            result_label = "OK" if ready else "FAIL"
+            emoji = "✓" if ready else "✗"
+            print(f"{emoji} [{result_label}] {normalized_key}: {message}")
 
         if ready:
             ready_issues.append(normalized_key)
