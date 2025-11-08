@@ -234,35 +234,32 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                     matched_statuses.append(status)
                     break
 
-        if verbose:
+        if very_verbose:
             print(f"\n{_indent}{issue_key}:")
             print(f"{_indent}  Current MCStatus: {current_status}")
             print(f"{_indent}  Current {mc_rec_field_name}: {mc_recommendation}")
-            if very_verbose:
-                print(f"{_indent}  All Statuses: {', '.join(sorted(historical_statuses))}")
-                if matched_statuses:
-                    print(f"{_indent}  Matched Required Statuses: {', '.join(matched_statuses)}")
+            print(f"{_indent}  All Statuses: {', '.join(sorted(historical_statuses))}")
+            if matched_statuses:
+                print(f"{_indent}  Matched Required Statuses: {', '.join(matched_statuses)}")
 
         is_done = current_status == "Done"
 
         if matched_statuses:
             status_info = f"Current status: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
-            if is_done:
-                return True, current_status, mc_recommendation, f"Ready for purge ({status_info})"
-            else:
-                return True, current_status, mc_recommendation, f"Ready for purge ({status_info})"
+            # Return as list with just status info (no "via" prefix for the actual passing issue)
+            return True, current_status, mc_recommendation, [status_info]
         else:
             # Check for "is revised by" links
             revised_by_issues, wrong_relates_links = get_revised_by_links(issue, very_verbose, _indent)
 
             if revised_by_issues:
-                if verbose:
+                if very_verbose:
                     print(f"{_indent}  Found {len(revised_by_issues)} 'is revised by' link(s): {', '.join(revised_by_issues)}")
                     print(f"{_indent}  Recursively checking linked issues...")
 
                 # Recursively check each linked issue
                 for linked_key in revised_by_issues:
-                    if verbose:
+                    if very_verbose:
                         print(f"{_indent}  Checking linked issue: {linked_key}")
 
                     ready, status, mc_rec, message = check_issue_ready_for_purge(
@@ -270,7 +267,13 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                     )
 
                     if ready:
-                        return True, status, mc_rec, f"Ready for purge via linked issue {linked_key} ({message})"
+                        # Build chain of links
+                        if isinstance(message, list):
+                            # message is already a list, prepend this link
+                            return True, status, mc_rec, [f"via linked issue {linked_key}"] + message
+                        else:
+                            # Legacy string format, convert to list
+                            return True, status, mc_rec, [f"via linked issue {linked_key}", message]
 
                 # If none of the linked issues passed, return failure
                 status_info = f"Current MCstatus: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
@@ -373,7 +376,15 @@ Environment Variables Required:
         else:
             result_label = "OK" if ready else "FAIL"
             emoji = "✓" if ready else "✗"
-            print(f"{emoji} [{result_label}] {normalized_key}: {message}")
+
+            # Format message - if it's a list, format as bullet points
+            if isinstance(message, list):
+                formatted_message = "Ready for purge"
+                print(f"{emoji} [{result_label}] {normalized_key}: {formatted_message}")
+                for item in message:
+                    print(f"  - {item}")
+            else:
+                print(f"{emoji} [{result_label}] {normalized_key}: {message}")
 
         if ready:
             ready_issues.append(normalized_key)
