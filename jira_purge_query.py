@@ -34,6 +34,7 @@ import os
 import sys
 import argparse
 from jira import JIRA
+from jira.exceptions import JIRAError
 
 
 def get_jira_client():
@@ -284,6 +285,11 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                 wrong_relates_note = f" (Note: Found wrong 'Relates' links that should be 'Revision': {', '.join(wrong_relates_links)})" if wrong_relates_links else ""
                 return False, current_status, mc_recommendation, f"Never passed through required statuses ({status_info}){wrong_relates_note}"
 
+    except JIRAError as e:
+        if e.status_code == 404:
+            return False, "NOT_FOUND", "N/A", f"Issue does not exist"
+        else:
+            return False, "ERROR", "N/A", f"Jira error: {e.text}"
     except Exception as e:
         return False, "ERROR", "N/A", f"Error retrieving issue: {e}"
 
