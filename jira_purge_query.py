@@ -102,11 +102,8 @@ def get_mc_recommendation(issue, field_map):
     elif isinstance(mc_status, list) and len(mc_status) > 0 and hasattr(mc_status[0], 'value'):
         status_value = mc_status[0].value
 
-    # Determine which field to use
-    if status_value == "RR":
-        field_name = "MCRecommendation"
-    else:
-        field_name = "MCRecommendationV2"
+    # Always use MCRecommendationV2
+    field_name = "MCRecommendationV2"
 
     field_value = get_field_value(issue, field_map, field_name)
 
@@ -169,7 +166,7 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False):
         if verbose:
             print(f"\n{issue_key}:")
             print(f"  Current MCStatus: {current_status}")
-            print(f"  Current MCRecommendationV2: {mc_recommendation}")
+            print(f"  Current {mc_rec_field_name}: {mc_recommendation}")
             print(f"  All Statuses: {', '.join(sorted(historical_statuses))}")
             if matched_statuses:
                 print(f"  Matched Required Statuses: {', '.join(matched_statuses)}")
@@ -177,13 +174,13 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False):
         is_done = current_status == "Done"
 
         if matched_statuses:
-            status_info = f"Current status: {current_status}; Current MCRecommendation: {mc_recommendation}"
+            status_info = f"Current status: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
             if is_done:
                 return True, current_status, mc_recommendation, f"Ready for purge ({status_info})"
             else:
                 return True, current_status, mc_recommendation, f"Ready for purge ({status_info})"
         else:
-            status_info = f"Current MCstatus: {current_status}; Current MCRecommendationV2: {mc_recommendation}"
+            status_info = f"Current MCstatus: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
             return False, current_status, mc_recommendation, f"Never passed through required statuses ({status_info})"
 
     except Exception as e:
