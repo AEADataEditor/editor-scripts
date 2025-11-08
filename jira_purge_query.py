@@ -122,7 +122,7 @@ def extract_issue_number(issue_key):
         return 0
 
 
-def get_revised_by_links(issue, verbose=False):
+def get_revised_by_links(issue, very_verbose=False, indent=""):
     """
     Get all issues linked with "is revised by" relation type.
 
@@ -138,24 +138,24 @@ def get_revised_by_links(issue, verbose=False):
             # Check if this is an "is revised by" link
             link_type = link.type.name if hasattr(link.type, 'name') else str(link.type)
 
-            if verbose:
-                print(f"    Found link type: {link_type}")
+            if very_verbose:
+                print(f"{indent}    Found link type: {link_type}")
                 if hasattr(link.type, 'inward'):
-                    print(f"      Inward description: {link.type.inward}")
+                    print(f"{indent}      Inward description: {link.type.inward}")
                 if hasattr(link.type, 'outward'):
-                    print(f"      Outward description: {link.type.outward}")
+                    print(f"{indent}      Outward description: {link.type.outward}")
                 if hasattr(link, 'inwardIssue'):
-                    print(f"      Inward issue: {link.inwardIssue.key}")
+                    print(f"{indent}      Inward issue: {link.inwardIssue.key}")
                 if hasattr(link, 'outwardIssue'):
-                    print(f"      Outward issue: {link.outwardIssue.key}")
+                    print(f"{indent}      Outward issue: {link.outwardIssue.key}")
 
             # Check if inward description says "is revised by" and there's an inward issue
             # This means the inwardIssue is a revision of the current issue
             if hasattr(link.type, 'inward') and 'revised by' in link.type.inward.lower():
                 if hasattr(link, 'inwardIssue'):
                     revised_by_issues.append(link.inwardIssue.key)
-                    if verbose:
-                        print(f"    -> Adding revision (inward): {link.inwardIssue.key}")
+                    if very_verbose:
+                        print(f"{indent}    -> Adding revision (inward): {link.inwardIssue.key}")
 
             # Report "Relates" links but don't follow them (they are wrong)
             elif link_type.lower() == 'relates':
@@ -163,19 +163,19 @@ def get_revised_by_links(issue, verbose=False):
                 if hasattr(link, 'outwardIssue'):
                     outward_num = extract_issue_number(link.outwardIssue.key)
                     wrong_relates_links.append(link.outwardIssue.key)
-                    if verbose:
-                        print(f"    -> Found 'Relates' link (not following): {link.outwardIssue.key}")
+                    if very_verbose:
+                        print(f"{indent}    -> Found 'Relates' link (not following): {link.outwardIssue.key}")
                 # Check inward issue
                 if hasattr(link, 'inwardIssue'):
                     inward_num = extract_issue_number(link.inwardIssue.key)
                     wrong_relates_links.append(link.inwardIssue.key)
-                    if verbose:
-                        print(f"    -> Found 'Relates' link (not following): {link.inwardIssue.key}")
+                    if very_verbose:
+                        print(f"{indent}    -> Found 'Relates' link (not following): {link.inwardIssue.key}")
 
     return revised_by_issues, wrong_relates_links
 
 
-def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, _visited=None):
+def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_verbose=False, _visited=None, _indent=""):
     """
     Check if issue is ready for purging based on status history.
     If the issue fails, recursively check any "is revised by" linked issues.
@@ -235,12 +235,13 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, _visi
                     break
 
         if verbose:
-            print(f"\n{issue_key}:")
-            print(f"  Current MCStatus: {current_status}")
-            print(f"  Current {mc_rec_field_name}: {mc_recommendation}")
-            print(f"  All Statuses: {', '.join(sorted(historical_statuses))}")
-            if matched_statuses:
-                print(f"  Matched Required Statuses: {', '.join(matched_statuses)}")
+            print(f"\n{_indent}{issue_key}:")
+            print(f"{_indent}  Current MCStatus: {current_status}")
+            print(f"{_indent}  Current {mc_rec_field_name}: {mc_recommendation}")
+            if very_verbose:
+                print(f"{_indent}  All Statuses: {', '.join(sorted(historical_statuses))}")
+                if matched_statuses:
+                    print(f"{_indent}  Matched Required Statuses: {', '.join(matched_statuses)}")
 
         is_done = current_status == "Done"
 
@@ -252,20 +253,20 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, _visi
                 return True, current_status, mc_recommendation, f"Ready for purge ({status_info})"
         else:
             # Check for "is revised by" links
-            revised_by_issues, wrong_relates_links = get_revised_by_links(issue, verbose)
+            revised_by_issues, wrong_relates_links = get_revised_by_links(issue, very_verbose, _indent)
 
             if revised_by_issues:
                 if verbose:
-                    print(f"  Found {len(revised_by_issues)} 'is revised by' link(s): {', '.join(revised_by_issues)}")
-                    print(f"  Recursively checking linked issues...")
+                    print(f"{_indent}  Found {len(revised_by_issues)} 'is revised by' link(s): {', '.join(revised_by_issues)}")
+                    print(f"{_indent}  Recursively checking linked issues...")
 
                 # Recursively check each linked issue
                 for linked_key in revised_by_issues:
                     if verbose:
-                        print(f"\n  Checking linked issue: {linked_key}")
+                        print(f"{_indent}  Checking linked issue: {linked_key}")
 
                     ready, status, mc_rec, message = check_issue_ready_for_purge(
-                        jira, linked_key, field_map, verbose, _visited
+                        jira, linked_key, field_map, verbose, very_verbose, _visited, _indent + "  "
                     )
 
                     if ready:
@@ -315,8 +316,9 @@ Environment Variables Required:
     )
     parser.add_argument(
         '-v', '--verbose',
-        action='store_true',
-        help='Show detailed status history'
+        action='count',
+        default=0,
+        help='Verbose mode: -v shows basic info, -vv shows all statuses and link details'
     )
     parser.add_argument(
         '-q', '--quiet',
@@ -325,6 +327,10 @@ Environment Variables Required:
     )
 
     args = parser.parse_args()
+
+    # Convert verbose count to boolean flags
+    verbose = args.verbose >= 1
+    very_verbose = args.verbose >= 2
 
     # Initialize Jira client
     if not args.quiet:
@@ -337,7 +343,7 @@ Environment Variables Required:
     field_map = build_field_map(jira)
 
     # Print summary statement in verbose mode
-    if args.verbose and not args.quiet:
+    if verbose and not args.quiet:
         print("Checking if Jira issues ever passed through required statuses:")
         print("  - Pending openICPSR")
         print("  - Assess openICPSR")
@@ -358,7 +364,7 @@ Environment Variables Required:
             if normalized_key.startswith("AEAREP"):
                 normalized_key = normalized_key.replace("AEAREP", "AEAREP-", 1)
 
-        ready, status, mc_recommendation, message = check_issue_ready_for_purge(jira, normalized_key, field_map, args.verbose)
+        ready, status, mc_recommendation, message = check_issue_ready_for_purge(jira, normalized_key, field_map, verbose, very_verbose)
 
         if args.quiet:
             if ready:
