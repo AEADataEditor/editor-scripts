@@ -508,11 +508,11 @@ Notes:
     if detected_recommendation and normalize_recommendation(new_recommendation) != normalize_recommendation(detected_recommendation):
         print(f"\n⚠️  WARNING: Your choice differs from detected recommendation! ⚠️")
         print(f"Detected from REPLICATION.md: {detected_recommendation}")
-        print(f"Your choice: {new_recommendation}")
+        print(f"JIRA record: {new_recommendation}")
         print(f"\nThese recommendations have different meanings:")
         print(f"  - Detected: {detected_recommendation}")
-        print(f"  - Chosen:   {new_recommendation}")
-        confirmation = input("\nAre you sure you want to proceed with your choice? (y/n): ").strip().lower()
+        print(f"  - JIRA:   {new_recommendation}")
+        confirmation = input("\nAre you sure you want to proceed with the JIRA version? (y/n): ").strip().lower()
         if confirmation not in ['y', 'yes']:
             print("\n✗ Cancelled by user")
             # Find the correct option number for the detected recommendation
@@ -531,7 +531,7 @@ Notes:
         update_recommendation(jira, issue, field_id, field_name, new_recommendation)
 
     # Wait 8 seconds before transition with in-place countdown
-    print(f"\nWill transition to '{target_transition}' in 8 seconds...")
+    print(f"\nWill record '{target_transition}' in 8 seconds...")
     print("Press Ctrl+C to cancel")
     try:
         for i in range(8, 0, -1):
