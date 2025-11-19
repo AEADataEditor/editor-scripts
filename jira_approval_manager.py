@@ -9,7 +9,7 @@ Usage:
     python3 jira_approval_manager.py aearep-8353 p
     python3 jira_approval_manager.py aearep-8353 a
 
-    # Confirm current recommendation and transition (8 second countdown)
+    # Confirm current recommendation and transition (with countdown)
     python3 jira_approval_manager.py aearep-8353 p 0
     python3 jira_approval_manager.py aearep-8353 a 0
 
@@ -49,6 +49,9 @@ import argparse
 import time
 import re
 from jira import JIRA
+
+# Configuration
+COUNTDOWN_SECONDS = 8  # Delay before executing transition
 
 
 def parse_replication_md(mc_status_value):
@@ -346,11 +349,11 @@ Examples:
   %(prog)s aearep-8353 p
   %(prog)s aearep-8353 a
 
-  # Confirm current recommendation and transition after 8 second countdown
+  # Confirm current recommendation and transition after countdown
   %(prog)s aearep-8353 p 0
   %(prog)s aearep-8353 a 0
 
-  # Change to recommendation option N and transition after 8 second countdown
+  # Change to recommendation option N and transition after countdown
   %(prog)s aearep-8353 p 2
   %(prog)s aearep-8353 a 3
 
@@ -366,7 +369,7 @@ Notes:
   - Third argument selects recommendation:
     * 0 = keep current recommendation
     * N = change to option N from displayed list
-  - 8 second countdown before transition (press Ctrl+C to cancel)
+  - Countdown before transition (press Ctrl+C to cancel)
   - Auto-detects recommendation from REPLICATION.md if present in current directory
 """
     )
@@ -507,40 +510,45 @@ Notes:
 
     if detected_recommendation and normalize_recommendation(new_recommendation) != normalize_recommendation(detected_recommendation):
         print(f"\n⚠️  WARNING: Your choice differs from detected recommendation! ⚠️")
-        print(f"Detected from REPLICATION.md: {detected_recommendation}")
+        print(f"\nDetected from REPLICATION.md: {detected_recommendation}")
         print(f"JIRA record: {new_recommendation}")
-        print(f"\nThese recommendations have different meanings:")
-        print(f"  - Detected: {detected_recommendation}")
-        print(f"  - JIRA:   {new_recommendation}")
-        confirmation = input("\nAre you sure you want to proceed with the JIRA version? (y/n): ").strip().lower()
-        if confirmation not in ['y', 'yes']:
-            print("\n✗ Cancelled by user")
-            # Find the correct option number for the detected recommendation
-            try:
-                detected_idx = recommendation_options.index(detected_recommendation) + 1
-                print(f"\nTo proceed with the detected recommendation from REPLICATION.md, run:")
-                print(f"  {sys.argv[0]} {args.issue_key} {args.action} {detected_idx}")
-            except ValueError:
-                print(f"\nTo select a different recommendation, review the options and run:")
-                print(f"  {sys.argv[0]} {args.issue_key} {args.action} <option_number>")
-            sys.exit(0)
+        print(f"\nPlease choose which recommendation to use:")
+        print(f"  1. Detected from REPLICATION.md: {detected_recommendation}")
+        print(f"  2. JIRA record: {new_recommendation}")
+        print(f"  0. Cancel (abort)")
 
-    # Update recommendation if changed
-    if new_recommendation != field_value:
-        print(f"\n→ Updating {field_name}...")
-        update_recommendation(jira, issue, field_id, field_name, new_recommendation)
+        while True:
+            choice_input = input("\nEnter your choice (0/1/2): ").strip()
+            if choice_input == '1':
+                new_recommendation = detected_recommendation
+                print(f"\n✓ Using detected recommendation: {detected_recommendation}")
+                break
+            elif choice_input == '2':
+                # Keep new_recommendation as is
+                print(f"\n✓ Using JIRA recommendation: {new_recommendation}")
+                break
+            elif choice_input == '0':
+                print("\n✗ Cancelled by user")
+                sys.exit(0)
+            else:
+                print("Invalid choice. Please enter 0, 1, or 2.")
 
-    # Wait 8 seconds before transition with in-place countdown
-    print(f"\nWill record '{target_transition}' in 8 seconds...")
+    # Wait before transition with in-place countdown
+    print(f"\nWill record '{target_transition}' in {COUNTDOWN_SECONDS} seconds...")
     print("Press Ctrl+C to cancel")
     try:
-        for i in range(8, 0, -1):
+        for i in range(COUNTDOWN_SECONDS, 0, -1):
             print(f"\r  Countdown: {i} seconds...", end='', flush=True)
             time.sleep(1)
         print()  # New line after countdown
     except KeyboardInterrupt:
         print("\n\n✗ Cancelled by user")
         sys.exit(0)
+
+    # Update recommendation if changed
+    if new_recommendation != field_value:
+        print(f"\n→ Updating {field_name}...")
+        update_recommendation(jira, issue, field_id, field_name, new_recommendation)
 
     # Perform transition
     print(f"\n→ Transitioning from '{status}' to '{target_transition}'...")
