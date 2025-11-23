@@ -292,7 +292,7 @@ then
       # Set directory permissions to allow Docker (others) to access
       chmod o+rwx .
       chmod o+r .[a-z]*css
-      chmod o+r REPLICATION.html
+      chmod o+rX *
       # Remove any pre-existing REPLICATION.pdf
       rm -f REPLICATION.pdf
       $dockerbin run -it --rm --user 10042:999 -v $(pwd):/home/pptruser/project -w /home/pptruser/project $DOCKERIMG
