@@ -243,7 +243,31 @@ git add $appendix
 echo "" >> $tmpapp
 cat $tmpapp $appendix > REPLICATION.md
 
+# Query JIRA API for DOI information and inject it into REPLICATION.md
+if command -v $(dirname $0)/jira_get_doi.py &> /dev/null
+then
+    echo "Querying JIRA for DOI information..."
+    doi_info=$($pythonbin $(dirname $0)/jira_get_doi.py aearep-$num 2>/dev/null)
 
+    if [[ -n "$doi_info" && "$doi_info" != "" ]]
+    then
+        echo "Found DOI: $doi_info"
+
+        # Check if the DOI line already exists and remove it
+        sed -i '/^\s*- \[FYI\] The predicted DOI is /d' REPLICATION.md
+
+        # Find the line with "Action Items (manuscript)" and insert blank line + DOI line after it
+        sed -i "/### Action Items (manuscript)/a\\
+\\
+ - [FYI] The predicted DOI is $doi_info" REPLICATION.md
+
+        echo "DOI information added to REPLICATION.md"
+    else
+        echo "No DOI information found in JIRA"
+    fi
+else
+    echo "jira_get_doi.py not found, skipping DOI injection"
+fi
 
 # Update timestamp directly in REPLICATION.md
 timestamp=$(date '+%B %d, %Y  %H:%M %Z')
