@@ -244,10 +244,10 @@ echo "" >> $tmpapp
 cat $tmpapp $appendix > REPLICATION.md
 
 # Query JIRA API for DOI information and inject it into REPLICATION.md
-if command -v $(dirname $0)/jira_get_doi.py &> /dev/null
+if command -v $(dirname $0)/jira_get_info.py &> /dev/null
 then
     echo "Querying JIRA for DOI information..."
-    doi_info=$($pythonbin $(dirname $0)/jira_get_doi.py aearep-$num 2>/dev/null)
+    doi_info=$($pythonbin $(dirname $0)/jira_get_info.py aearep-$num doi 2>/dev/null)
 
     if [[ -n "$doi_info" && "$doi_info" != "" ]]
     then
@@ -266,7 +266,42 @@ then
         echo "No DOI information found in JIRA"
     fi
 else
-    echo "jira_get_doi.py not found, skipping DOI injection"
+    echo "jira_get_info.py not found, skipping DOI injection"
+fi
+
+# Query JIRA API for openICPSR project URL and inject it into REPLICATION.md
+if command -v $(dirname $0)/jira_get_info.py &> /dev/null
+then
+    echo "Querying JIRA for openICPSR URL..."
+    openicpsr_url=$($pythonbin $(dirname $0)/jira_get_info.py aearep-$num openicpsrurl 2>/dev/null)
+
+    if [[ -n "$openicpsr_url" && "$openicpsr_url" != "" ]]
+    then
+        echo "Found openICPSR URL: $openicpsr_url"
+
+        # Try to replace the placeholder URL with the actual URL
+        # The line pattern to match (approximately):
+        # > [REQUIRED] When returning proofs, confirm that all requested changes to the replication package, as outlined in the "Actions Items (openICPSR)"  section of the Data Editor report, have been completed. The URL to access the deposit is <https://www.openicpsr.org/openicpsr/workspace?goToPath=/openicpsr/xxxxx>.
+
+        # Search for the template text in the 50 lines after "### Action Items (manuscript)"
+        if sed -n '/### Action Items (manuscript)/,+50p' REPLICATION.md | grep -q "confirm that all requested changes to the replication package.*The URL to access the deposit is"
+        then
+            # Replace existing placeholder URL - use more specific pattern to avoid spurious matches
+            sed -i "s|\(confirm that all requested changes to the replication package.*The URL to access the deposit is <\)https://www.openicpsr.org/openicpsr/workspace?goToPath=/openicpsr/[^>]*|\1$openicpsr_url|g" REPLICATION.md
+            echo "openICPSR URL updated in REPLICATION.md"
+        else
+            # Template line not found, inject full text before "### Action Items (openICPSR)"
+            sed -i "/### Action Items (openICPSR)/i\\
+> [REQUIRED] When returning proofs, confirm that all requested changes to the replication package, as outlined in the \"Actions Items (openICPSR)\"  section of the Data Editor report, have been completed. The URL to access the deposit is <$openicpsr_url>.\\
+\\
+" REPLICATION.md
+            echo "openICPSR URL line injected into REPLICATION.md"
+        fi
+    else
+        echo "No openICPSR URL found in JIRA"
+    fi
+else
+    echo "jira_get_info.py not found, skipping openICPSR URL injection"
 fi
 
 # Update timestamp directly in REPLICATION.md
