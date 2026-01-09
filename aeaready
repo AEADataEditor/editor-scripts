@@ -254,7 +254,7 @@ then
         echo "Found DOI: $doi_info"
 
         # Check if the DOI line already exists and remove it
-        sed -i '/^\s*- \[FYI\] The predicted DOI is /d' REPLICATION.md
+        sed -i '/^\s*- \[FYI\] \[EDITORIAL STAFF\] The predicted DOI of the replication package is /d' REPLICATION.md
 
         # Find the line with "Action Items (manuscript)" and insert blank line + DOI line after it
         sed -i "/### Action Items (manuscript)/a\\
