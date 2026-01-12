@@ -304,6 +304,40 @@ else
     echo "jira_get_info.py not found, skipping openICPSR URL injection"
 fi
 
+# Query JIRA API for DCAF_Access_Restrictions_V2 and inject private data notice if applicable
+if command -v $(dirname $0)/jira_get_info.py &> /dev/null
+then
+    echo "Querying JIRA for DCAF private data restriction..."
+    dcaf_private=$($pythonbin $(dirname $0)/jira_get_info.py aearep-$num dcaf_private 2>/dev/null)
+
+    if [[ -n "$dcaf_private" && "$dcaf_private" == "yes" ]]
+    then
+        echo "Found DCAF private data restriction"
+
+        # Check if the notice already exists to avoid duplication
+        if ! grep -q "The article uses restricted-access data, which the authors provided privately not-for-publication" REPLICATION.md
+        then
+            # Find the line starting with "In assessing compliance with our" and insert notice above it
+            if grep -q "^In assessing compliance with our" REPLICATION.md
+            then
+                sed -i "/^In assessing compliance with our/i\\
+> The article uses restricted-access data, which the authors provided privately not-for-publication. We will be in touch separately to confirm deletion of the data.\\
+\\
+" REPLICATION.md
+                echo "Private data restriction notice added to REPLICATION.md"
+            else
+                echo "WARNING: Could not find 'In assessing compliance with our' line in REPLICATION.md"
+            fi
+        else
+            echo "Private data restriction notice already exists in REPLICATION.md"
+        fi
+    else
+        echo "No DCAF private data restriction found in JIRA"
+    fi
+else
+    echo "jira_get_info.py not found, skipping DCAF private data check"
+fi
+
 # Update timestamp directly in REPLICATION.md
 timestamp=$(date '+%B %d, %Y  %H:%M %Z')
 # Remove any existing timestamp lines

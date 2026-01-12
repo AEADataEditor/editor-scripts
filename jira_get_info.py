@@ -10,12 +10,14 @@ Usage:
     Keywords:
         doi          - DOI (from RepositoryDOI or constructed from openICPSR fields)
         openicpsrurl - openICPSR alternate URL
+        dcaf_private - Check if DCAF_Access_Restrictions_V2 contains "Yes, data can be made available privately"
 
     If no keyword is provided, defaults to 'doi' for backward compatibility.
 
 Examples:
     python3 jira_get_info.py aearep-8361 doi
     python3 jira_get_info.py aearep-8361 openicpsrurl
+    python3 jira_get_info.py aearep-8361 dcaf_private
 
 Environment Variables Required:
     JIRA_USERNAME - Your Jira email address
@@ -116,6 +118,28 @@ def get_openicpsr_url_from_jira(issue, field_map):
     return ""
 
 
+def check_dcaf_private_data(issue, field_map):
+    """
+    Check if DCAF_Access_Restrictions_V2 contains "Yes, data can be made available privately".
+
+    Returns:
+        "yes" if the field contains the target text, empty string otherwise
+    """
+    dcaf_value = get_field_value(issue, field_map, 'DCAF_Access_Restrictions_V2')
+
+    if dcaf_value:
+        # Handle both string and list cases
+        if isinstance(dcaf_value, list):
+            # Check if any item in the list matches
+            for item in dcaf_value:
+                if "Yes, data can be made available privately" in str(item):
+                    return "yes"
+        elif "Yes, data can be made available privately" in str(dcaf_value):
+            return "yes"
+
+    return ""
+
+
 def get_info_from_jira(issue_key, keyword='doi'):
     """
     Get information from JIRA issue based on keyword.
@@ -145,6 +169,8 @@ def get_info_from_jira(issue_key, keyword='doi'):
             return get_doi_from_jira(issue, field_map)
         elif keyword_lower == 'openicpsrurl':
             return get_openicpsr_url_from_jira(issue, field_map)
+        elif keyword_lower == 'dcaf_private':
+            return check_dcaf_private_data(issue, field_map)
         else:
             print(f"Unknown keyword: {keyword}", file=sys.stderr)
             return ""
@@ -156,7 +182,7 @@ def get_info_from_jira(issue_key, keyword='doi'):
 def main():
     if len(sys.argv) < 2:
         print("Usage: jira_get_info.py <issue-key> [keyword]", file=sys.stderr)
-        print("Keywords: doi, openicpsrurl", file=sys.stderr)
+        print("Keywords: doi, openicpsrurl, dcaf_private", file=sys.stderr)
         sys.exit(1)
 
     issue_key = sys.argv[1].upper()
