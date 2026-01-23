@@ -244,10 +244,10 @@ echo "" >> $tmpapp
 cat $tmpapp $appendix > REPLICATION.md
 
 # Query JIRA API for DOI information and inject it into REPLICATION.md
-if command -v $(dirname $0)/jira_get_info.py &> /dev/null
+if [[ -f "tools/jira_get_info.py" ]]
 then
     echo "Querying JIRA for DOI information..."
-    doi_info=$($pythonbin $(dirname $0)/jira_get_info.py aearep-$num doi 2>/dev/null)
+    doi_info=$($pythonbin tools/jira_get_info.py aearep-$num doi 2>/dev/null)
 
     if [[ -n "$doi_info" && "$doi_info" != "" ]]
     then
@@ -266,14 +266,15 @@ then
         echo "No DOI information found in JIRA"
     fi
 else
-    echo "jira_get_info.py not found, skipping DOI injection"
+    echo "jira_get_info.py not found in tools/ subdirectory, skipping DOI injection"
+    sleep 1
 fi
 
 # Query JIRA API for openICPSR project URL and inject it into REPLICATION.md
-if command -v $(dirname $0)/jira_get_info.py &> /dev/null
+if [[ -f "tools/jira_get_info.py" ]]
 then
     echo "Querying JIRA for openICPSR URL..."
-    openicpsr_url=$($pythonbin $(dirname $0)/jira_get_info.py aearep-$num openicpsrurl 2>/dev/null)
+    openicpsr_url=$($pythonbin tools/jira_get_info.py aearep-$num openicpsrurl 2>/dev/null)
 
     if [[ -n "$openicpsr_url" && "$openicpsr_url" != "" ]]
     then
@@ -301,14 +302,15 @@ then
         echo "No openICPSR URL found in JIRA"
     fi
 else
-    echo "jira_get_info.py not found, skipping openICPSR URL injection"
+    echo "jira_get_info.py not found in tools/ subdirectory, skipping openICPSR URL injection"
+    sleep 1
 fi
 
 # Query JIRA API for DCAF_Access_Restrictions_V2 and inject private data notice if applicable
-if command -v $(dirname $0)/jira_get_info.py &> /dev/null
+if [[ -f "tools/jira_get_info.py" ]]
 then
     echo "Querying JIRA for DCAF private data restriction..."
-    dcaf_private=$($pythonbin $(dirname $0)/jira_get_info.py aearep-$num dcaf_private 2>/dev/null)
+    dcaf_private=$($pythonbin tools/jira_get_info.py aearep-$num dcaf_private 2>/dev/null)
 
     if [[ -n "$dcaf_private" && "$dcaf_private" == "yes" ]]
     then
@@ -335,7 +337,8 @@ then
         echo "No DCAF private data restriction found in JIRA"
     fi
 else
-    echo "jira_get_info.py not found, skipping DCAF private data check"
+    echo "jira_get_info.py not found in tools/ subdirectory, skipping DCAF private data check"
+    sleep 1
 fi
 
 # Update timestamp directly in REPLICATION.md
