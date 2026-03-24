@@ -64,7 +64,7 @@ def get_openicpsr_from_jira(jira_key):
             print("Warning: 'openICPSR Project Number' field not found in Jira")
             return None
         value = getattr(issue.fields, field_id, None)
-        return str(value) if value else None
+        return str(int(float(value))) if value else None
     except Exception as e:
         print(f"Warning: Could not retrieve openICPSR from Jira: {e}")
         return None
