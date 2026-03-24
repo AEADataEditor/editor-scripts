@@ -78,9 +78,9 @@ def notify_jira(repo_slug, openicpsr_id=None):
 
     jira_key = repo_slug.upper()  # aearep-8885 -> AEAREP-8885
     repo_url = f"https://bitbucket.org/{workspace}/{repo_slug}"
-    comment = f"Bitbucket repository [{repo_slug}]({repo_url}) has been created."
+    comment = f"Bitbucket repository [{repo_slug}|{repo_url}] has been created."
     if openicpsr_id:
-        comment += f" openICPSR project: {openicpsr_id}."
+        comment += f" openICPSR project: {{{{{openicpsr_id}}}}}."
 
     try:
         jira.add_comment(jira_key, comment)
