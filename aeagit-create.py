@@ -64,7 +64,7 @@ def get_openicpsr_from_jira(jira_key):
             print("Warning: 'openICPSR Project Number' field not found in Jira")
             return None
         value = getattr(issue.fields, field_id, None)
-        return str(value) if value else None
+        return str(int(float(value))) if value else None
     except Exception as e:
         print(f"Warning: Could not retrieve openICPSR from Jira: {e}")
         return None
@@ -81,6 +81,13 @@ def notify_jira(repo_slug, openicpsr_id=None):
     comment = f"Bitbucket repository [{repo_slug}|{repo_url}] has been created."
     if openicpsr_id:
         comment += f" openICPSR project: {{{{{openicpsr_id}}}}}."
+
+    try:
+        issue = jira.issue(jira_key)
+        issue.update(fields={"customfield_10062": repo_slug})
+        print(f"Jira 'Bitbucket short name' set to {repo_slug} on {jira_key}")
+    except Exception as e:
+        print(f"Warning: Could not update Bitbucket short name on {jira_key}: {e}")
 
     try:
         jira.add_comment(jira_key, comment)
