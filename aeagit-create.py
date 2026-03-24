@@ -83,6 +83,13 @@ def notify_jira(repo_slug, openicpsr_id=None):
         comment += f" openICPSR project: {{{{{openicpsr_id}}}}}."
 
     try:
+        issue = jira.issue(jira_key)
+        issue.update(fields={"customfield_10062": repo_slug})
+        print(f"Jira 'Bitbucket short name' set to {repo_slug} on {jira_key}")
+    except Exception as e:
+        print(f"Warning: Could not update Bitbucket short name on {jira_key}: {e}")
+
+    try:
         jira.add_comment(jira_key, comment)
         print(f"Jira comment posted to {jira_key}")
     except Exception as e:
