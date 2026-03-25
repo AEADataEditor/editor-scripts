@@ -445,16 +445,16 @@ read
 git commit -m "$commitmsg"
 git push
 
-# Now modify the Jira issue accordingly. Ask first, and then call jira_approval_manager.py
+# Now modify the Jira issue accordingly. Ask first, and then call jira-approval-manager
 echo "::: Ready to update Jira issue AEAREP-$num ? (Ctrl-C to abort)"
 read
 
 # check first if the script is in the path
-if ! command -v jira_approval_manager.py &> /dev/null
+if ! command -v jira-approval-manager &> /dev/null
 then
-   echo "jira_approval_manager.py could not be found in PATH. Not modifying Jira issue."
+   echo "jira-approval-manager could not be found in PATH. Not modifying Jira issue."
    echo "You may want to call   aeaopen   ."
    exit 0
 fi
 set -evx
-$pythonbin $(dirname $0)/jira_approval_manager.py aearep-$num $decision 0
+jira-approval-manager aearep-$num $decision 0
