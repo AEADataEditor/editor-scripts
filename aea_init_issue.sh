@@ -23,7 +23,7 @@ openICPSRID=$2
 
 # Step 1: create the repo. Fail if it exists
 
-aeagit-create.py  -r $repo_slug
+aeagit-create  -r $repo_slug
 if [[ $? -ne 0 ]] ; then
     echo "Repo creation failed"
     exit 1
