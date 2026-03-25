@@ -1,2 +1,4 @@
-dotenv
+python-dotenv
 requests
+jira
+pyyaml

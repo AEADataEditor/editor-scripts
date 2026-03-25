@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aea-editor-scripts"
+version = "0.1.0"
+description = "Scripts for AEA Data Editor workflow"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "python-dotenv",
+    "requests",
+    "jira",
+    "pyyaml",
+]
+
+[project.scripts]
+aeagit-create          = "aea_editor_scripts.aeagit_create:main"
+jira-approval-manager  = "aea_editor_scripts.jira_approval_manager:main"
+jira-purge-query       = "aea_editor_scripts.jira_purge_query:main"
+jira-status-manager    = "aea_editor_scripts.jira_status_manager:main"
+zenodo-metadata-editor = "aea_editor_scripts.zenodo_metadata_editor:main"
+
+[tool.setuptools.packages.find]
+include = ["aea_editor_scripts*"]
