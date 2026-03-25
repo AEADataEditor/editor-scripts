@@ -53,6 +53,27 @@ git clone https://github.com/AEADataEditor/editor-scripts.git bin
 bash <(wget -qO - https://raw.githubusercontent.com/AEADataEditor/editor-scripts/main/aeascripts)
 ```
 
+### Python scripts
+
+The Python scripts in this repository can be installed as command-line tools using `pip` or `uv`. This makes them available in your `PATH` on all platforms, including Windows.
+
+```bash
+pip install git+https://github.com/AEADataEditor/editor-scripts.git
+```
+
+Or using the included helper script (add `--uv` to use `uv` instead of `pip`):
+
+```bash
+./install.sh        # uses pip
+./install.sh --uv   # uses uv
+```
+
+To uninstall:
+
+```bash
+pip uninstall aea-editor-scripts
+```
+
 ## Updating
 
 ```
@@ -171,6 +192,50 @@ same as above, but instead of running Stata, will provide a shell within the Sta
 
 
 ![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Maybe Windows](https://img.shields.io/badge/-Windows-orange)
+
+## Python scripts
+
+The following scripts are installed as command-line tools via `pip` (see [Python scripts](#python-scripts) installation above).
+
+### `aeagit-create`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
+
+Creates a new Bitbucket repository for an AEA replication package. Optionally populates it from a template, enables pipelines, and posts a comment to the corresponding Jira issue.
+
+Usage: `aeagit-create -r aearep-NNNN [--openicpsr [ID]]`
+
+### `jira-approval-manager`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
+
+Manages Jira approval transitions (Report Under Review → Pre-Approved → Approved) and updates the MC Recommendation field. Auto-detects the recommendation from `REPLICATION.md` if present in the current directory.
+
+Usage: `jira-approval-manager aearep-NNNN (approve|pre-approve) [recommendation]`
+
+### `jira-purge-query`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
+
+Checks whether one or more Jira issues are ready for purging based on their status history, including any linked revision issues.
+
+Usage: `jira-purge-query aearep-NNNN [aearep-MMMM ...]`
+
+### `jira-status-manager`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
+
+Queries and updates Jira issue status and MC Recommendation fields. Can list available transitions and execute them by keyword or number.
+
+Usage: `jira-status-manager aearep-NNNN [action] [recommendation]`
+
+### `zenodo-metadata-editor`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
+
+Edits metadata of Zenodo deposits and adds related identifiers (e.g., linking a journal article DOI to a data and code package). Supports both the Zenodo sandbox and production environments.
+
+Usage: `zenodo-metadata-editor --deposit-id ID --article-doi DOI --replpkg-doi DOI [--production] [--publish]`
 
 ## Note for neophytes
 
