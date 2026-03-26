@@ -272,29 +272,40 @@ Required Bitbucket API token scopes:
   write:pipeline:bitbucket     Trigger pipelines
 
 Examples:
-  # Create repo, skip pipeline
-  %(prog)s -r aearep-8885
+  # Create repo (shorthand); auto-looks up openICPSR from Jira and triggers pipeline if found
+  %(prog)s 8885
 
-  # Create repo, look up openICPSR from Jira, trigger pipeline
-  %(prog)s -r aearep-8885 --openicpsr
+  # Create repo using full name
+  %(prog)s aearep-8885
 
-  # Create repo with explicit openICPSR, trigger pipeline
-  %(prog)s -r aearep-8885 --openicpsr 246719
+  # Create repo with explicit openICPSR override, trigger pipeline
+  %(prog)s 8885 -i 246719
 
   # Delete repo
-  %(prog)s -r aearep-8885 --delete
+  %(prog)s 8885 --delete
 """
     )
-    parser.add_argument('-r', '--repo_slug', required=True,
-                        help='Repository name (e.g. aearep-8885)')
+    parser.add_argument('repo', metavar='REPO',
+                        help='Repository name or number (e.g. aearep-8885 or 8885)')
+    parser.add_argument('-r', '--repo_slug', required=False,
+                        help='Repository name or number (e.g. aearep-8885 or 8885)')
     parser.add_argument('-p', '--project', required=False, default="AEADEF",
                         help='Bitbucket project key (default: AEADEF = "Default")')
     parser.add_argument('-d', '--delete', action='store_true',
                         help='Delete the repository instead of creating it')
-    parser.add_argument('-i', '--openicpsr', nargs='?', default=None, const='FROM_JIRA',
-                        help='openICPSR project number (e.g. 246719); omit flag to skip pipeline; '
-                             'pass flag without value to look up from Jira')
+    parser.add_argument('-i', '--openicpsr', nargs='?', default='FROM_JIRA', const='FROM_JIRA',
+                        help='openICPSR project number (e.g. 246719); omit to auto-look up from Jira '
+                             'and trigger pipeline if found; pass explicit value to override')
     args = parser.parse_args()
+
+    # Reconcile positional and -r flag; positional takes precedence
+    repo_slug = args.repo if args.repo else args.repo_slug
+    if not repo_slug:
+        parser.error("Repository name or number is required (positional or -r)")
+    # Normalize: accept shorthand like '8885' → 'aearep-8885'
+    if repo_slug.isdigit():
+        repo_slug = f"aearep-{repo_slug}"
+    args.repo_slug = repo_slug
 
     # Load credentials: environment takes precedence, fall back to ~/.envvars
     consumer_key = os.getenv('P_BITBUCKET_PAT')
@@ -336,8 +347,6 @@ Examples:
         enable_pipelines(consumer_user, consumer_key, workspace, args.repo_slug)
         trigger_pipeline(consumer_user, consumer_key, workspace,
                          args.repo_slug, openicpsr_id)
-    elif args.openicpsr is None:
-        print("--openicpsr not specified; skipping pipeline trigger")
 
 
 if __name__ == "__main__":
