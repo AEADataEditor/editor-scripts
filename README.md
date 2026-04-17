@@ -61,7 +61,8 @@ The Python scripts in this repository can be installed as command-line tools usi
 pip install git+https://github.com/AEADataEditor/editor-scripts.git
 ```
 
-Or using the included helper script (add `--uv` to use `uv` instead of `pip`):
+Or using the included helper script (add `--uv` to use `uv` instead of `pip`).
+The helper script always installs with `--upgrade`, so running it is both install and update:
 
 ```bash
 ./install.sh        # uses pip

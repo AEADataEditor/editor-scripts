@@ -48,6 +48,7 @@ import sys
 import argparse
 import time
 import re
+import threading
 from jira import JIRA
 
 # Configuration
@@ -535,12 +536,32 @@ Notes:
 
     # Wait before transition with in-place countdown
     print(f"\nWill record '{target_transition}' in {COUNTDOWN_SECONDS} seconds...")
-    print("Press Ctrl+C to cancel")
+    print("Press Enter to skip or Ctrl+C to cancel")
+    
+    # Flag to track if Enter was pressed
+    skip_countdown = threading.Event()
+    
+    def wait_for_enter():
+        """Wait for Enter key in a separate thread."""
+        try:
+            input()
+            skip_countdown.set()
+        except EOFError:
+            pass
+    
+    # Start thread to wait for Enter key
+    input_thread = threading.Thread(target=wait_for_enter, daemon=True)
+    input_thread.start()
+    
     try:
         for i in range(COUNTDOWN_SECONDS, 0, -1):
+            if skip_countdown.is_set():
+                print("\n  Skipping countdown...")
+                break
             print(f"\r  Countdown: {i} seconds...", end='', flush=True)
             time.sleep(1)
-        print()  # New line after countdown
+        else:
+            print()  # New line after countdown
     except KeyboardInterrupt:
         print("\n\n✗ Cancelled by user")
         sys.exit(0)
