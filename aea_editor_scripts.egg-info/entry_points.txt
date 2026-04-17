@@ -1,6 +1,0 @@
-[console_scripts]
-aeagit-create = aea_editor_scripts.aeagit_create:main
-jira-approval-manager = aea_editor_scripts.jira_approval_manager:main
-jira-purge-query = aea_editor_scripts.jira_purge_query:main
-jira-status-manager = aea_editor_scripts.jira_status_manager:main
-zenodo-metadata-editor = aea_editor_scripts.zenodo_metadata_editor:main
