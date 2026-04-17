@@ -1,3 +1,16 @@
+Metadata-Version: 2.4
+Name: aea-editor-scripts
+Version: 0.2.1
+Summary: Scripts for AEA Data Editor workflow
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: python-dotenv
+Requires-Dist: requests
+Requires-Dist: jira
+Requires-Dist: pyyaml
+Dynamic: license-file
+
 # Scripts to facilitate the Data Editors and report writer's lives
 
 These scripts will streamline a few things. They may not work in all environments.
@@ -61,8 +74,7 @@ The Python scripts in this repository can be installed as command-line tools usi
 pip install git+https://github.com/AEADataEditor/editor-scripts.git
 ```
 
-Or using the included helper script (add `--uv` to use `uv` instead of `pip`).  
-The helper script always installs with `--upgrade`, so running it is both install and update:
+Or using the included helper script (add `--uv` to use `uv` instead of `pip`):
 
 ```bash
 ./install.sh        # uses pip
