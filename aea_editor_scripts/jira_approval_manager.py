@@ -546,7 +546,7 @@ Notes:
         try:
             input()
             skip_countdown.set()
-        except:
+        except EOFError:
             pass
     
     # Start thread to wait for Enter key
