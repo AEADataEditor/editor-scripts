@@ -159,6 +159,77 @@ and remove them.
 
 This script will parse the `REPLICATION.md` and convert all `REQUIRED` tags into "[We REQUESTED]" tags, ready to be checked by a replicator working on a revision report.
 
+## Box Utilities
+
+The following scripts manage Box folders for the AEA Data Editor workflow. They automate cleanup of completed cases and recovery of accidentally deleted files.
+
+### `aea_box_clean_folders`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-orange)
+
+This script automates the cleanup of Box folders for completed Jira cases by:
+1. Scanning the Box root folder for case folders (aearep-XXXX)
+2. Checking if cases are ready for purging via Jira status
+3. For ready cases:
+   - Deleting data files (CSV, DTA, ZIP, etc.)
+   - Keeping documents (PDF, DOCX, TXT, etc.)
+   - Moving the folder to the `1Completed` subfolder
+
+**Usage:**
+```bash
+# Test mode (dry run - no modifications)
+aea_box_clean_folders --test
+
+# Process all ready cases
+aea_box_clean_folders
+
+# Process specific case
+aea_box_clean_folders --case 1234
+
+# Skip confirmation prompt
+aea_box_clean_folders --yes
+
+# List cases and their status
+aea_box_clean_folders --list
+```
+
+**Environment Variables Required:**
+- Box Authentication: `BOX_FOLDER_PRIVATE`, `BOX_PRIVATE_KEY_ID`, `BOX_ENTERPRISE_ID`, `BOX_CONFIG_PATH` (or `BOX_PRIVATE_JSON`)
+- Jira Authentication: `JIRA_USERNAME`, `JIRA_API_KEY`
+
+### `aea_box_recover_files`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-orange)
+
+This script recovers files deleted from Box folders by:
+1. Taking a Jira case number and looking up Box Folder ID from Jira
+2. Listing files deleted by the service account in the past N days
+3. Restoring files back to their folder (in `1Completed`)
+
+**Usage:**
+```bash
+# List deleted files for case 8040
+aea_box_recover_files --case 8040 --list
+
+# Test mode (dry run)
+aea_box_recover_files --case 8040 --test
+
+# Restore files
+aea_box_recover_files --case 8040
+
+# Look back 14 days instead of default 7
+aea_box_recover_files --case 8040 --days 14
+
+# Skip confirmation prompt
+aea_box_recover_files --case 8040 --yes
+```
+
+**Environment Variables Required:**
+- Box Authentication: `BOX_FOLDER_PRIVATE`, `BOX_PRIVATE_KEY_ID`, `BOX_ENTERPRISE_ID`, `BOX_CONFIG_PATH` (or `BOX_PRIVATE_JSON`)
+- Jira Authentication: `JIRA_USERNAME`, `JIRA_API_KEY`, optionally `JIRA_SERVER`
+
+**Note:** The cleanup script moves folders to `1Completed` and deletes data files inside. This recovery script finds those deleted files and restores them back to the folder in `1Completed`.
+
 ## Convenience scripts
 
 The following scripts may or may not work for some people:
