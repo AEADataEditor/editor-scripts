@@ -61,9 +61,14 @@ except ImportError:
     print("Error: boxsdk[jwt] not installed. Install with: pip install 'boxsdk[jwt]'")
     sys.exit(1)
 
+try:
+    import shutil
+except ImportError:
+    print("Error: shutil not available (should be in standard library)")
+    sys.exit(1)
 
 # Configuration
-JIRA_PURGE_QUERY_PATH = '/home/vilhuber/bin/aea-scripts/jira_purge_query.py'
+JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
 
 # File extensions for classification
 DATA_FILE_EXTENSIONS = {
@@ -276,14 +281,14 @@ class BoxCleanup:
             self.logger.warning(f"Skipping Jira check for aearep-{case_number} (--skip-jira-check)")
             return True, "Skipped (--skip-jira-check)"
             
-        # Check if jira_purge_query.py exists
-        if not os.path.exists(JIRA_PURGE_QUERY_PATH):
-            self.logger.error(f"jira_purge_query.py not found at: {JIRA_PURGE_QUERY_PATH}")
+        # Check if jira-purge-query command is available
+        if not shutil.which(JIRA_PURGE_QUERY_CMD):
+            self.logger.error(f"'{JIRA_PURGE_QUERY_CMD}' command not found. Please install aea-editor-scripts package.")
             sys.exit(1)
         
         try:
-            # Run jira_purge_query.py (quiet mode unless verbose requested)
-            args = [JIRA_PURGE_QUERY_PATH]
+            # Run jira-purge-query (quiet mode unless verbose requested)
+            args = [JIRA_PURGE_QUERY_CMD]
             if not verbose:
                 args.append('-q')
             args.append(f'aearep-{case_number}')
@@ -594,9 +599,9 @@ class BoxCleanup:
         # Authenticate
         self.authenticate_box()
         
-        # Verify jira_purge_query.py is available (unless skipping Jira checks)
-        if not self.skip_jira and not os.path.exists(JIRA_PURGE_QUERY_PATH):
-            self.logger.error(f"jira_purge_query.py not found at: {JIRA_PURGE_QUERY_PATH}")
+        # Verify jira-purge-query command is available (unless skipping Jira checks)
+        if not self.skip_jira and not shutil.which(JIRA_PURGE_QUERY_CMD):
+            self.logger.error(f"'{JIRA_PURGE_QUERY_CMD}' command not found. Please install aea-editor-scripts package.")
             sys.exit(1)
         
         # Find case folders

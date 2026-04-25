@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aea-editor-scripts"
-version = "0.2.1"
+version = "0.3.0"
 description = "Scripts for AEA Data Editor workflow"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -13,10 +13,13 @@ dependencies = [
     "requests",
     "jira",
     "pyyaml",
+    "boxsdk[jwt]",
 ]
 
 [project.scripts]
 aeagit-create          = "aea_editor_scripts.aeagit_create:main"
+aea-box-clean-folders  = "aea_editor_scripts.box_clean_folders:main"
+aea-box-recover-files  = "aea_editor_scripts.box_recover_files:main"
 jira-approval-manager  = "aea_editor_scripts.jira_approval_manager:main"
 jira-purge-query       = "aea_editor_scripts.jira_purge_query:main"
 jira-status-manager    = "aea_editor_scripts.jira_status_manager:main"
