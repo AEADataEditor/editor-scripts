@@ -10,17 +10,22 @@ This script cleans up Box folders for completed Jira cases by:
    - Moving the folder (with remaining documents) to the '1Completed' subfolder
 
 Usage:
-    # Test mode (dry run - no modifications)
-    python3 clean_box_folders.py --test
+    # Process case inferred from current directory name (e.g., aearep-1234)
+    python3 box_clean_folders.py
+
+    # Process specific case (number or full name)
+    python3 box_clean_folders.py 1234
+    python3 box_clean_folders.py aearep-1234
+    python3 box_clean_folders.py --case 1234
+
+    # Skip confirmation prompt
+    python3 box_clean_folders.py --yes
 
     # Process all ready cases
-    python3 clean_box_folders.py
+    python3 box_clean_folders.py --all
 
-    # Process specific case
-    python3 clean_box_folders.py --case 1234
-
-    # Process without interactive confirmation
-    python3 clean_box_folders.py --yes
+    # Test mode (dry run - no modifications)
+    python3 box_clean_folders.py --test
 
 Environment Variables Required:
     Box Authentication:
@@ -29,7 +34,7 @@ Environment Variables Required:
         BOX_ENTERPRISE_ID - Enterprise ID
         BOX_CONFIG_PATH - Directory containing config JSON file
         BOX_PRIVATE_JSON - Base64 encoded config (alternative to config file)
-        
+
     Jira Authentication (for jira_purge_query.py):
         JIRA_USERNAME - Your Jira email address
         JIRA_API_KEY - API token
@@ -611,15 +616,16 @@ class BoxCleanup:
             self.logger.warning("No case folders found")
             return
         
-        # Confirmation prompt (unless --yes or --test or single case)
-        if not auto_confirm and not self.test_mode and len(case_folders) > 1:
-            self.logger.info(f"\nAbout to process {len(case_folders)} case folders")
-            
-            if len(case_folders) > 10:
+        # Confirmation prompt (unless --yes or --test)
+        if not auto_confirm and not self.test_mode:
+            if len(case_folders) == 1:
+                folder_name = case_folders[0][1]
+                response = input(f"Process folder '{folder_name}'? [y/N]: ")
+            elif len(case_folders) > 10:
                 response = input(f"Process {len(case_folders)} folders? This may take a while. [y/N]: ")
             else:
-                response = input(f"Continue? [y/N]: ")
-            
+                response = input(f"Process {len(case_folders)} folders? [y/N]: ")
+
             if response.lower() not in ['y', 'yes']:
                 self.logger.info("Cancelled by user")
                 return
@@ -666,6 +672,22 @@ class BoxCleanup:
         return f"{size:.2f} PB"
 
 
+def _normalize_case(case_input: str) -> Optional[str]:
+    """
+    Normalize a case argument to a digit-only string.
+
+    Accepts '1234' or 'aearep-1234' (case-insensitive).
+    Returns the digit portion, or None if the format is unrecognized.
+    """
+    s = case_input.strip()
+    m = re.match(r'^aearep-(\d+)$', s, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    if s.isdigit():
+        return s
+    return None
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -673,17 +695,22 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Test mode (dry run - no modifications)
-  %(prog)s --test
-
-  # Process all ready cases
+  # Process case inferred from current directory (e.g., when inside aearep-1234/)
   %(prog)s
 
-  # Process specific case
+  # Process a specific case (number or full name)
+  %(prog)s 1234
+  %(prog)s aearep-1234
   %(prog)s --case 1234
 
   # Skip confirmation prompt
   %(prog)s --yes
+
+  # Process all ready cases
+  %(prog)s --all
+
+  # Test mode (dry run - no modifications)
+  %(prog)s --test
 
 Environment Variables Required:
   Box Authentication:
@@ -692,63 +719,94 @@ Environment Variables Required:
     BOX_ENTERPRISE_ID - Enterprise ID
     BOX_CONFIG_PATH - Directory containing config JSON file
     (or BOX_PRIVATE_JSON - Base64 encoded config)
-    
+
   Jira Authentication:
     JIRA_USERNAME - Your Jira email address
     JIRA_API_KEY - API token
 """
     )
-    
+
+    parser.add_argument(
+        'case',
+        nargs='?',
+        metavar='CASE',
+        help='Case to process: digits (1234) or full name (aearep-1234). '
+             'Defaults to current directory name when omitted.'
+    )
+
+    parser.add_argument(
+        '--case',
+        type=str,
+        metavar='CASE',
+        dest='case_opt',
+        help='Case to process: digits (1234) or full name (aearep-1234)'
+    )
+
+    parser.add_argument(
+        '--all',
+        action='store_true',
+        help='Process all ready cases (overrides case detection from current directory)'
+    )
+
     parser.add_argument(
         '--test',
         action='store_true',
         help='Test mode: show what would be done without making changes'
     )
-    
+
     parser.add_argument(
         '--list',
         action='store_true',
-        help='List all cases and their Jira status without making any changes'
+        help='List cases and their Jira status without making any changes'
     )
-    
-    parser.add_argument(
-        '--case',
-        type=str,
-        metavar='NUMBER',
-        help='Process only this specific case number (e.g., 1234 for aearep-1234)'
-    )
-    
+
     parser.add_argument(
         '--yes', '-y',
         action='store_true',
         help='Skip confirmation prompt'
     )
-    
+
     parser.add_argument(
         '--skip-jira-check',
         action='store_true',
         help='Skip Jira status checks (process all folders found) - for testing only'
     )
-    
+
     args = parser.parse_args()
-    
-    # Validate case number format if provided
-    if args.case:
-        if not args.case.isdigit():
-            print(f"Error: --case must be a number (e.g., 1234), not '{args.case}'")
+
+    # Resolve which case(s) to process
+    case_input = args.case or args.case_opt
+    specific_case: Optional[str] = None
+
+    if args.all:
+        specific_case = None
+    elif case_input:
+        specific_case = _normalize_case(case_input)
+        if specific_case is None:
+            print(f"Error: unrecognized case format '{case_input}'.")
+            print("Use a number (e.g., 1234) or the full name (e.g., aearep-1234).")
             sys.exit(1)
-    
+    else:
+        # Default: infer from the current working directory name
+        cwd_name = os.path.basename(os.getcwd())
+        m = re.match(r'^aearep-(\d+)$', cwd_name, re.IGNORECASE)
+        if m:
+            specific_case = m.group(1)
+        else:
+            parser.print_help()
+            print(f"\nError: current directory '{cwd_name}' is not an aearep-NNNN folder.")
+            print("Specify a case (e.g., 1234 or aearep-1234) or use --all to process all cases.")
+            sys.exit(1)
+
     # Create cleanup instance
     cleanup = BoxCleanup(test_mode=args.test, skip_jira=args.skip_jira_check)
-    
+
     try:
-        # Handle --list mode
         if args.list:
-            cleanup.list_cases(specific_case=args.case)
+            cleanup.list_cases(specific_case=specific_case)
             return
-        
-        # Normal cleanup mode
-        cleanup.run(specific_case=args.case, auto_confirm=args.yes)
+
+        cleanup.run(specific_case=specific_case, auto_confirm=args.yes)
     except KeyboardInterrupt:
         cleanup.logger.info("\n\nInterrupted by user")
         cleanup._print_summary()
