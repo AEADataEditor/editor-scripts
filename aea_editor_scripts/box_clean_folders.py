@@ -42,6 +42,7 @@ Environment Variables Required:
 
 import os
 import sys
+import io
 import json
 import base64
 import argparse
@@ -138,9 +139,12 @@ class BoxCleanup:
         self.logger.setLevel(logging.DEBUG)
         
         # Console handler (INFO level)
-        console_handler = logging.StreamHandler(stream=open(
-            sys.stdout.fileno(), mode='w', encoding='utf-8', closefd=False, buffering=1
-        ) if hasattr(sys.stdout, 'fileno') else sys.stdout)
+        # Wrap stdout with explicit UTF-8 so Unicode chars (✓ ✗) work on Windows
+        _stdout = (
+            io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+            if hasattr(sys.stdout, 'buffer') else sys.stdout
+        )
+        console_handler = logging.StreamHandler(stream=_stdout)
         console_handler.setLevel(logging.INFO)
         console_formatter = logging.Formatter(log_format, date_format)
         console_handler.setFormatter(console_formatter)
