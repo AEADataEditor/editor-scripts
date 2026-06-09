@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aea-editor-scripts"
-version = "0.3.4"
+version = "0.3.5"
 description = "Scripts for AEA Data Editor workflow"
 readme = "README.md"
 requires-python = ">=3.9"

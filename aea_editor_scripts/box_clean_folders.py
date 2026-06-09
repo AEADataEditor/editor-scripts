@@ -133,16 +133,6 @@ class BoxCleanup:
         log_format = '%(asctime)s - %(levelname)s - %(message)s'
         date_format = '%Y-%m-%d %H:%M:%S'
 
-        # On Windows, reconfigure stdout/stderr to UTF-8 in-place so that
-        # Unicode characters (✓ ✗) are not rejected by the default cp1252 codec.
-        if sys.platform == 'win32':
-            for _s in (sys.stdout, sys.stderr):
-                if hasattr(_s, 'reconfigure'):
-                    try:
-                        _s.reconfigure(encoding='utf-8', errors='replace')
-                    except Exception:
-                        pass
-
         # Create logger
         self.logger = logging.getLogger('box_cleanup')
         self.logger.setLevel(logging.DEBUG)
@@ -197,7 +187,7 @@ class BoxCleanup:
                 
                 # Test authentication
                 user = self.client.user().get()
-                self.logger.info(f"✓ Authenticated as: {user.name}")
+                print(f"✓ Authenticated as: {user.name}")
                 return self.client
                 
             except Exception as e:
@@ -230,7 +220,7 @@ class BoxCleanup:
             
             # Test authentication
             user = self.client.user().get()
-            self.logger.info(f"✓ Authenticated as: {user.name}")
+            print(f"✓ Authenticated as: {user.name}")
             return self.client
             
         except Exception as e:
@@ -459,7 +449,7 @@ class BoxCleanup:
             else:
                 self.logger.info("Creating '1Completed' folder...")
                 completed_folder = root_folder.create_subfolder('1Completed')
-                self.logger.info(f"✓ Created '1Completed' folder (ID: {completed_folder.id})")
+                print(f"✓ Created '1Completed' folder (ID: {completed_folder.id})")
                 return completed_folder.id
                 
         except BoxAPIException as e:
@@ -495,7 +485,7 @@ class BoxCleanup:
             
             # Move the folder
             folder.move(completed_folder)
-            self.logger.info(f"  ✓ Moved folder '{folder_name}' to '1Completed'")
+            print(f"  ✓ Moved folder '{folder_name}' to '1Completed'")
             return True
             
         except BoxAPIException as e:
@@ -530,11 +520,11 @@ class BoxCleanup:
         # Check Jira status
         is_ready, _ = self.check_jira_purge_status(case_number)
         if not is_ready:
-            self.logger.info(f"  ✗ Not ready for purge - skipping")
+            print(f"  ✗ Not ready for purge - skipping")
             return False
         
         self.stats['folders_ready'] += 1
-        self.logger.info(f"  ✓ Ready for purge")
+        print(f"  ✓ Ready for purge")
         
         # Get folder contents and classify files
         self.logger.info(f"  Scanning folder contents...")
@@ -560,7 +550,7 @@ class BoxCleanup:
             self.logger.info(f"  Deleting data files from moved folder...")
             deleted = self.delete_data_files(data_files)
             total_size = sum(f['size'] for f in data_files)
-            self.logger.info(f"  ✓ Deleted {deleted}/{len(data_files)} data files ({self._format_size(total_size)})")
+            print(f"  ✓ Deleted {deleted}/{len(data_files)} data files ({self._format_size(total_size)})")
         else:
             self.logger.info(f"  No data files to delete")
         
