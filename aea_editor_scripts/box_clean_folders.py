@@ -42,7 +42,6 @@ Environment Variables Required:
 
 import os
 import sys
-import io
 import json
 import base64
 import argparse
@@ -133,18 +132,23 @@ class BoxCleanup:
         """Configure logging to both file and console."""
         log_format = '%(asctime)s - %(levelname)s - %(message)s'
         date_format = '%Y-%m-%d %H:%M:%S'
-        
+
+        # On Windows, reconfigure stdout/stderr to UTF-8 in-place so that
+        # Unicode characters (✓ ✗) are not rejected by the default cp1252 codec.
+        if sys.platform == 'win32':
+            for _s in (sys.stdout, sys.stderr):
+                if hasattr(_s, 'reconfigure'):
+                    try:
+                        _s.reconfigure(encoding='utf-8', errors='replace')
+                    except Exception:
+                        pass
+
         # Create logger
         self.logger = logging.getLogger('box_cleanup')
         self.logger.setLevel(logging.DEBUG)
-        
+
         # Console handler (INFO level)
-        # Wrap stdout with explicit UTF-8 so Unicode chars (✓ ✗) work on Windows
-        _stdout = (
-            io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-            if hasattr(sys.stdout, 'buffer') else sys.stdout
-        )
-        console_handler = logging.StreamHandler(stream=_stdout)
+        console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
         console_formatter = logging.Formatter(log_format, date_format)
         console_handler.setFormatter(console_formatter)
