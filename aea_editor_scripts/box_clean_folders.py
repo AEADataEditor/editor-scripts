@@ -138,7 +138,9 @@ class BoxCleanup:
         self.logger.setLevel(logging.DEBUG)
         
         # Console handler (INFO level)
-        console_handler = logging.StreamHandler()
+        console_handler = logging.StreamHandler(stream=open(
+            sys.stdout.fileno(), mode='w', encoding='utf-8', closefd=False, buffering=1
+        ) if hasattr(sys.stdout, 'fileno') else sys.stdout)
         console_handler.setLevel(logging.INFO)
         console_formatter = logging.Formatter(log_format, date_format)
         console_handler.setFormatter(console_formatter)
