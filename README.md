@@ -110,9 +110,12 @@ gh secret set P_BITBUCKET_USERNAME --user
 
 This script can be downloaded manually, or as part of a separate `git clone`. It will clone this repo into `$HOME/bin/aea-scripts` and add that PATH to the `$PATH` variable in the `bash` profile. It is not otherwise used.
 
-### `aeagit` (bitbutcket number)
+### `aeagit` (number|name)
 
-This script will `git clone` the repository corresponding to `aeaverification/aearep-[bitbucket number]` (which should be the *original* `AEAREP-[issue]`), and where possible, open VS Code in the directory with the `REPLICATION.md` preloaded. Used during editing and sign-off
+This script will `git clone` a repository from the AEA Bitbucket organization and, where possible, open VS Code in the directory with the `REPLICATION.md` preloaded. Used during editing and sign-off.
+
+- If a plain number is given (e.g. `aeagit 1234`), the prefix `aearep-` is prepended automatically, cloning `aeaverification/aearep-1234`.
+- If a name containing non-numeric characters is given (e.g. `aeagit train-123`), the repository is cloned as-is without prepending any prefix.
 
 ### `aeaready` (issue) (pre|approve) [nopdf] [additional comments]
 

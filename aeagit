@@ -31,8 +31,9 @@ then
   an editor with the REPLICATION.md file.
 
   Arguments:
-    (number): the numerical part of the AEAREP-nnnn *repository* 
-              (not ticket)
+    (number|name): either the numerical part of the AEAREP-nnnn *repository*
+              (not ticket), or a full repository name (e.g. train-123).
+              If a plain number is given, 'aearep-' is prepended automatically.
     (method): (optional) method of connecting (ssh or https, 
                can be abbreviated)
   The connection method should default to the right thing according
@@ -43,7 +44,12 @@ then
 EOF
 else
 manuscript=$1
-repo=aearep-$manuscript
+# Prepend 'aearep-' only when the argument is a plain number
+if [[ $manuscript =~ ^[0-9]+$ ]]; then
+  repo=aearep-$manuscript
+else
+  repo=$manuscript
+fi
 _method=$2
 
 case $_method in 
