@@ -584,13 +584,15 @@ git commit -m "feat: sync Box folder ID to Jira when archiving folders (v0.4.0)"
 
 ## Manual / integration verification (not automated)
 
-These require live Box + Jira credentials and are run by the operator, not in CI:
+These require live Box + Jira credentials and are run by the operator, not in CI.
 
-- [ ] Pick a test case folder whose Jira "Restricted data Box ID" is **empty**, run `aea-box-clean-folders <case>` against it, and confirm the field is populated with the correct Box folder ID and the folder is moved.
-- [ ] Run against a case whose field already holds the **same** ID; confirm "already correct" is logged and no Jira write occurs.
-- [ ] Run against a case whose field holds a **different** ID; confirm the overwrite prompt appears even with `--yes`, and that answering `n` leaves the value unchanged while `y` updates it.
-- [ ] Run with `--test` against an empty-field case; confirm a "[DRY RUN] Would set …" line and **no** Jira change.
+**Available test case:** `aearep-7318` has an **empty** "Restricted data Box ID" Jira field, so it is safe for the non-modifying (`--test`) dry-run check below. No case with a *different* (conflicting) Box ID is currently available, so the conflict-overwrite path can only be confirmed by the unit tests in Task 3 until such a case exists.
+
+- [ ] **(safe / non-modifying)** Run `aea-box-clean-folders --test 7318`; confirm a `[DRY RUN] Would set 'Restricted data Box ID' = <box folder id>` line and **no** Jira change and **no** folder move.
 - [ ] Run with `--skip-jira-check`; confirm no Jira authentication or sync is attempted.
+- [ ] *(when an empty-field case can be modified)* Run `aea-box-clean-folders <case>` for real; confirm the field is populated with the correct Box folder ID and the folder is moved.
+- [ ] *(when a same-ID case exists)* Confirm "already correct" is logged and no Jira write occurs.
+- [ ] *(when a conflicting-ID case exists)* Confirm the overwrite prompt appears even with `--yes`, and that answering `n` leaves the value unchanged while `y` updates it. Covered by unit tests until a live case exists.
 
 ---
 
