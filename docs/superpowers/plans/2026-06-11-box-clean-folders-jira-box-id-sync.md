@@ -586,12 +586,12 @@ git commit -m "feat: sync Box folder ID to Jira when archiving folders (v0.4.0)"
 
 These require live Box + Jira credentials and are run by the operator, not in CI.
 
-**Available test case:** `aearep-7318` has an **empty** "Restricted data Box ID" Jira field, so it is safe for the non-modifying (`--test`) dry-run check below. No case with a *different* (conflicting) Box ID is currently available, so the conflict-overwrite path can only be confirmed by the unit tests in Task 3 until such a case exists.
+**Available test case:** `aearep-7318` has its "Restricted data Box ID" Jira field **already populated** (the operator set it). If that stored value matches the folder's actual Box ID, a run exercises the **"already correct" (same-value) no-op** branch, which is non-modifying. No empty-field case and no conflicting-ID case are currently available, so those paths are confirmed by the Task 3 unit tests until such cases exist.
 
-- [ ] **(safe / non-modifying)** Run `aea-box-clean-folders --test 7318`; confirm a `[DRY RUN] Would set 'Restricted data Box ID' = <box folder id>` line and **no** Jira change and **no** folder move.
+- [ ] **(safe / non-modifying)** Run `aea-box-clean-folders --test 7318`; confirm the sync logs either `'Restricted data Box ID' already correct (…)` (if the stored value matches) or a `[DRY RUN] Would change …` line (if it does not), with **no** Jira write and **no** folder move.
+- [ ] **(non-modifying, live creds)** Run the real `aea-box-clean-folders 7318` and, if it reaches the sync step, expect `'Restricted data Box ID' already correct (…)` and **no** Jira write (assuming the stored value matches the folder Box ID).
 - [ ] Run with `--skip-jira-check`; confirm no Jira authentication or sync is attempted.
-- [ ] *(when an empty-field case can be modified)* Run `aea-box-clean-folders <case>` for real; confirm the field is populated with the correct Box folder ID and the folder is moved.
-- [ ] *(when a same-ID case exists)* Confirm "already correct" is logged and no Jira write occurs.
+- [ ] *(when an empty-field case exists)* Confirm the field is populated with the correct Box folder ID.
 - [ ] *(when a conflicting-ID case exists)* Confirm the overwrite prompt appears even with `--yes`, and that answering `n` leaves the value unchanged while `y` updates it. Covered by unit tests until a live case exists.
 
 ---
