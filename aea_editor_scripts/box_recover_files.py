@@ -5,7 +5,7 @@ Box File Recovery Script for AEA Data Editor
 This script recovers files deleted from Box folders by:
 1. Taking a Jira case number (e.g., 8040 for aearep-8040)
 2. Looking up the Box Folder ID and folder name from Jira custom fields:
-   - "Restricted data Box ID" (the Box folder ID)
+   - "Restricted data Box Folder ID" (the Box folder ID)
    - "Bitbucket short name" (the actual folder name, e.g., "aearep-7712")
 3. Listing files deleted by user "aeadata" in the past N days
 4. Restoring files back to their folder (which should be in '1Completed')
@@ -289,8 +289,8 @@ class BoxRecovery:
             for field in all_fields:
                 field_map[field['name']] = field['id']
             
-            # Look for "Restricted data Box ID" custom field
-            box_id_field_name = "Restricted data Box ID"
+            # Look for "Restricted data Box Folder ID" custom field
+            box_id_field_name = "Restricted data Box Folder ID"
             box_id_field_id = field_map.get(box_id_field_name)
             
             if not box_id_field_id:
@@ -307,9 +307,19 @@ class BoxRecovery:
             
             # Clean the Box Folder ID (remove decimal if present)
             box_folder_id = self._clean_jira_numeric_field(box_folder_id_raw)
-            
+
             if not box_folder_id:
                 self.logger.warning(f"'{box_id_field_name}' could not be parsed for {issue_key}")
+                return None, None
+
+            # The field is free text but must contain only digits (a Box folder ID).
+            # Strip surrounding whitespace and reject any non-numeric content.
+            box_folder_id = box_folder_id.strip()
+            if not box_folder_id.isdigit():
+                self.logger.error(
+                    f"'{box_id_field_name}' for {issue_key} must contain only numbers, "
+                    f"but got: {box_folder_id_raw!r}"
+                )
                 return None, None
             
             # Look for "Bitbucket short name" custom field (folder name)
