@@ -244,7 +244,7 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
 
         if very_verbose:
             print(f"\n{_indent}{issue_key}:")
-            print(f"{_indent}  Current MCStatus: {current_status}")
+            print(f"{_indent}  Current Status: {current_status}")
             print(f"{_indent}  Current {mc_rec_field_name}: {mc_recommendation}")
             print(f"{_indent}  All Statuses: {', '.join(sorted(historical_statuses))}")
             if matched_statuses:
@@ -286,7 +286,8 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                 # If none of the linked issues passed, return failure
                 status_info = f"Current MCstatus: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
                 wrong_relates_note = f" (Note: Found wrong 'Relates' links that should be 'Revision': {', '.join(wrong_relates_links)})" if wrong_relates_links else ""
-                return False, current_status, mc_recommendation, f"Neither this issue nor linked revisions passed through required statuses ({status_info}){wrong_relates_note}"
+                revisions_list = ", ".join(revised_by_issues)
+                return False, current_status, mc_recommendation, f"Neither this issue nor linked revisions ({revisions_list}) passed through required statuses ({status_info}){wrong_relates_note}"
             else:
                 status_info = f"Current MCstatus: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
                 wrong_relates_note = f" (Note: Found wrong 'Relates' links that should be 'Revision': {', '.join(wrong_relates_links)})" if wrong_relates_links else ""
@@ -349,10 +350,10 @@ Environment Variables Required:
     very_verbose = args.verbose >= 2
 
     # Initialize Jira client
-    if not args.quiet:
+    if very_verbose:
         print(f"Connecting to Jira...")
     jira = get_jira_client()
-    if not args.quiet:
+    if very_verbose:
         print(f"✓ Connected\n")
 
     # Build field map

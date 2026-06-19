@@ -32,7 +32,7 @@ import argparse
 from jira import JIRA
 
 
-def get_jira_client():
+def get_jira_client(verbose=False):
     """Initialize and return authenticated Jira client."""
     jira_username = os.environ.get('JIRA_USERNAME')
     jira_api_key = os.environ.get('JIRA_API_KEY')
@@ -43,7 +43,8 @@ def get_jira_client():
 
     jira_url = "https://aeadataeditors.atlassian.net"
 
-    print(f"Connecting to {jira_url} as {jira_username}...")
+    if verbose:
+        print(f"Connecting to {jira_url} as {jira_username}...")
 
     try:
         jira = JIRA(
@@ -53,7 +54,8 @@ def get_jira_client():
         )
         # Test connection
         user_info = jira.myself()
-        print(f"✓ Successfully authenticated as {user_info.get('displayName', jira_username)}")
+        if verbose:
+            print(f"✓ Successfully authenticated as {user_info.get('displayName', jira_username)}")
         return jira
     except Exception as e:
         print(f"Error connecting to Jira: {e}")
@@ -255,14 +257,15 @@ Notes:
     )
     parser.add_argument(
         '-v', '--verbose',
-        action='store_true',
-        help='Show available transitions with numbers'
+        action='count',
+        default=0,
+        help='Verbose mode: -v shows available transitions, -vv shows connection details'
     )
 
     args = parser.parse_args()
 
     # Initialize Jira client
-    jira = get_jira_client()
+    jira = get_jira_client(verbose=args.verbose >= 2)
 
     # Build field map
     field_map = build_field_map(jira)
@@ -284,7 +287,7 @@ Notes:
     transition_map = {str(i+1): t for i, t in enumerate(transitions)}
 
     # Show available transitions if verbose
-    if args.verbose:
+    if args.verbose >= 1:
         print(f"\nAvailable transitions from '{status}':")
         for i, t in enumerate(transitions, 1):
             print(f"  {i}. {t['name']}")
@@ -325,7 +328,7 @@ Notes:
     elif action:
         # Action was provided but transition not allowed
         print(f"\n✗ Cannot transition: {error_msg}")
-        if not args.verbose:
+        if not args.verbose >= 1:
             print(f"Use -v to see available transitions")
     else:
         # No action provided, just showing status

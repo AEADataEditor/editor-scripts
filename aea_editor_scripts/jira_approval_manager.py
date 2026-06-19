@@ -123,7 +123,7 @@ def parse_replication_md(mc_status_value):
         return None
 
 
-def get_jira_client():
+def get_jira_client(verbose=False):
     """Initialize and return authenticated Jira client."""
     jira_username = os.environ.get('JIRA_USERNAME')
     jira_api_key = os.environ.get('JIRA_API_KEY')
@@ -134,7 +134,8 @@ def get_jira_client():
 
     jira_url = "https://aeadataeditors.atlassian.net"
 
-    print(f"Connecting to {jira_url} as {jira_username}...")
+    if verbose:
+        print(f"Connecting to {jira_url} as {jira_username}...")
 
     try:
         jira = JIRA(
@@ -144,7 +145,8 @@ def get_jira_client():
         )
         # Test connection
         user_info = jira.myself()
-        print(f"✓ Successfully authenticated as {user_info.get('displayName', jira_username)}")
+        if verbose:
+            print(f"✓ Successfully authenticated as {user_info.get('displayName', jira_username)}")
         return jira
     except Exception as e:
         print(f"Error connecting to Jira: {e}")
@@ -387,8 +389,16 @@ Notes:
         nargs='?',
         help='Recommendation choice: 0 (keep current) or N (select option N)'
     )
+    parser.add_argument(
+        '-v', '--verbose',
+        action='count',
+        default=0,
+        help='Verbose mode: -v shows basic info, -vv shows connection details'
+    )
 
     args = parser.parse_args()
+
+    very_verbose = args.verbose >= 2
 
     # Validate action
     action_lower = args.action.lower() if args.action else ""
@@ -398,7 +408,7 @@ Notes:
         sys.exit(1)
 
     # Initialize Jira client
-    jira = get_jira_client()
+    jira = get_jira_client(verbose=very_verbose)
 
     # Build field map
     field_map = build_field_map(jira)
