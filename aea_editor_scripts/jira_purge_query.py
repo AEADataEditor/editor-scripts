@@ -11,6 +11,13 @@ An issue is considered completely done if:
 
 The issue does not need to be in "Done" status.
 
+Note: We intentionally do NOT check for "Approved" or "Submitted" as current statuses,
+even though they can represent a legitimate final outcome. Doing so would require
+cross-referencing MCRecommendationV2 to distinguish accepted/approved cases from
+rejections that happen to pass through similarly named statuses — introducing too many
+failure points. Issues should instead be checked once they reach one of the unambiguous
+late-workflow statuses listed above.
+
 Usage:
     # Check single issue
     python3 jira_purge_query.py aearep-8311
