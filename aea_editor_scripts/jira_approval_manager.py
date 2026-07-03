@@ -22,8 +22,15 @@ Environment Variables Required:
     JIRA_API_KEY  - API token from https://id.atlassian.com/manage-profile/security/api-tokens
 
 Automatic Transitions:
-    - "Report Under Review" + "pre-approve"/"p" → "Pre-Approved"
-    - "Pre-Approved" + "approve"/"a" → "Approved"
+    - "Report Under Review" + "pre-approve"/"p" → "Pre-Approved" (if "Approve" not available)
+    - "Report Under Review" + any action    → "Approved"    (if "Approve" transition available)
+    - "Pre-Approved" + "approve"/"a"        → "Approved"
+
+    When the issue is in "Report Under Review", the script always checks whether the
+    current user has permission to transition directly to "Approved".  If so, that
+    transition is used regardless of which action keyword was supplied.  If MCReco
+    field is empty but REPLICATION.md contains a detectable recommendation tag, the
+    same conflict-resolution dialog as for mismatches is shown to offer filling it.
 
 Field Logic:
     - If MCStatus = "RR": uses MCRecommendation field
@@ -367,8 +374,10 @@ Environment Variables Required:
 Notes:
   - Only works for issues in "Report Under Review" or "Pre-Approved" status
   - Action keywords:
-    * "pre-approve" or "p" for Report Under Review → Pre-Approved
+    * Any valid keyword for Report Under Review (target auto-detected from available transitions)
     * "approve" or "a" for Pre-Approved → Approved
+  - For "Report Under Review": if the caller has permission to use "Approve" directly,
+    that transition is used (same workflow as Pre-Approved → Approved)
   - Third argument selects recommendation:
     * 0 = keep current recommendation
     * N = change to option N from displayed list
@@ -432,18 +441,29 @@ Notes:
         sys.exit(1)
 
     # Validate action matches status
-    if status == "Report Under Review" and action_lower not in ["pre-approve", "p"]:
-        print(f"\n✗ Error: Issue is in 'Report Under Review'")
-        print("Use action 'pre-approve' or 'p' for this status")
-        sys.exit(1)
-    elif status.lower() == "pre-approved" and action_lower not in ["approve", "a"]:
+    # For "Report Under Review", accept any valid action keyword — the actual
+    # transition is selected automatically based on available permissions.
+    if status.lower() == "pre-approved" and action_lower not in ["approve", "a"]:
         print(f"\n✗ Error: Issue is in 'Pre-Approved'")
         print("Use action 'approve' or 'a' for this status")
         sys.exit(1)
 
     # Determine target transition
     if status == "Report Under Review":
-        target_transition = "Review for pre-approval"
+        # Check which transitions are currently available to this user.
+        # Prefer going directly to "Approved" when the permission exists.
+        available_transitions = jira.transitions(issue)
+        available_names = [t['name'] for t in available_transitions]
+        if "Approve" in available_names:
+            target_transition = "Approve"
+            print(f"\nℹ️  'Approve' transition is available directly from 'Report Under Review' — skipping Pre-Approved stage")
+        elif "Review for pre-approval" in available_names:
+            target_transition = "Review for pre-approval"
+        else:
+            print(f"\n✗ Error: Issue is in 'Report Under Review' but you do not have permission")
+            print(f"  to advance it — neither 'Approve' nor 'Review for pre-approval' is available.")
+            print(f"  Available transitions: {available_names}")
+            sys.exit(1)
     else:
         target_transition = "Approve"
 
@@ -497,14 +517,41 @@ Notes:
     if choice == 0:
         # Keep current recommendation
         if not field_value:
-            print("✗ Error: Current recommendation is empty. Please select a recommendation (1-N)")
-            sys.exit(1)
-        print(f"\nKeeping current recommendation: {field_value}")
-        # Extract string value if field_value is a Jira object
-        if hasattr(field_value, 'value'):
-            new_recommendation = field_value.value
+            if status == "Report Under Review" and detected_recommendation:
+                # MCReco is empty but REPLICATION.md has a tag — offer to fill it
+                # using the same conflict-resolution dialog.
+                print(f"\n⚠️  WARNING: {field_name} is empty but REPLICATION.md has a tag! ⚠️")
+                print(f"\nDetected from REPLICATION.md: {detected_recommendation}")
+                print(f"JIRA record: (empty)")
+                print(f"\nPlease choose which recommendation to use:")
+                print(f"  1. Detected from REPLICATION.md: {detected_recommendation}")
+                print(f"  2. Keep JIRA record empty (and abort)")
+                print(f"  0. Cancel (abort)")
+
+                while True:
+                    fill_choice = input("\nEnter your choice (0/1/2): ").strip()
+                    if fill_choice == '1':
+                        new_recommendation = detected_recommendation
+                        print(f"\n✓ Will fill {field_name} with: {detected_recommendation}")
+                        break
+                    elif fill_choice == '2':
+                        print("✗ Error: Cannot transition with empty recommendation.")
+                        sys.exit(1)
+                    elif fill_choice == '0':
+                        print("\n✗ Cancelled by user")
+                        sys.exit(0)
+                    else:
+                        print("Invalid choice. Please enter 0, 1, or 2.")
+            else:
+                print("✗ Error: Current recommendation is empty. Please select a recommendation (1-N)")
+                sys.exit(1)
         else:
-            new_recommendation = str(field_value)
+            print(f"\nKeeping current recommendation: {field_value}")
+            # Extract string value if field_value is a Jira object
+            if hasattr(field_value, 'value'):
+                new_recommendation = field_value.value
+            else:
+                new_recommendation = str(field_value)
     elif 1 <= choice <= len(recommendation_options):
         # Change to new recommendation
         new_recommendation = recommendation_options[choice - 1]
@@ -577,7 +624,11 @@ Notes:
         sys.exit(0)
 
     # Update recommendation if changed
-    if new_recommendation != field_value:
+    # Normalise field_value to a plain string for comparison — it may be a
+    # JIRA CustomFieldOption object when the field is already filled.
+    field_value_str = (field_value.value if hasattr(field_value, 'value')
+                       else str(field_value) if field_value else None)
+    if new_recommendation != field_value_str:
         print(f"\n→ Updating {field_name}...")
         update_recommendation(jira, issue, field_id, field_name, new_recommendation)
 

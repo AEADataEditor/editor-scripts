@@ -18,8 +18,9 @@ Environment Variables Required:
     JIRA_API_KEY  - API token from https://id.atlassian.com/manage-profile/security/api-tokens
 
 Automatic Transitions:
-    - "Report Under Review" → "Pre-Approved" (if MCRecommendation(V2) is filled)
-    - "Pre-Approved" → "Approved" (if MCRecommendation(V2) is filled)
+    - "Report Under Review" → "Approved"    (if MCRecommendation(V2) filled AND "Approve" transition available)
+    - "Report Under Review" → "Pre-Approved" (if MCRecommendation(V2) filled AND only "Review for pre-approval" available)
+    - "Pre-Approved"       → "Approved"    (if MCRecommendation(V2) is filled)
 
 Field Logic:
     - If MCStatus = "RR": uses MCRecommendation field
@@ -141,23 +142,38 @@ def report_status(issue, field_map, mc_status):
     return status, field_name, field_id, field_value
 
 
-def should_transition(status, field_value, action):
-    """Check if issue should be transitioned based on status, recommendation, and action keyword."""
+def should_transition(status, field_value, action, available_transition_names=None):
+    """Check if issue should be transitioned based on status, recommendation, and action keyword.
+
+    For "Report Under Review": if "Approve" is in available_transition_names the issue
+    is sent directly to Approved (regardless of action keyword).  Otherwise the caller
+    must supply action "pre-approve"/"p" to advance to Pre-Approved.
+    """
     if not field_value:
         return False, None, "MCRecommendation field is empty"
 
     action_lower = action.lower() if action else ""
 
     if status == "Report Under Review":
-        if action_lower in ["pre-approve", "p"]:
+        # Prefer going directly to Approved when the permission is available.
+        if available_transition_names and "Approve" in available_transition_names:
+            return True, "Approve", None
+        elif available_transition_names and "Review for pre-approval" in available_transition_names:
+            if action_lower in ["pre-approve", "p", "approve", "a"]:
+                return True, "Review for pre-approval", None
+            else:
+                return False, None, "Action 'pre-approve' or 'p' (or 'approve'/'a') required to advance from 'Report Under Review'"
+        elif available_transition_names:
+            return False, None, f"No approval transition available — you may not have permission to advance this issue (available: {available_transition_names})"
+        elif action_lower in ["pre-approve", "p"]:
             return True, "Review for pre-approval", None
         else:
-            return False, None, f"Action 'pre-approve' or 'p' required to transition from 'Report Under Review'"
+            return False, None, "Action 'pre-approve' or 'p' (or 'approve'/'a' if that transition is available) required"
     elif status.lower() == "pre-approved":
         if action_lower in ["approve", "a"]:
             return True, "Approve", None
         else:
-            return False, None, f"Action 'approve' or 'a' required to transition from 'Pre-Approved'"
+            return False, None, "Action 'approve' or 'a' required to transition from 'Pre-Approved'"
 
     return False, None, f"No automatic transition available from status '{status}'"
 
@@ -234,7 +250,9 @@ Environment Variables Required:
 
 Notes:
   - Transitions require appropriate keywords:
-    * "pre-approve" or "p" for Report Under Review → Pre-Approved
+    * "pre-approve"/"p" or "approve"/"a" for Report Under Review
+      (if "Approve" transition is available the issue goes directly to Approved;
+       otherwise it moves to Pre-Approved when using "pre-approve"/"p")
     * "approve" or "a" for Pre-Approved → Approved
   - MCRecommendation(V2) field must be filled for auto-transitions
   - If MCStatus = "RR": uses MCRecommendation field
@@ -316,7 +334,8 @@ Notes:
         field_value = recommendation_update  # Update for transition check
 
     # Check if automatic transition is needed
-    should_trans, target_status, error_msg = should_transition(status, field_value, action)
+    available_transition_names = [t['name'] for t in transitions]
+    should_trans, target_status, error_msg = should_transition(status, field_value, action, available_transition_names)
 
     if target_transition:
         # Use the numeric transition
