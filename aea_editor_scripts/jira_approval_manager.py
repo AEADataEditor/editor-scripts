@@ -448,25 +448,6 @@ Notes:
         print("Use action 'approve' or 'a' for this status")
         sys.exit(1)
 
-    # Determine target transition
-    if status == "Report Under Review":
-        # Check which transitions are currently available to this user.
-        # Prefer going directly to "Approved" when the permission exists.
-        available_transitions = jira.transitions(issue)
-        available_names = [t['name'] for t in available_transitions]
-        if "Approve" in available_names:
-            target_transition = "Approve"
-            print(f"\nℹ️  'Approve' transition is available directly from 'Report Under Review' — skipping Pre-Approved stage")
-        elif "Review for pre-approval" in available_names:
-            target_transition = "Review for pre-approval"
-        else:
-            print(f"\n✗ Error: Issue is in 'Report Under Review' but you do not have permission")
-            print(f"  to advance it — neither 'Approve' nor 'Review for pre-approval' is available.")
-            print(f"  Available transitions: {available_names}")
-            sys.exit(1)
-    else:
-        target_transition = "Approve"
-
     # Get recommendation options
     recommendation_options = get_recommendation_options(jira, issue, field_id)
 
@@ -480,8 +461,8 @@ Notes:
     # Try to auto-detect recommendation from REPLICATION.md
     detected_recommendation = parse_replication_md(mc_status_value)
 
-    # If no choice provided, show options and exit (interactive mode)
-    if args.recommendation_choice is None:
+    def show_recommendation_options():
+        """Print current/suggested/available recommendations and the re-run command."""
         print(f"\nCurrent recommendation: {field_value if field_value else '(empty)'}")
 
         if detected_recommendation:
@@ -504,6 +485,10 @@ Notes:
         print("\nRe-run with choice number as third argument, e.g.:")
         print(f"  {sys.argv[0]} {args.issue_key} {args.action} 0")
         print(f"  {sys.argv[0]} {args.issue_key} {args.action} 2")
+
+    # If no choice provided, show options and exit (interactive mode)
+    if args.recommendation_choice is None:
+        show_recommendation_options()
         sys.exit(0)
 
     # Parse choice
@@ -516,42 +501,38 @@ Notes:
     # Handle choice
     if choice == 0:
         # Keep current recommendation
-        if not field_value:
-            if status == "Report Under Review" and detected_recommendation:
-                # MCReco is empty but REPLICATION.md has a tag — offer to fill it
-                # using the same conflict-resolution dialog.
-                print(f"\n⚠️  WARNING: {field_name} is empty but REPLICATION.md has a tag! ⚠️")
-                print(f"\nDetected from REPLICATION.md: {detected_recommendation}")
-                print(f"JIRA record: (empty)")
-                print(f"\nPlease choose which recommendation to use:")
-                print(f"  1. Detected from REPLICATION.md: {detected_recommendation}")
-                print(f"  2. Keep JIRA record empty (and abort)")
-                print(f"  0. Cancel (abort)")
-
-                while True:
-                    fill_choice = input("\nEnter your choice (0/1/2): ").strip()
-                    if fill_choice == '1':
-                        new_recommendation = detected_recommendation
-                        print(f"\n✓ Will fill {field_name} with: {detected_recommendation}")
-                        break
-                    elif fill_choice == '2':
-                        print("✗ Error: Cannot transition with empty recommendation.")
-                        sys.exit(1)
-                    elif fill_choice == '0':
-                        print("\n✗ Cancelled by user")
-                        sys.exit(0)
-                    else:
-                        print("Invalid choice. Please enter 0, 1, or 2.")
-            else:
-                print("✗ Error: Current recommendation is empty. Please select a recommendation (1-N)")
-                sys.exit(1)
-        else:
+        if field_value:
             print(f"\nKeeping current recommendation: {field_value}")
             # Extract string value if field_value is a Jira object
             if hasattr(field_value, 'value'):
                 new_recommendation = field_value.value
             else:
                 new_recommendation = str(field_value)
+        elif detected_recommendation:
+            # JIRA record is empty, but REPLICATION.md has a derived recommendation.
+            # Offer to use it; the resulting update and transition follow the
+            # regular workflow below.
+            print(f"\n⚠️  WARNING: {field_name} is empty but REPLICATION.md has a tag! ⚠️")
+            print(f"\nDetected from REPLICATION.md: {detected_recommendation}")
+            print(f"JIRA record: (empty)")
+            print(f"  1. Use detected recommendation: {detected_recommendation}")
+            print(f"  0. Exit (make no changes)")
+
+            while True:
+                fill_choice = input("\nEnter your choice (0/1): ").strip()
+                if fill_choice == '1':
+                    new_recommendation = detected_recommendation
+                    print(f"\n✓ Will fill {field_name} with: {detected_recommendation}")
+                    break
+                elif fill_choice == '0':
+                    print("\n✗ Cancelled by user")
+                    sys.exit(0)
+                else:
+                    print("Invalid choice. Please enter 0 or 1.")
+        else:
+            print("✗ Error: Current recommendation is empty. Please select a recommendation (1-N)")
+            show_recommendation_options()
+            sys.exit(1)
     elif 1 <= choice <= len(recommendation_options):
         # Change to new recommendation
         new_recommendation = recommendation_options[choice - 1]
@@ -591,13 +572,45 @@ Notes:
             else:
                 print("Invalid choice. Please enter 0, 1, or 2.")
 
+    # Update recommendation if changed
+    # Normalise field_value to a plain string for comparison — it may be a
+    # JIRA CustomFieldOption object when the field is already filled.
+    field_value_str = (field_value.value if hasattr(field_value, 'value')
+                       else str(field_value) if field_value else None)
+    if new_recommendation != field_value_str:
+        print(f"\n→ Updating {field_name}...")
+        update_recommendation(jira, issue, field_id, field_name, new_recommendation)
+
+    # Determine target transition. This must happen after the recommendation
+    # field has been written above: Jira's workflow only offers "Approve" /
+    # "Review for pre-approval" once the required recommendation field is
+    # non-empty, so checking transitions any earlier would see a stale,
+    # more-restricted list and misreport a permission error.
+    if status == "Report Under Review":
+        # Check which transitions are currently available to this user.
+        # Prefer going directly to "Approved" when the permission exists.
+        available_transitions = jira.transitions(issue)
+        available_names = [t['name'] for t in available_transitions]
+        if "Approve" in available_names:
+            target_transition = "Approve"
+            print(f"\nℹ️  'Approve' transition is available directly from 'Report Under Review' — skipping Pre-Approved stage")
+        elif "Review for pre-approval" in available_names:
+            target_transition = "Review for pre-approval"
+        else:
+            print(f"\n✗ Error: Issue is in 'Report Under Review' but you do not have permission")
+            print(f"  to advance it — neither 'Approve' nor 'Review for pre-approval' is available.")
+            print(f"  Available transitions: {available_names}")
+            sys.exit(1)
+    else:
+        target_transition = "Approve"
+
     # Wait before transition with in-place countdown
     print(f"\nWill record '{target_transition}' in {COUNTDOWN_SECONDS} seconds...")
     print("Press Enter to skip or Ctrl+C to cancel")
-    
+
     # Flag to track if Enter was pressed
     skip_countdown = threading.Event()
-    
+
     def wait_for_enter():
         """Wait for Enter key in a separate thread."""
         try:
@@ -605,11 +618,11 @@ Notes:
             skip_countdown.set()
         except EOFError:
             pass
-    
+
     # Start thread to wait for Enter key
     input_thread = threading.Thread(target=wait_for_enter, daemon=True)
     input_thread.start()
-    
+
     try:
         for i in range(COUNTDOWN_SECONDS, 0, -1):
             if skip_countdown.is_set():
@@ -622,15 +635,6 @@ Notes:
     except KeyboardInterrupt:
         print("\n\n✗ Cancelled by user")
         sys.exit(0)
-
-    # Update recommendation if changed
-    # Normalise field_value to a plain string for comparison — it may be a
-    # JIRA CustomFieldOption object when the field is already filled.
-    field_value_str = (field_value.value if hasattr(field_value, 'value')
-                       else str(field_value) if field_value else None)
-    if new_recommendation != field_value_str:
-        print(f"\n→ Updating {field_name}...")
-        update_recommendation(jira, issue, field_id, field_name, new_recommendation)
 
     # Perform transition
     print(f"\n→ Transitioning from '{status}' to '{target_transition}'...")
