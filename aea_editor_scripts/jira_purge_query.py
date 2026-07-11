@@ -266,6 +266,9 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                     print(f"{_indent}  Recursively checking linked issues...")
 
                 # Recursively check each linked issue
+                last_linked_key = None
+                last_status = current_status
+                last_mc_rec = mc_recommendation
                 for linked_key in revised_by_issues:
                     if very_verbose:
                         print(f"{_indent}  Checking linked issue: {linked_key}")
@@ -283,15 +286,25 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                             # Legacy string format, convert to list
                             return True, status, mc_rec, [f"via linked issue {linked_key}", message]
 
-                # If none of the linked issues passed, return failure
-                status_info = f"Current MCstatus: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
+                    # Track the last (deepest) linked issue's status/recommendation,
+                    # since that's what should be reported when the whole chain fails
+                    last_linked_key, last_status, last_mc_rec = linked_key, status, mc_rec
+
+                # None of the linked issues passed - report the last linked issue's info,
+                # not this (originating) issue's info
+                status_info = f"Current status: {last_status}; Current {mc_rec_field_name}: {last_mc_rec}"
                 wrong_relates_note = f" (Note: Found wrong 'Relates' links that should be 'Revision': {', '.join(wrong_relates_links)})" if wrong_relates_links else ""
                 revisions_list = ", ".join(revised_by_issues)
-                return False, current_status, mc_recommendation, f"Neither this issue nor linked revisions ({revisions_list}) passed through required statuses ({status_info}){wrong_relates_note}"
+                message = [
+                    f"Neither this issue nor linked revisions ({revisions_list}) passed through required statuses{wrong_relates_note}",
+                    f"Last checked: {last_linked_key}: {status_info}",
+                ]
+                return False, last_status, last_mc_rec, message
             else:
-                status_info = f"Current MCstatus: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
+                status_info = f"Current status: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
                 wrong_relates_note = f" (Note: Found wrong 'Relates' links that should be 'Revision': {', '.join(wrong_relates_links)})" if wrong_relates_links else ""
-                return False, current_status, mc_recommendation, f"Never passed through required statuses ({status_info}){wrong_relates_note}"
+                message = [f"Never passed through required statuses{wrong_relates_note}", status_info]
+                return False, current_status, mc_recommendation, message
 
     except JIRAError as e:
         if e.status_code == 404:
@@ -393,7 +406,7 @@ Environment Variables Required:
 
             # Format message - if it's a list, format as bullet points
             if isinstance(message, list):
-                formatted_message = "Ready for purge"
+                formatted_message = "Ready for purge" if ready else "Not ready for purge"
                 print(f"{emoji} [{result_label}] {normalized_key}: {formatted_message}")
                 for item in message:
                     print(f"  - {item}")
