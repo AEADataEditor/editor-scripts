@@ -218,8 +218,8 @@ def print_help(prog: str) -> None:
                  Defaults to ssh on Linux/macOS, https on Windows/Codespaces.
 
   Options:
-    --no-editor  Skip opening VS Code after clone/update.
-                 Also honoured via the AEAGIT_NO_EDITOR environment variable.
+    -n, --no-editor  Skip opening VS Code after clone/update.
+                     Also honoured via the AEAGIT_NO_EDITOR environment variable.
 
   For HTTPS, set P_BITBUCKET_PAT and P_BITBUCKET_USERNAME, or configure
   ~/.git-credentials.
@@ -232,7 +232,7 @@ def main() -> None:
                         help="Repository number or name")
     parser.add_argument("method", nargs="?", default=None,
                         help="Connection method: ssh or https")
-    parser.add_argument("--no-editor", action="store_true", default=False,
+    parser.add_argument("-n", "--no-editor", action="store_true", default=False,
                         help="Skip opening VS Code after clone/update")
     parser.add_argument("-h", "--help", action="store_true")
 
