@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aea-editor-scripts"
-version = "0.3.12"
+version = "0.3.13"
 description = "Scripts for AEA Data Editor workflow"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -17,6 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
+aea-parse-tags         = "aea_editor_scripts.parse_tags:main"
 aeagit-py              = "aea_editor_scripts.aeagit:main"
 aeagit-create          = "aea_editor_scripts.aeagit_create:main"
 aea-box-clean-folders  = "aea_editor_scripts.box_clean_folders:main"

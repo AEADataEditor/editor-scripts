@@ -143,9 +143,16 @@ This script will open the Jira issue corresponding to a (properly named) Bitbuck
 
 - May not work on Windows or Codespaces
 
-### `aeareq` (sug)
+### `aea-parse-tags` (formerly `aeareq`)
 
-This script will parse the `REPLICATION.md` for any tags with the word `REQUIRED` (and, if using the optional parameter `sug`, the word `SUGGESTED`), and pre-pend these to the top of the `REPLICATION.md`. Useful for pre-approvers and approvers. The resulting file still needs to be edited, and unduplicated. 
+This script (Python, installed via `pip install`) parses the `REPLICATION.md` for `[REQUIRED]` and `[SUGGESTED]` tags and consolidates them into the Action Items checklists. Useful for pre-approvers and approvers. Compared to the old `aeareq` bash script, it
+
+- skips tags that already appear in the `### Action Items (manuscript)` section (e.g. the standing response-letter and returning-proofs tags), instead of duplicating them into the deposit checklist;
+- routes tags to the manuscript or deposit checklist based on the internal `{{ CATEGORY destination }}` markers (`m`, `d`, or `both`) defined in the replication template's `sample-language-report.md`;
+- orders each checklist by priority (`CRITICAL`, `CODE`, `FILES`, `METADATA`), with `[REQUIRED]` before `[SUGGESTED]` within a tier, and strips the `{{ ... }}` markers from the final text;
+- removes any remaining `> INSTRUCTION(S)` lines (like `aeaclean`).
+
+The deposit checklist is inserted at the `-----action items go here------` marker (which is then removed), so it works regardless of what the deposit section is called (openICPSR, Dataverse, ...). Without the marker, the script refuses to run unless called with `force`.
 
 ### `aeaclean`
 
