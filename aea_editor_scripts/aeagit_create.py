@@ -211,9 +211,11 @@ def enable_pipelines(consumer_user, consumer_key, workspace, repo_slug):
         return False
 
 
-def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicpsr_id, jira_key):
-    """Trigger the 1-populate-from-icpsr custom pipeline."""
-    print(f"Triggering pipeline 1-populate-from-icpsr with openICPSRID={openicpsr_id}, jiraticket={jira_key}...")
+def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicpsr_id, jira_key,
+                     big=False):
+    """Trigger the populate-from-icpsr custom pipeline (standard or "big" variant)."""
+    pipeline = 'w-big-populate-from-icpsr' if big else '1-populate-from-icpsr'
+    print(f"Triggering pipeline {pipeline} with openICPSRID={openicpsr_id}, jiraticket={jira_key}...")
 
     auth = requests.auth.HTTPBasicAuth(consumer_user, consumer_key)
     api_url = f'https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/pipelines/'
@@ -223,7 +225,7 @@ def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicps
             "type": "pipeline_ref_target",
             "ref_type": "branch",
             "ref_name": "master",
-            "selector": {"type": "custom", "pattern": "1-populate-from-icpsr"}
+            "selector": {"type": "custom", "pattern": pipeline}
         },
         "variables": [
             {"key": "openICPSRID", "value": str(openicpsr_id), "secured": False},
@@ -282,6 +284,9 @@ Examples:
   # Create repo with explicit openICPSR override, trigger pipeline
   %(prog)s 8885 -i 246719
 
+  # Create repo and run the "big" pipeline (w-big-populate-from-icpsr)
+  %(prog)s 8885 --big
+
   # Delete repo
   %(prog)s 8885 --delete
 """
@@ -297,6 +302,9 @@ Examples:
     parser.add_argument('-i', '--openicpsr', nargs='?', default='FROM_JIRA', const='FROM_JIRA',
                         help='openICPSR project number (e.g. 246719); omit to auto-look up from Jira '
                              'and trigger pipeline if found; pass explicit value to override')
+    parser.add_argument('-b', '--big', action='store_true',
+                        help='Run the "big" pipeline (w-big-populate-from-icpsr) instead of '
+                             '1-populate-from-icpsr')
     args = parser.parse_args()
 
     # Reconcile positional and -r flag; positional takes precedence
@@ -347,7 +355,7 @@ Examples:
     if openicpsr_id:
         enable_pipelines(consumer_user, consumer_key, workspace, args.repo_slug)
         trigger_pipeline(consumer_user, consumer_key, workspace,
-                         args.repo_slug, openicpsr_id, jira_key)
+                         args.repo_slug, openicpsr_id, jira_key, big=args.big)
 
 
 if __name__ == "__main__":

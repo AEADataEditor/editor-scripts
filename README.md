@@ -214,7 +214,9 @@ The following scripts are installed as command-line tools via `pip` (see [Python
 
 Creates a new Bitbucket repository for an AEA replication package. Optionally populates it from a template, enables pipelines, and posts a comment to the corresponding Jira issue.
 
-Usage: `aeagit-create -r aearep-NNNN [--openicpsr [ID]]`
+Usage: `aeagit-create -r aearep-NNNN [--openicpsr [ID]] [--big]`
+
+With `-b`/`--big`, the `w-big-populate-from-icpsr` pipeline is triggered instead of `1-populate-from-icpsr`.
 
 ### `aea-box-clean-folders`
 
