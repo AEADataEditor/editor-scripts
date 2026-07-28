@@ -211,9 +211,9 @@ def enable_pipelines(consumer_user, consumer_key, workspace, repo_slug):
         return False
 
 
-def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicpsr_id):
+def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicpsr_id, jira_key):
     """Trigger the 1-populate-from-icpsr custom pipeline."""
-    print(f"Triggering pipeline 1-populate-from-icpsr with openICPSRID={openicpsr_id}...")
+    print(f"Triggering pipeline 1-populate-from-icpsr with openICPSRID={openicpsr_id}, jiraticket={jira_key}...")
 
     auth = requests.auth.HTTPBasicAuth(consumer_user, consumer_key)
     api_url = f'https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/pipelines/'
@@ -226,7 +226,8 @@ def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicps
             "selector": {"type": "custom", "pattern": "1-populate-from-icpsr"}
         },
         "variables": [
-            {"key": "openICPSRID", "value": str(openicpsr_id), "secured": False}
+            {"key": "openICPSRID", "value": str(openicpsr_id), "secured": False},
+            {"key": "jiraticket", "value": jira_key, "secured": False}
         ]
     }
 
@@ -346,7 +347,7 @@ Examples:
     if openicpsr_id:
         enable_pipelines(consumer_user, consumer_key, workspace, args.repo_slug)
         trigger_pipeline(consumer_user, consumer_key, workspace,
-                         args.repo_slug, openicpsr_id)
+                         args.repo_slug, openicpsr_id, jira_key)
 
 
 if __name__ == "__main__":
