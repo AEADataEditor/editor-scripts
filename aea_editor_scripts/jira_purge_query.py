@@ -399,7 +399,6 @@ Environment Variables Required:
         if args.quiet:
             if ready:
                 print(normalized_key)
-                ready_issues.append(normalized_key)
         else:
             result_label = "OK" if ready else "FAIL"
             emoji = "✓" if ready else "✗"
@@ -423,7 +422,7 @@ Environment Variables Required:
         print(f"\n{'='*60}")
         print(f"Summary: {len(ready_issues)}/{len(args.issue_keys)} issues ready for purge")
         if ready_issues:
-            print(f"Ready: {', '.join(ready_issues)}")
+            print(f"Ready: {' '.join(ready_issues)}")
 
     # Exit code: 0 if all ready, 1 otherwise
     sys.exit(0 if all_ready else 1)
