@@ -30,6 +30,7 @@ Usage:
 import os
 import sys
 import platform
+import shutil
 import subprocess
 import argparse
 from pathlib import Path
@@ -121,7 +122,6 @@ def open_in_vscode(repo_dir: Path) -> None:
 
 def _find_vscode() -> str | None:
     """Return path to the 'code' executable, or None if not found."""
-    import shutil
     return shutil.which("code")
 
 
@@ -166,12 +166,11 @@ def copy_to_clipboard(text: str) -> None:
     if system == "Linux":
         for cmd in (["xclip", "-selection", "clipboard"],
                     ["xsel", "--clipboard", "--input"]):
-            if subprocess.run(["which", cmd[0]], capture_output=True).returncode == 0:
+            if shutil.which(cmd[0]):
                 subprocess.run(cmd, input=encoded, capture_output=True)
                 return
         # WSL: fall through to clip.exe
-        clip = subprocess.run(["which", "clip.exe"], capture_output=True)
-        if clip.returncode == 0:
+        if shutil.which("clip.exe"):
             subprocess.run(["clip.exe"], input=encoded, capture_output=True)
     elif system == "Darwin":
         subprocess.run(["pbcopy"], input=encoded, capture_output=True)

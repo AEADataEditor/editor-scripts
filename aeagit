@@ -3,7 +3,7 @@ AEASRC=git@bitbucket.org:aeaverification
 AEAHSRC=bitbucket.org/aeaverification
 call=$0
 os=$(uname)
-codeeditor="$(which code 2>/dev/null)"
+codeeditor="$(command -v code 2>/dev/null)"
 codeeditor=${codeeditor:-echo}
 silent=""
 DEPTH=50
@@ -156,7 +156,7 @@ echo "Done"
 echo "Type cd $repo or code $repo and start your work."
 case $os in
 	Linux)
-  [[ -z $(which xclip) ]] || echo "cd $repo" | xclip -selection c
+  [[ -z $(command -v xclip) ]] || echo "cd $repo" | xclip -selection c
 ;;
    Darwin)
      echo "cd $repo" | pbcopy
