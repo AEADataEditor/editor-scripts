@@ -20,11 +20,11 @@ Environment Variables (for HTTPS authentication):
                           (same effect as --no-editor flag)
 
 Usage:
-    aeagit-py 1234
-    aeagit-py 1234 ssh
-    aeagit-py 1234 https
-    aeagit-py train-123
-    aeagit-py --no-editor 1234
+    aeagit 1234
+    aeagit 1234 ssh
+    aeagit 1234 https
+    aeagit train-123
+    aeagit --no-editor 1234
 """
 
 import os

@@ -110,13 +110,6 @@ gh secret set P_BITBUCKET_USERNAME --user
 
 This script can be downloaded manually, or as part of a separate `git clone`. It will clone this repo into `$HOME/bin/aea-scripts` and add that PATH to the `$PATH` variable in the `bash` profile. It is not otherwise used.
 
-### `aeagit` (number|name)
-
-This script will `git clone` a repository from the AEA Bitbucket organization and, where possible, open VS Code in the directory with the `REPLICATION.md` preloaded. Used during editing and sign-off.
-
-- If a plain number is given (e.g. `aeagit 1234`), the prefix `aearep-` is prepended automatically, cloning `aeaverification/aearep-1234`.
-- If a name containing non-numeric characters is given (e.g. `aeagit train-123`), the repository is cloned as-is without prepending any prefix.
-
 ### `aeaready` (issue) (pre|approve) [nopdf] [additional comments]
 
 Used once the report has been edited, and is ready to be signed off on. This script will compile the PDF from the Markdown `REPLICATION.md`, add some text to any `for openICPSR.md` notes, and commit all of these files, updating the issue (ticket). **Sign off still happens manually on Jira.**
@@ -207,6 +200,17 @@ same as above, but instead of running Stata, will provide a shell within the Sta
 ## Python scripts
 
 The following scripts are installed as command-line tools via `pip` (see [Python scripts](#python-scripts) installation above).
+
+### `aeagit` (number|name) [method] [--no-editor]
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
+
+`git clone`s (or updates) a repository from the AEA Bitbucket organization and, where possible, opens VS Code in the directory with the `REPLICATION.md` preloaded. Used during editing and sign-off.
+
+- If a plain number is given (e.g. `aeagit 1234`), the prefix `aearep-` is prepended automatically, cloning `aeaverification/aearep-1234`.
+- If a name containing non-numeric characters is given (e.g. `aeagit train-123`), the repository is cloned as-is without prepending any prefix.
+- `[method]` (optional) is `ssh` or `https` (can be abbreviated); defaults to `ssh` on Linux/macOS and `https` on Windows/Codespaces.
+- `-n`/`--no-editor` skips opening VS Code after clone/update (also honored via the `AEAGIT_NO_EDITOR` environment variable).
 
 ### `aeagit-create`
 
