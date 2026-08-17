@@ -295,7 +295,7 @@ Usage: `jira-approval-manager aearep-NNNN (approve|pre-approve) [recommendation]
 
 ![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
 
-Checks whether one or more Jira issues are ready for purging based on their status history, including any linked revision issues.
+Checks whether one or more Jira issues are ready for purging based on their status history, including any linked revision issues. Issues that qualify but still have subtasks which are not Done are reported as `WARNING` (rather than `OK`): they count as ready for purge, but are listed in their own summary section rather than on the `READY:` line.
 
 Usage: `jira-purge-query aearep-NNNN [aearep-MMMM ...]`
 
