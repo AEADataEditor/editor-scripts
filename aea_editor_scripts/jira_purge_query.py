@@ -43,6 +43,8 @@ import argparse
 from jira import JIRA
 from jira.exceptions import JIRAError
 
+JIRA_BASE_URL = "https://aeadataeditors.atlassian.net"
+
 
 def get_jira_client():
     """Initialize and return authenticated Jira client."""
@@ -53,11 +55,9 @@ def get_jira_client():
         print("Error: JIRA_USERNAME and JIRA_API_KEY environment variables must be set")
         sys.exit(1)
 
-    jira_url = "https://aeadataeditors.atlassian.net"
-
     try:
         jira = JIRA(
-            server=jira_url,
+            server=JIRA_BASE_URL,
             basic_auth=(jira_username, jira_api_key),
             options={'verify': True}
         )
@@ -330,6 +330,9 @@ Examples:
   # Verbose mode (shows status history)
   %(prog)s aearep-8311 -v
 
+  # Include Jira browse links for ready issues in the summary
+  %(prog)s aearep-8311 aearep-6782 aearep-6126 -l
+
 Exit Codes:
   0 - All issues ready for purge
   1 - One or more issues NOT ready for purge or error occurred
@@ -354,6 +357,11 @@ Environment Variables Required:
         '-q', '--quiet',
         action='store_true',
         help='Quiet mode: only output issue keys that are ready for purge'
+    )
+    parser.add_argument(
+        '-l', '--with-link',
+        action='store_true',
+        help='Also print a Jira browse link for each issue ready for purge (one per line)'
     )
 
     args = parser.parse_args()
@@ -422,7 +430,10 @@ Environment Variables Required:
         print(f"\n{'='*60}")
         print(f"Summary: {len(ready_issues)}/{len(args.issue_keys)} issues ready for purge")
         if ready_issues:
-            print(f"Ready: {' '.join(ready_issues)}")
+            print(f"READY: {' '.join(issue.lower() for issue in ready_issues)}")
+            if args.with_link:
+                for issue_key in ready_issues:
+                    print(f"{JIRA_BASE_URL}/browse/{issue_key}")
 
     # Exit code: 0 if all ready, 1 otherwise
     sys.exit(0 if all_ready else 1)
