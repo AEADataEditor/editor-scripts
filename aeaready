@@ -1,7 +1,7 @@
 #!/bin/bash
 os=$(uname)
 apperror=0
-version=1.1
+version=1.2
 #
 # A few alternative looks
 # CSSURL=https://gist.githubusercontent.com/ryangray/1882525/raw/2a6e53f645b960f0bed16d686ba3df36505f839f/buttondown.css
@@ -78,13 +78,33 @@ exit_on_error() {
 
 set -o history -o histexpand
 
+# Minimum Python version required by the tools called from this script
+PYTHON_MIN_MAJOR=3
+PYTHON_MIN_MINOR=11
+
+# Locate a Python interpreter of at least $PYTHON_MIN_MAJOR.$PYTHON_MIN_MINOR
+# and set $pythonbin. Exits if none is found, since the Python tools below
+# are required regardless of the PDF engine.
+require_python() {
+    local candidate found
+    for candidate in python3 python
+    do
+        found=$(command -v $candidate 2>/dev/null)
+        [[ -n "$found" ]] || continue
+        if "$found" -c "import sys; sys.exit(0 if sys.version_info >= ($PYTHON_MIN_MAJOR, $PYTHON_MIN_MINOR) else 1)" 2>/dev/null
+        then
+            pythonbin=$found
+            echo "Using $pythonbin ($("$pythonbin" --version 2>&1))"
+            return 0
+        fi
+    done
+    >&2 echo "No Python >= ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR} found on PATH (tried python3, python)."
+    exit_on_error 2 "Python >= ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR} is required"
+}
 
 case $os in
 	    Linux)
-          pythonbin=$(which python3.12)
-          [[ -f $pythonbin ]] || pythonbin=$(which python3)
-          [[ -f $pythonbin ]] || pythonbin=$(which python)
-          [[ -f $pythonbin ]] || apperror=1
+          require_python
 		    pandoc=$(which pandoc)
           [[ -f $pandoc ]] || apperror=1
           if [[ "$pdfengine" == "" ]]
@@ -111,8 +131,7 @@ case $os in
 	       
 		    ;;
        Darwin)
-            pythonbin=$(which python)
-            [[ -f $pythonbin ]] || apperror=1
+            require_python
             # for MacOS, might want to install Rstudio (comes with pandoc) and replace the line above with the outcome of
             #   find /Applications -name pandoc -type f
             pandoc=/Applications/RStudio.app/Contents/MacOS/pandoc/pandoc
@@ -236,7 +255,7 @@ fi
 
 # Fill in the appendix
 
-python3 tools/replace_placeholders.py --infile ${template_app} --indir "generated" --outfile $appendix
+$pythonbin tools/replace_placeholders.py --infile ${template_app} --indir "generated" --outfile $appendix
 git add $appendix
 
 # Append the generated appendix to the base file
