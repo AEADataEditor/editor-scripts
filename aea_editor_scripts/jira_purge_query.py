@@ -430,7 +430,7 @@ Environment Variables Required:
         print(f"\n{'='*60}")
         print(f"Summary: {len(ready_issues)}/{len(args.issue_keys)} issues ready for purge")
         if ready_issues:
-            print(f"ready: {' '.join(issue.lower() for issue in ready_issues)}")
+            print(f"READY: {' '.join(issue.lower() for issue in ready_issues)}")
             if args.with_link:
                 for issue_key in ready_issues:
                     print(f"{JIRA_BASE_URL}/browse/{issue_key}")
