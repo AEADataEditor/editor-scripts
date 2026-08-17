@@ -11,6 +11,11 @@ An issue is considered completely done if:
 
 The issue does not need to be in "Done" status.
 
+Issues that satisfy the above criteria but still have subtasks which are not in the
+"Done" status category are reported as WARNING rather than OK. They still count towards
+the number of issues ready for purge, but are listed in their own summary section with
+their open subtasks shown, so they can be checked before purging.
+
 Note: We intentionally do NOT check for "Approved" or "Submitted" as current statuses,
 even though they can represent a legitimate final outcome. Doing so would require
 cross-referencing MCRecommendationV2 to distinguish accepted/approved cases from
@@ -35,6 +40,7 @@ Environment Variables Required:
 Examples:
     AEAREP-7795 - "Done" but never in required statuses → NOT ready for purge
     AEAREP-8311 - "Done" and passed through required statuses → READY for purge
+    AEAREP-9521 - passed through required statuses, but has open subtasks → WARNING
 """
 
 import os
@@ -183,20 +189,47 @@ def get_revised_by_links(issue, very_verbose=False, indent=""):
     return revised_by_issues, wrong_relates_links
 
 
+def get_open_subtasks(issue):
+    """
+    Get all subtasks of an issue that are not in the "Done" status category.
+
+    A subtask is considered open if its status category is anything other than
+    "Done" (e.g. "To Do" or "In Progress"). Using the status category rather than
+    the status name keeps this robust to the many workflow-specific status names.
+
+    Returns:
+        open_subtasks: list of "KEY (Status)" strings
+    """
+    open_subtasks = []
+
+    for subtask in getattr(issue.fields, 'subtasks', None) or []:
+        status = getattr(subtask.fields, 'status', None)
+        if status is None:
+            continue
+        category = getattr(status, 'statusCategory', None)
+        category_key = getattr(category, 'key', None) if category else None
+        if category_key and category_key.lower() == 'done':
+            continue
+        open_subtasks.append(f"{subtask.key} ({status.name})")
+
+    return open_subtasks
+
+
 def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_verbose=False, _visited=None, _indent=""):
     """
     Check if issue is ready for purging based on status history.
     If the issue fails, recursively check any "is revised by" linked issues.
 
     Returns:
-        (ready: bool, current_status: str, mc_rec_field_name: str, mc_recommendation: str, message: str)
+        (ready: bool, current_status: str, mc_recommendation: str, message: list|str,
+         open_subtasks: list)
     """
     # Track visited issues to avoid infinite loops
     if _visited is None:
         _visited = set()
 
     if issue_key in _visited:
-        return False, "LOOP", "N/A", f"Already checked (circular reference)"
+        return False, "LOOP", "N/A", f"Already checked (circular reference)", []
 
     _visited.add(issue_key)
 
@@ -242,6 +275,9 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                     matched_statuses.append(status)
                     break
 
+        # Subtasks that are not yet closed make this an ambiguous (WARNING) case
+        open_subtasks = get_open_subtasks(issue)
+
         if very_verbose:
             print(f"\n{_indent}{issue_key}:")
             print(f"{_indent}  Current Status: {current_status}")
@@ -249,13 +285,15 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
             print(f"{_indent}  All Statuses: {', '.join(sorted(historical_statuses))}")
             if matched_statuses:
                 print(f"{_indent}  Matched Required Statuses: {', '.join(matched_statuses)}")
+            if open_subtasks:
+                print(f"{_indent}  Open subtasks: {', '.join(open_subtasks)}")
 
         is_done = current_status == "Done"
 
         if matched_statuses:
             status_info = f"Current status: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
             # Return as list with just status info (no "via" prefix for the actual passing issue)
-            return True, current_status, mc_recommendation, [status_info]
+            return True, current_status, mc_recommendation, [status_info], open_subtasks
         else:
             # Check for "is revised by" links
             revised_by_issues, wrong_relates_links = get_revised_by_links(issue, very_verbose, _indent)
@@ -273,18 +311,20 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                     if very_verbose:
                         print(f"{_indent}  Checking linked issue: {linked_key}")
 
-                    ready, status, mc_rec, message = check_issue_ready_for_purge(
+                    ready, status, mc_rec, message, linked_open_subtasks = check_issue_ready_for_purge(
                         jira, linked_key, field_map, verbose, very_verbose, _visited, _indent + "  "
                     )
 
                     if ready:
+                        # Open subtasks anywhere along the chain are worth flagging
+                        chain_open_subtasks = open_subtasks + linked_open_subtasks
                         # Build chain of links
                         if isinstance(message, list):
                             # message is already a list, prepend this link
-                            return True, status, mc_rec, [f"via linked issue {linked_key}"] + message
+                            return True, status, mc_rec, [f"via linked issue {linked_key}"] + message, chain_open_subtasks
                         else:
                             # Legacy string format, convert to list
-                            return True, status, mc_rec, [f"via linked issue {linked_key}", message]
+                            return True, status, mc_rec, [f"via linked issue {linked_key}", message], chain_open_subtasks
 
                     # Track the last (deepest) linked issue's status/recommendation,
                     # since that's what should be reported when the whole chain fails
@@ -299,20 +339,20 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
                     f"Neither this issue nor linked revisions ({revisions_list}) passed through required statuses{wrong_relates_note}",
                     f"Last checked: {last_linked_key}: {status_info}",
                 ]
-                return False, last_status, last_mc_rec, message
+                return False, last_status, last_mc_rec, message, []
             else:
                 status_info = f"Current status: {current_status}; Current {mc_rec_field_name}: {mc_recommendation}"
                 wrong_relates_note = f" (Note: Found wrong 'Relates' links that should be 'Revision': {', '.join(wrong_relates_links)})" if wrong_relates_links else ""
                 message = [f"Never passed through required statuses{wrong_relates_note}", status_info]
-                return False, current_status, mc_recommendation, message
+                return False, current_status, mc_recommendation, message, []
 
     except JIRAError as e:
         if e.status_code == 404:
-            return False, "NOT_FOUND", "N/A", f"Issue does not exist"
+            return False, "NOT_FOUND", "N/A", f"Issue does not exist", []
         else:
-            return False, "ERROR", "N/A", f"Jira error: {e.text}"
+            return False, "ERROR", "N/A", f"Jira error: {e.text}", []
     except Exception as e:
-        return False, "ERROR", "N/A", f"Error retrieving issue: {e}"
+        return False, "ERROR", "N/A", f"Error retrieving issue: {e}", []
 
 
 def main():
@@ -333,8 +373,14 @@ Examples:
   # Include Jira browse links for ready issues in the summary
   %(prog)s aearep-8311 aearep-6782 aearep-6126 -l
 
+Result Labels:
+  OK      - passed through a required status, no open subtasks
+  WARNING - passed through a required status, but has subtasks that are not Done;
+            counted as ready for purge, listed in its own summary section
+  FAIL    - never passed through a required status
+
 Exit Codes:
-  0 - All issues ready for purge
+  0 - All issues ready for purge (OK or WARNING)
   1 - One or more issues NOT ready for purge or error occurred
 
 Environment Variables Required:
@@ -386,11 +432,13 @@ Environment Variables Required:
         print("  - Pending openICPSR")
         print("  - Assess openICPSR")
         print("  - Pending Publication")
+        print("Issues that qualify but still have open subtasks are flagged as WARNING.")
         print()
 
     # Check each issue
     all_ready = True
     ready_issues = []
+    warning_issues = []
 
     for issue_key in args.issue_keys:
         # Normalize issue key: add AEAREP- prefix if just a number
@@ -402,38 +450,59 @@ Environment Variables Required:
             if normalized_key.startswith("AEAREP"):
                 normalized_key = normalized_key.replace("AEAREP", "AEAREP-", 1)
 
-        ready, status, mc_recommendation, message = check_issue_ready_for_purge(jira, normalized_key, field_map, verbose, very_verbose)
+        ready, status, mc_recommendation, message, open_subtasks = check_issue_ready_for_purge(jira, normalized_key, field_map, verbose, very_verbose)
+
+        # Ready, but with unfinished subtasks: ambiguous, needs a human look
+        warning = ready and bool(open_subtasks)
 
         if args.quiet:
             if ready:
                 print(normalized_key)
         else:
-            result_label = "OK" if ready else "FAIL"
-            emoji = "✓" if ready else "✗"
+            if warning:
+                result_label, emoji = "WARNING", "⚠"
+            elif ready:
+                result_label, emoji = "OK", "✓"
+            else:
+                result_label, emoji = "FAIL", "✗"
 
             # Format message - if it's a list, format as bullet points
             if isinstance(message, list):
                 formatted_message = "Ready for purge" if ready else "Not ready for purge"
+                if warning:
+                    formatted_message += ", but has open subtasks"
                 print(f"{emoji} [{result_label}] {normalized_key}: {formatted_message}")
                 for item in message:
                     print(f"  - {item}")
             else:
                 print(f"{emoji} [{result_label}] {normalized_key}: {message}")
 
-        if ready:
+            if open_subtasks:
+                print(f"  - Open subtasks: {', '.join(open_subtasks)}")
+
+        if warning:
+            warning_issues.append(normalized_key)
+        elif ready:
             ready_issues.append(normalized_key)
         else:
             all_ready = False
 
     # Summary
     if not args.quiet and len(args.issue_keys) > 1:
-        print(f"\n{'='*60}")
-        print(f"Summary: {len(ready_issues)}/{len(args.issue_keys)} issues ready for purge")
-        if ready_issues:
-            print(f"READY: {' '.join(issue.lower() for issue in ready_issues)}")
+        def print_section(label, issues):
+            if not issues:
+                return
+            print(f"{label}: {' '.join(issue.lower() for issue in issues)}")
             if args.with_link:
-                for issue_key in ready_issues:
+                for issue_key in issues:
                     print(f"{JIRA_BASE_URL}/browse/{issue_key}")
+
+        print(f"\n{'='*60}")
+        total_ready = len(ready_issues) + len(warning_issues)
+        warning_note = f" ({len(warning_issues)} with open subtasks)" if warning_issues else ""
+        print(f"Summary: {total_ready}/{len(args.issue_keys)} issues ready for purge{warning_note}")
+        print_section("READY", ready_issues)
+        print_section("WARNING (may have open subtasks)", warning_issues)
 
     # Exit code: 0 if all ready, 1 otherwise
     sys.exit(0 if all_ready else 1)

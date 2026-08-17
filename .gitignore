@@ -277,3 +277,7 @@ TSWLatexianTemp*
 
 stata.lic*
 *.egg-info/
+
+## Python bytecode:
+__pycache__/
+*.pyc
