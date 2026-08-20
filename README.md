@@ -291,6 +291,38 @@ Manages Jira approval transitions (Report Under Review → Pre-Approved → Appr
 
 Usage: `jira-approval-manager aearep-NNNN (approve|pre-approve) [recommendation]`
 
+### `jira-openicpsr-changes`
+
+![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
+
+Finds every ticket in "Pending openICPSR changes" and asks openICPSR what has happened to
+the linked deposit since the ticket entered that status. When the author did something
+meaningful, the ticket gets a comment summarising the activity and moves to
+"Assess openICPSR changes". When the author changed file content *and* re-submitted the
+deposit, the `w-big-populate-from-icpsr` Bitbucket pipeline is triggered to re-ingest it.
+
+Downloads and file views by our own account are classified as passive and never count as
+author activity. Content changes without a re-submission are reported but do not trigger
+a re-ingest, on the grounds that the author is probably still working. Activity kinds the
+tool does not recognise are ignored and listed at the end of the run rather than acted on.
+
+If the Jira transition fails, that is recorded as its own comment and the command exits
+non-zero, because it means someone still has to move the ticket by hand.
+
+**Nothing is written unless you pass `--apply`.** There are usually well over a hundred
+tickets in this status and most of them have had activity, so bound your first real run
+with `--limit`.
+
+```
+jira-openicpsr-changes                     # dry run over every pending ticket
+jira-openicpsr-changes --limit 5 -v        # dry run over the five most recently updated
+jira-openicpsr-changes --issue AEAREP-9962 # dry run a single ticket
+jira-openicpsr-changes --apply --limit 5   # act on at most five tickets
+```
+
+Requires `JIRA_USERNAME`, `JIRA_API_KEY`, `ICPSR_EMAIL`, `ICPSR_PASS` and, for pipeline
+triggering, `P_BITBUCKET_PAT` plus `P_BITBUCKET_EMAIL`. `ICPSR_TOKEN` is used if set.
+
 ### `jira-purge-query`
 
 ![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)

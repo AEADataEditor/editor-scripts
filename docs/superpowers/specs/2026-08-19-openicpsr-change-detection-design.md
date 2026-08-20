@@ -111,9 +111,11 @@ upload, so it is the primary content signal and must not be filtered out as mach
 noise.
 
 The passive bucket is load-bearing. Our own account's runs of
-`download_openicpsr-private.py` land there as `file_download` / `file_get_binary`, and at
-least one sampled ticket (AEAREP-9369) had *only* passive events after its transition.
-Counting them would have falsely flagged it.
+`download_openicpsr-private.py` land there as `file_download` / `file_get_binary`, and
+they are common: AEAREP-9145 had 16 passive events against 9 content events, and
+AEAREP-9369 had 2 passive events and no content events at all. Counting passive events as
+activity would inflate every ticket's verdict and would flag tickets on the strength of
+our own downloads.
 
 ### Workflow transitions
 
