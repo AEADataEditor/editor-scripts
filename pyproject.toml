@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aea-editor-scripts"
-version = "0.3.22"
+version = "0.3.23"
 description = "Scripts for AEA Data Editor workflow"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,6 +15,9 @@ dependencies = [
     "pyyaml",
     "boxsdk[jwt]==3.14.0",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest"]
 
 [project.scripts]
 aea-parse-tags         = "aea_editor_scripts.parse_tags:main"

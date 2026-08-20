@@ -1,0 +1,7 @@
+{"took": 3, "timed_out": false, "hits": {"total": 7, "max_score": 0.0, "hits": [
+ {"_id": "a", "_source": {"activity": "Virus_Scan", "file_name": "data.zip", "message": "Imported from \"data.zip\" successfully.", "path_url": "/openicpsr/100", "user": "system", "event_time": 1785335101501}},
+ {"_id": "b", "_source": {"page_url": "https://deposit.icpsr.umich.edu/deposit/postProperty", "message": "Added property Manuscript Number; \"AEJMicro-2025-0285\"", "path_url": "/openicpsr/100", "user": "author@example.org", "event_time": 1785335000000}},
+ {"_id": "c", "_source": {"activity": "file_download", "file_name": "data.zip", "message": "Downloaded", "path_url": "/openicpsr/100", "user": "dataeditor@aeapubs.org", "event_time": 1785334000000}},
+ {"_id": "d", "_source": {"activity": "workflow_status_transition", "message": "Changed the workflow status from REVISION REQUESTED to SUBMITTED", "path_url": "/openicpsr/100", "user": "author@example.org", "event_time": 1785333000000}},
+ {"_id": "e", "_source": {"activity": "brand_new_thing", "message": "Something we have never seen", "path_url": "/openicpsr/100", "user": "author@example.org", "event_time": 1785332000000}}
+]}}
