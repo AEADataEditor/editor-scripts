@@ -67,3 +67,74 @@ def test_kind_of_prefers_activity():
 
 def test_kind_of_with_no_activity_and_no_page_url():
     assert C.kind_of(ev()) == "unknown"
+
+
+def test_parse_workflow_without_note():
+    assert C.parse_workflow_message(
+        "Changed the workflow status from REVISION REQUESTED to SUBMITTED"
+    ) == ("REVISION REQUESTED", "SUBMITTED", "")
+
+
+def test_parse_workflow_with_note():
+    frm, to, note = C.parse_workflow_message(
+        "Changed the workflow status from SUBMITTED to REVISION REQUESTED "
+        "with the following note: \n[REQUIRED] Our scan found problems"
+    )
+    assert (frm, to) == ("SUBMITTED", "REVISION REQUESTED")
+    assert "[REQUIRED] Our scan found problems" in note
+
+
+def test_parse_workflow_multiword_states():
+    assert C.parse_workflow_message(
+        "Changed the workflow status from DEPOSIT IN PROGRESS to SUBMITTED"
+    ) == ("DEPOSIT IN PROGRESS", "SUBMITTED", "")
+
+
+def test_parse_workflow_unrecognised_message():
+    assert C.parse_workflow_message("Something else entirely") is None
+
+
+def test_parse_workflow_empty_message():
+    assert C.parse_workflow_message("") is None
+
+
+def test_last_workflow_change_wins_over_earlier_ones():
+    events = [
+        ev(activity="workflow_status_transition", when=100,
+           message="Changed the workflow status from DEPOSIT IN PROGRESS to SUBMITTED"),
+        ev(activity="workflow_status_transition", when=300,
+           message="Changed the workflow status from DEPOSIT IN PROGRESS to SUBMITTED"),
+        ev(activity="workflow_status_transition", when=200,
+           message="Changed the workflow status from SUBMITTED to DEPOSIT IN PROGRESS"),
+    ]
+    last = C.last_workflow_change(events)
+    assert last.to_state == "SUBMITTED"
+    assert last.time.timestamp() == 300
+
+
+def test_last_workflow_change_can_end_not_submitted():
+    events = [
+        ev(activity="workflow_status_transition", when=100,
+           message="Changed the workflow status from DEPOSIT IN PROGRESS to SUBMITTED"),
+        ev(activity="workflow_status_transition", when=200,
+           message="Changed the workflow status from SUBMITTED to DEPOSIT IN PROGRESS"),
+    ]
+    assert C.last_workflow_change(events).to_state == "DEPOSIT IN PROGRESS"
+
+
+def test_last_workflow_change_none_when_no_workflow_events():
+    assert C.last_workflow_change([ev(activity="upload_file")]) is None
+
+
+def test_unparseable_workflow_event_is_skipped():
+    assert C.last_workflow_change(
+        [ev(activity="workflow_status_transition", when=100, message="garbled")]) is None
+
+
+def test_last_workflow_change_keeps_note_and_user():
+    last = C.last_workflow_change([
+        ev(activity="workflow_status_transition", when=1, user="author@example.org",
+           message="Changed the workflow status from REVISION REQUESTED to SUBMITTED "
+                   "with the following note: fixed the code")])
+    assert last.note == "fixed the code"
+    assert last.user == "author@example.org"
