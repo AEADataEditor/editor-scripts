@@ -134,3 +134,47 @@ def last_workflow_change(events):
     if not changes:
         return None
     return max(changes, key=lambda c: c.time)
+
+
+# Passive and unknown events never make a ticket "changed".
+CHANGE_BUCKETS = frozenset({CONTENT, METADATA, COMMUNICATION, WORKFLOW})
+
+
+@dataclass(frozen=True)
+class Assessment:
+    """What happened to a deposit since its ticket entered the pending status."""
+
+    counts: dict
+    kinds: dict
+    unknown_kinds: dict
+    resubmitted: bool
+    last_workflow: WorkflowChange | None
+    changed: bool
+    content_changed: bool
+
+
+def assess(events):
+    """Summarise events into a verdict.
+
+    ``events`` must already be filtered to those after the cutoff.
+    """
+    counts = Counter()
+    kinds = Counter()
+    unknown_kinds = Counter()
+    for event in events:
+        bucket = bucket_of(event)
+        kind = kind_of(event)
+        counts[bucket] += 1
+        kinds[kind] += 1
+        if bucket == UNKNOWN:
+            unknown_kinds[kind] += 1
+    last = last_workflow_change(events)
+    return Assessment(
+        counts=dict(counts),
+        kinds=dict(kinds),
+        unknown_kinds=dict(unknown_kinds),
+        resubmitted=bool(last and last.to_state == SUBMITTED),
+        last_workflow=last,
+        changed=any(counts.get(bucket, 0) for bucket in CHANGE_BUCKETS),
+        content_changed=counts.get(CONTENT, 0) > 0,
+    )

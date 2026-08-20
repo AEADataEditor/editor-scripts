@@ -138,3 +138,66 @@ def test_last_workflow_change_keeps_note_and_user():
                    "with the following note: fixed the code")])
     assert last.note == "fixed the code"
     assert last.user == "author@example.org"
+
+
+def test_assess_empty():
+    a = C.assess([])
+    assert a.changed is False and a.content_changed is False
+    assert a.resubmitted is False and a.last_workflow is None
+
+
+def test_passive_only_is_not_a_change():
+    a = C.assess([ev(activity="file_download"), ev(activity="file_get_binary")])
+    assert a.changed is False
+    assert a.counts[C.PASSIVE] == 2
+
+
+def test_unknown_only_is_not_a_change_but_is_reported():
+    a = C.assess([ev(activity="brand_new_thing"), ev(activity="brand_new_thing")])
+    assert a.changed is False
+    assert a.unknown_kinds == {"brand_new_thing": 2}
+
+
+def test_metadata_only_is_a_change_without_content():
+    a = C.assess([ev(page_url="https://deposit.icpsr.umich.edu/deposit/postProperty")])
+    assert a.changed is True and a.content_changed is False
+
+
+def test_communication_only_is_a_change():
+    assert C.assess([ev(activity="add_comment")]).changed is True
+
+
+def test_content_change_sets_content_changed():
+    a = C.assess([ev(activity="Virus_Scan"), ev(activity="upload_file")])
+    assert a.changed is True and a.content_changed is True
+    assert a.counts[C.CONTENT] == 2
+
+
+def test_resubmitted_true_when_last_workflow_is_submitted():
+    a = C.assess([ev(activity="workflow_status_transition", when=10,
+                     message="Changed the workflow status from REVISION REQUESTED to SUBMITTED")])
+    assert a.resubmitted is True
+
+
+def test_resubmitted_false_when_author_still_working():
+    a = C.assess([
+        ev(activity="workflow_status_transition", when=10,
+           message="Changed the workflow status from REVISION REQUESTED to SUBMITTED"),
+        ev(activity="workflow_status_transition", when=20,
+           message="Changed the workflow status from SUBMITTED to DEPOSIT IN PROGRESS"),
+    ])
+    assert a.resubmitted is False
+
+
+def test_kinds_counts_every_raw_kind():
+    a = C.assess([ev(activity="Virus_Scan"), ev(activity="Virus_Scan"), ev(activity="file_download")])
+    assert a.kinds == {"Virus_Scan": 2, "file_download": 1}
+
+
+def test_counts_omit_buckets_with_no_events():
+    assert C.assess([ev(activity="Virus_Scan")]).counts == {C.CONTENT: 1}
+
+
+def test_content_without_resubmission_is_the_no_pipeline_case():
+    a = C.assess([ev(activity="upload_file", when=5)])
+    assert a.content_changed is True and a.resubmitted is False
