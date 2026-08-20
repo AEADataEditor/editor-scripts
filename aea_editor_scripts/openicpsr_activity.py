@@ -13,8 +13,22 @@ download, a workflow transition.
 This module only reads. It knows nothing about Jira or Bitbucket.
 """
 
+import os
+import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+
+import requests
+from dotenv import load_dotenv
+
+OPENICPSR_URL = "https://www.openicpsr.org/openicpsr/"
+DEPOSIT_URL = "https://deposit.icpsr.umich.edu/deposit"
+
+_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
 
 
 @dataclass(frozen=True)
@@ -72,3 +86,70 @@ class ActivityLog:
         events = [Event.from_source(h.get("_source", {})) for h in hits.get("hits", [])]
         events.sort(key=lambda e: e.time, reverse=True)
         return cls(events=tuple(events), total=hits.get("total", len(events)))
+
+
+def login(email=None, password=None, token=None):
+    """Authenticate against openICPSR and return the session.
+
+    The OAuth form flow is taken from
+    replication-template-development/tools/download_openicpsr-private.py
+    (Kacper Kowalik, Lars Vilhuber): fetch the app, fetch the login page, scrape
+    the form's action URL, then post the credentials.
+    """
+    email = email or os.environ.get("ICPSR_EMAIL")
+    password = password or os.environ.get("ICPSR_PASS")
+    token = token or os.environ.get("ICPSR_TOKEN")
+    if not email or not password:
+        load_dotenv(os.path.join(os.path.expanduser("~"), ".envvars"))
+        email = email or os.environ.get("ICPSR_EMAIL")
+        password = password or os.environ.get("ICPSR_PASS")
+        token = token or os.environ.get("ICPSR_TOKEN")
+    if not email or not password:
+        raise RuntimeError("ICPSR_EMAIL and ICPSR_PASS must be set to read openICPSR activity")
+
+    headers = {"User-Agent": _USER_AGENT}
+    if token:
+        headers["x-openicpsr-cloudflare-token"] = token
+
+    session = requests.Session()
+    session.headers.update(headers)
+    session.get(OPENICPSR_URL).raise_for_status()
+
+    login_page = session.get(f"{OPENICPSR_URL}/login", allow_redirects=True)
+    login_page.raise_for_status()
+    actions = re.findall(r'action="([^"]*)"', login_page.text)
+    if not actions:
+        raise RuntimeError("Could not find the openICPSR login form action URL")
+
+    session.post(
+        actions[0].replace("&amp;", "&"),
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        allow_redirects=True,
+    ).raise_for_status()
+    return session
+
+
+def fetch_activity(session, pid, retries=3, timeout=120):
+    """Fetch one deposit's activity log.
+
+    The endpoint caps its response at the 1000 most recent events and ignores
+    every pagination parameter tried (size, from, length, start, max), so there
+    is no way to page through a busier deposit. Because the cap keeps the
+    newest events, activity since a recent date is still complete; compare
+    ``ActivityLog.total`` against the number of events to detect the cap.
+    """
+    url = f"{DEPOSIT_URL}/viewActivity?path=/openicpsr/{pid}"
+    headers = {"Accept": "application/json", "X-Requested-With": "XMLHttpRequest"}
+    last_error = None
+    for attempt in range(retries):
+        try:
+            response = session.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return ActivityLog.from_response(response.json())
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            # openICPSR drops connections occasionally under sustained querying.
+            last_error = exc
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+    raise last_error
