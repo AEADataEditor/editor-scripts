@@ -329,11 +329,18 @@ non-zero, because it means someone still has to move the ticket by hand.
 tickets in this status and most of them have had activity, so bound your first real run
 with `--limit`.
 
+Each comment carries a marker line naming the baseline it reported on, so a ticket is
+commented on once per baseline. `--reassess-after DAYS` relaxes that: a report older than
+`DAYS` no longer suppresses a new one, so a ticket that sits in the status keeps being
+revisited rather than going quiet after its first report. Without the flag, one report per
+baseline is final.
+
 ```
-jira-openicpsr-changes                     # dry run over every pending ticket
-jira-openicpsr-changes --limit 5 -v        # dry run over the five most recently updated
-jira-openicpsr-changes --issue AEAREP-9962 # dry run a single ticket
-jira-openicpsr-changes --apply --limit 5   # act on at most five tickets
+jira-openicpsr-changes                        # dry run over every pending ticket
+jira-openicpsr-changes --limit 5 -v           # dry run over the five most recently updated
+jira-openicpsr-changes --issue AEAREP-9962    # dry run a single ticket
+jira-openicpsr-changes --apply --limit 5      # act on at most five tickets
+jira-openicpsr-changes --apply --reassess-after 14   # also re-report reports 14+ days old
 ```
 
 Requires `JIRA_USERNAME`, `JIRA_API_KEY`, `ICPSR_EMAIL`, `ICPSR_PASS` and, for pipeline

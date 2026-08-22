@@ -61,14 +61,16 @@ def test_marker_line_embeds_cutoff():
 
 def test_already_reported_matches_same_cutoff():
     cutoff = datetime.datetime(2026, 7, 30, tzinfo=UTC)
-    issue = issue_with([], comments=[SimpleNamespace(body="preamble\n" + J.marker_line(cutoff))])
+    issue = issue_with([], comments=[SimpleNamespace(
+        body="preamble\n" + J.marker_line(cutoff), created=cutoff.isoformat())])
     assert J.already_reported(issue, cutoff) is True
 
 
 def test_already_reported_false_for_different_cutoff():
     old = datetime.datetime(2026, 7, 1, tzinfo=UTC)
     new = datetime.datetime(2026, 7, 30, tzinfo=UTC)
-    issue = issue_with([], comments=[SimpleNamespace(body=J.marker_line(old))])
+    issue = issue_with([], comments=[SimpleNamespace(
+        body=J.marker_line(old), created=old.isoformat())])
     assert J.already_reported(issue, new) is False
 
 
@@ -199,3 +201,75 @@ def test_nothing_never_acts():
 def test_our_revision_request_alone_never_acts():
     act, _ = decide([_wf(10, "REVISION REQUESTED")], days=99)
     assert act is False
+
+
+# --- re-assessment after an interval ----------------------------------------
+
+def comment(body, created):
+    return SimpleNamespace(body=body, created=created.isoformat())
+
+
+def test_last_report_time_returns_the_matching_comment_time():
+    baseline = datetime.datetime(2026, 7, 30, tzinfo=UTC)
+    when = datetime.datetime(2026, 8, 1, 12, 0, tzinfo=UTC)
+    issue = issue_with([], comments=[comment(J.marker_line(baseline), when)])
+    assert J.last_report_time(issue, baseline) == when
+
+
+def test_last_report_time_none_when_no_matching_marker():
+    baseline = datetime.datetime(2026, 7, 30, tzinfo=UTC)
+    other = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    issue = issue_with([], comments=[comment(J.marker_line(other), other)])
+    assert J.last_report_time(issue, baseline) is None
+
+
+def test_last_report_time_uses_the_most_recent_matching_comment():
+    baseline = datetime.datetime(2026, 7, 30, tzinfo=UTC)
+    early = datetime.datetime(2026, 8, 1, tzinfo=UTC)
+    late = datetime.datetime(2026, 8, 10, tzinfo=UTC)
+    issue = issue_with([], comments=[comment(J.marker_line(baseline), early),
+                                     comment(J.marker_line(baseline), late)])
+    assert J.last_report_time(issue, baseline) == late
+
+
+def test_already_reported_without_reassess_stays_true_forever():
+    baseline = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    ancient = datetime.datetime(2026, 1, 2, tzinfo=UTC)
+    issue = issue_with([], comments=[comment(J.marker_line(baseline), ancient)])
+    assert J.already_reported(issue, baseline) is True
+
+
+def test_already_reported_false_once_the_report_ages_past_the_threshold():
+    baseline = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    old = datetime.datetime.now(UTC) - datetime.timedelta(days=20)
+    issue = issue_with([], comments=[comment(J.marker_line(baseline), old)])
+    assert J.already_reported(issue, baseline, reassess_after=14) is False
+
+
+def test_already_reported_true_while_the_report_is_still_fresh():
+    baseline = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    recent = datetime.datetime.now(UTC) - datetime.timedelta(days=3)
+    issue = issue_with([], comments=[comment(J.marker_line(recent), recent)])
+    issue.fields.comment.comments = [comment(J.marker_line(baseline), recent)]
+    assert J.already_reported(issue, baseline, reassess_after=14) is True
+
+
+def test_already_reported_exactly_at_the_threshold_re_reports():
+    baseline = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    edge = datetime.datetime.now(UTC) - datetime.timedelta(days=14)
+    issue = issue_with([], comments=[comment(J.marker_line(baseline), edge)])
+    assert J.already_reported(issue, baseline, reassess_after=14) is False
+
+
+def test_already_reported_false_when_never_reported_regardless_of_flag():
+    baseline = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    assert J.already_reported(issue_with([]), baseline, reassess_after=14) is False
+
+
+def test_render_comment_marks_a_reassessment():
+    baseline = datetime.datetime(2026, 7, 30, tzinfo=UTC)
+    body = J.render_comment(C.assess([_ev("upload_file", 1)]), ActivityLog(events=(), total=0),
+                            baseline, "", J.BASELINE_JIRA, "file content changed",
+                            reassessed_after_days=21)
+    assert "re-assess" in body.lower()
+    assert "21" in body

@@ -121,15 +121,34 @@ def marker_line(baseline):
     return f"{MARKER} baseline={baseline.isoformat()}"
 
 
-def already_reported(issue, cutoff):
-    """True when a comment already reports this exact cutoff."""
-    line = marker_line(cutoff)
+def last_report_time(issue, baseline):
+    """When we last reported on this baseline, or None if we never did."""
+    line = marker_line(baseline)
     comments = getattr(getattr(issue.fields, "comment", None), "comments", []) or []
-    return any(line in (getattr(c, "body", "") or "") for c in comments)
+    times = [datetime.fromisoformat(c.created) for c in comments
+             if line in (getattr(c, "body", "") or "")]
+    return max(times) if times else None
+
+
+def already_reported(issue, baseline, reassess_after=None):
+    """True when this baseline has been reported and the report is still current.
+
+    Without ``reassess_after`` one report per baseline is final. With it, a
+    report that has aged past that many days no longer suppresses a new one, so
+    a ticket that sits in the status keeps being revisited instead of going
+    quiet forever.
+    """
+    reported_at = last_report_time(issue, baseline)
+    if reported_at is None:
+        return False
+    if reassess_after is None:
+        return True
+    age = (datetime.now(reported_at.tzinfo) - reported_at).days
+    return age < reassess_after
 
 
 def render_comment(assessment, log, baseline, pipeline_note, baseline_source=BASELINE_JIRA,
-                   reason=""):
+                   reason="", reassessed_after_days=None):
     """Build the Jira wiki-markup comment body."""
     origin = ("our last openICPSR revision request"
               if baseline_source == BASELINE_REVISION_REQUESTED
@@ -138,6 +157,10 @@ def render_comment(assessment, log, baseline, pipeline_note, baseline_source=BAS
         f"openICPSR activity detected since {origin} ({baseline.isoformat()}).",
         "",
     ]
+    if reassessed_after_days is not None:
+        lines.append(f"This is a re-assessment: the previous report on this baseline was "
+                     f"{reassessed_after_days} days ago and the ticket is still open.")
+        lines.append("")
     if reason:
         lines.append(f"Acting because {reason}.")
         lines.append("")
@@ -202,6 +225,7 @@ class Result:
     baseline_source: str = ""
     days_since_baseline: int = 0
     truncated: bool = False
+    reassessed: bool = False
     note: str = ""
 
     @property
@@ -301,7 +325,8 @@ def _pipeline_note(assessment, triggered, detail):
     return f"File content changed and the deposit was re-submitted, but {detail}"
 
 
-def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth):
+def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth,
+                  reassess_after=None):
     """Assess one ticket and, when applying, act on it."""
     key = issue.key
     pid = deposit_number(issue, field_map)
@@ -332,10 +357,17 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
 
     if not act:
         return Result(key, "no-change", reason, **common)
-    if already_reported(issue, baseline):
+    if already_reported(issue, baseline, reassess_after):
         return Result(key, "already-reported", reason, **common)
+
+    previous = last_report_time(issue, baseline)
+    reassessed_days = None
+    if previous is not None:
+        reassessed_days = (datetime.now(previous.tzinfo) - previous).days
+
     if not apply_changes:
-        return Result(key, "would-act", reason, **common)
+        status = "would-reassess" if reassessed_days is not None else "would-act"
+        return Result(key, status, reason, reassessed=reassessed_days is not None, **common)
 
     triggered, detail = False, ""
     if assessment.content_changed and assessment.resubmitted:
@@ -353,7 +385,7 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
 
     body = render_comment(assessment, log, baseline,
                           _pipeline_note(assessment, triggered, detail),
-                          baseline_source, reason)
+                          baseline_source, reason, reassessed_days)
     try:
         jira.add_comment(key, body)
     except Exception as exc:
@@ -372,7 +404,8 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
         return Result(key, "failed", f"transition failed: {why}",
                       pipeline="triggered" if triggered else "", **common)
 
-    return Result(key, "acted", reason, pipeline="triggered" if triggered else "", **common)
+    return Result(key, "acted", reason, pipeline="triggered" if triggered else "",
+                  reassessed=reassessed_days is not None, **common)
 
 
 def bitbucket_credentials():
@@ -391,7 +424,7 @@ def _describe(result, verbose):
         line += f"  baseline={result.baseline_source}@{result.baseline[:10]} d={result.days_since_baseline}"
     if result.pipeline:
         line += "  [pipeline triggered]"
-    elif result.status == "would-act":
+    elif result.status in ("would-act", "would-reassess"):
         if result.content_changed and result.resubmitted:
             line += "  [would trigger pipeline]"
         elif result.content_changed:
@@ -416,6 +449,7 @@ Examples:
   %(prog)s --limit 5 -v             # dry run over the five most recently updated
   %(prog)s --issue AEAREP-9962      # dry run one ticket
   %(prog)s --apply --limit 5        # act on at most five tickets
+  %(prog)s --apply --reassess-after 14   # also re-report tickets last reported 14+ days ago
 """,
     )
     parser.add_argument("--apply", action="store_true",
@@ -425,6 +459,10 @@ Examples:
                         help="restrict to this ticket (repeatable)")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="show unknown activity kinds per ticket")
+    parser.add_argument("--reassess-after", type=int, metavar="DAYS",
+                        help="re-report a ticket whose last report on the same baseline "
+                             "is at least DAYS old; without this, one report per baseline "
+                             "is final")
     parser.add_argument("--json", metavar="FILE", help="write per-ticket results as JSON")
     args = parser.parse_args()
 
@@ -448,7 +486,8 @@ Examples:
 
     results = []
     for issue in issues:
-        result = process_issue(jira, field_map, session, issue, args.apply, bitbucket_auth)
+        result = process_issue(jira, field_map, session, issue, args.apply, bitbucket_auth,
+                               args.reassess_after)
         results.append(result)
         print(_describe(result, args.verbose))
 
