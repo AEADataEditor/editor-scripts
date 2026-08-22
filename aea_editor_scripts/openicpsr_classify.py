@@ -83,6 +83,7 @@ def bucket_of(event):
 
 
 SUBMITTED = "SUBMITTED"
+REVISION_REQUESTED = "REVISION REQUESTED"
 
 # "Changed the workflow status from DEPOSIT IN PROGRESS to SUBMITTED"
 # "Changed the workflow status from SUBMITTED to REVISION REQUESTED with the following note: ..."
@@ -147,6 +148,10 @@ class Assessment:
     counts: dict
     kinds: dict
     unknown_kinds: dict
+    #: The deposit ended up SUBMITTED after the baseline. Because the baseline is
+    #: our last revision request, this is the strong signal that the author
+    #: responded -- and it catches REVISION REQUESTED -> DEPOSIT IN PROGRESS ->
+    #: SUBMITTED, which checking for a direct edge would miss.
     resubmitted: bool
     last_workflow: WorkflowChange | None
     changed: bool
@@ -162,6 +167,9 @@ def assess(events):
     kinds = Counter()
     unknown_kinds = Counter()
     for event in events:
+        if is_our_revision_request(event):
+            # We sent the deposit back; that is our action, not the author's.
+            continue
         bucket = bucket_of(event)
         kind = kind_of(event)
         counts[bucket] += 1
@@ -178,3 +186,24 @@ def assess(events):
         changed=any(counts.get(bucket, 0) for bucket in CHANGE_BUCKETS),
         content_changed=counts.get(CONTENT, 0) > 0,
     )
+
+
+def is_our_revision_request(event):
+    """True when the event is us sending a deposit back for revision.
+
+    These are our own actions and must never be read as author activity.
+    """
+    if event.activity not in WORKFLOW_KINDS:
+        return False
+    parsed = parse_workflow_message(event.message)
+    return bool(parsed and parsed[1] == REVISION_REQUESTED)
+
+
+def last_revision_requested(events):
+    """When we last sent this deposit back for revision, or None.
+
+    This is the baseline the rest of the assessment is measured from: everything
+    after it is the author's response to that request.
+    """
+    times = [e.time for e in events if is_our_revision_request(e)]
+    return max(times) if times else None

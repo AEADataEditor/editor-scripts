@@ -301,10 +301,26 @@ meaningful, the ticket gets a comment summarising the activity and moves to
 "Assess openICPSR changes". When the author changed file content *and* re-submitted the
 deposit, the `w-big-populate-from-icpsr` Bitbucket pipeline is triggered to re-ingest it.
 
-Downloads and file views by our own account are classified as passive and never count as
-author activity. Content changes without a re-submission are reported but do not trigger
-a re-ingest, on the grounds that the author is probably still working. Activity kinds the
-tool does not recognise are ignored and listed at the end of the run rather than acted on.
+Activity is measured from a **baseline**: the last time we sent the deposit back for
+revision (`SUBMITTED` -> `REVISION REQUESTED` on openICPSR), falling back to the Jira
+transition when the deposit's log has no such event. Our own revision requests never count
+as author activity, and downloads or file views by our own account are classified as
+passive.
+
+The decision rules, in order:
+
+| Situation | Action |
+| --- | --- |
+| The author re-submitted after our request | Comment and transition, even with no file changes. Re-ingest if content also changed. |
+| File content changed, no re-submission | Comment and transition; the author is probably still working, so no re-ingest. |
+| Metadata or communication only | Acted on only once 14 days have passed since our revision request. Silent before that. |
+| Passive or unrecognised activity only | Nothing. |
+
+Activity kinds the tool does not recognise are ignored and listed at the end of the run
+rather than acted on. The run also prints an *Exceptions* section naming tickets whose
+baseline fell back to the Jira transition, whose openICPSR log was truncated at the
+1000-event cap, or which could not be assessed at all — use `--json` to feed that into a
+scheduled summary report.
 
 If the Jira transition fails, that is recorded as its own comment and the command exits
 non-zero, because it means someone still has to move the ticket by hand.

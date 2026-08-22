@@ -201,3 +201,73 @@ def test_counts_omit_buckets_with_no_events():
 def test_content_without_resubmission_is_the_no_pipeline_case():
     a = C.assess([ev(activity="upload_file", when=5)])
     assert a.content_changed is True and a.resubmitted is False
+
+
+# --- baseline: the last time we asked for revisions -------------------------
+
+def _wf(when, to, frm="SUBMITTED", user="dataeditor@aeapubs.org", note=""):
+    message = f"Changed the workflow status from {frm} to {to}"
+    if note:
+        message += f" with the following note: {note}"
+    return ev(activity="workflow_status_transition", when=when, message=message, user=user)
+
+
+def test_last_revision_requested_returns_latest():
+    events = [_wf(100, "REVISION REQUESTED"), _wf(300, "REVISION REQUESTED"), _wf(200, "SUBMITTED")]
+    assert C.last_revision_requested(events).timestamp() == 300
+
+
+def test_last_revision_requested_none_when_absent():
+    assert C.last_revision_requested([ev(activity="upload_file")]) is None
+    assert C.last_revision_requested([_wf(10, "SUBMITTED")]) is None
+
+
+def test_is_our_revision_request():
+    assert C.is_our_revision_request(_wf(1, "REVISION REQUESTED")) is True
+    assert C.is_our_revision_request(_wf(1, "SUBMITTED")) is False
+    assert C.is_our_revision_request(ev(activity="upload_file")) is False
+
+
+# --- our own revision requests never count as author activity ---------------
+
+def test_our_revision_request_is_not_counted_as_activity():
+    a = C.assess([_wf(10, "REVISION REQUESTED")])
+    assert a.changed is False
+    assert a.counts.get(C.WORKFLOW, 0) == 0
+
+
+def test_our_revision_request_excluded_but_author_submit_counted():
+    a = C.assess([_wf(10, "REVISION REQUESTED"), _wf(20, "SUBMITTED", frm="REVISION REQUESTED")])
+    assert a.counts[C.WORKFLOW] == 1
+    assert a.changed is True
+
+
+def test_our_revision_request_still_defines_final_state():
+    # Author submitted, then we sent it back: the deposit is not submitted now.
+    a = C.assess([_wf(10, "SUBMITTED", frm="REVISION REQUESTED"),
+                  _wf(20, "REVISION REQUESTED")])
+    assert a.resubmitted is False
+
+
+# --- strong resubmission ----------------------------------------------------
+
+def test_resubmission_on_direct_edge():
+    a = C.assess([_wf(10, "SUBMITTED", frm="REVISION REQUESTED")])
+    assert a.resubmitted is True
+
+
+def test_resubmission_via_deposit_in_progress():
+    # RR -> DEPOSIT IN PROGRESS -> SUBMITTED still means the author responded.
+    a = C.assess([_wf(10, "DEPOSIT IN PROGRESS", frm="REVISION REQUESTED"),
+                  _wf(20, "SUBMITTED", frm="DEPOSIT IN PROGRESS")])
+    assert a.resubmitted is True
+
+
+def test_resubmission_false_when_recalled():
+    a = C.assess([_wf(10, "SUBMITTED", frm="REVISION REQUESTED"),
+                  _wf(20, "DEPOSIT IN PROGRESS", frm="SUBMITTED")])
+    assert a.resubmitted is False
+
+
+def test_resubmission_false_without_workflow_events():
+    assert C.assess([ev(activity="upload_file")]).resubmitted is False

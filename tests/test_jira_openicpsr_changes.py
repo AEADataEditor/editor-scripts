@@ -106,3 +106,96 @@ def test_render_comment_without_workflow_change():
     body = J.render_comment(C.assess([_ev("upload_file", 1)]),
                             ActivityLog(events=(), total=0), datetime.datetime.now(UTC), "")
     assert J.MARKER in body
+
+
+# --- baseline resolution ----------------------------------------------------
+
+def _wf(when, to, frm="SUBMITTED"):
+    return _ev("workflow_status_transition", when,
+               f"Changed the workflow status from {frm} to {to}")
+
+
+def test_baseline_uses_last_revision_requested_when_present():
+    cutoff = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    log = ActivityLog(events=(_wf(200, "REVISION REQUESTED"),), total=1)
+    baseline, source = J.resolve_baseline(log, cutoff)
+    assert baseline.timestamp() == 200
+    assert source == J.BASELINE_REVISION_REQUESTED
+
+
+def test_baseline_falls_back_to_jira_cutoff():
+    cutoff = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    baseline, source = J.resolve_baseline(ActivityLog(events=(), total=0), cutoff)
+    assert baseline == cutoff
+    assert source == J.BASELINE_JIRA
+
+
+def test_baseline_prefers_revision_request_even_when_before_cutoff():
+    # Our request usually lands a day either side of the Jira transition; the
+    # request is the meaningful start of the author's response window.
+    cutoff = datetime.datetime(2026, 1, 1, tzinfo=UTC)
+    log = ActivityLog(events=(_wf(0, "REVISION REQUESTED"),), total=1)
+    baseline, source = J.resolve_baseline(log, cutoff)
+    assert baseline.timestamp() == 0
+    assert source == J.BASELINE_REVISION_REQUESTED
+
+
+# --- the decision rules -----------------------------------------------------
+
+def decide(events, days):
+    return J.decide(C.assess(events), days)
+
+
+def test_resubmission_acts_even_with_no_file_changes():
+    act, reason = decide([_wf(10, "SUBMITTED", frm="REVISION REQUESTED")], days=0)
+    assert act is True
+    assert "re-submit" in reason.lower()
+
+
+def test_content_change_acts_without_resubmission():
+    act, reason = decide([_ev("upload_file", 10)], days=0)
+    assert act is True
+    assert "content" in reason.lower()
+
+
+def test_metadata_only_is_suppressed_before_two_weeks():
+    act, reason = decide([_ev(page_url=".../postProperty", when=10)], days=13)
+    assert act is False
+    assert "14" in reason or "two weeks" in reason.lower()
+
+
+def test_metadata_only_acts_after_two_weeks():
+    act, _ = decide([_ev(page_url=".../postProperty", when=10)], days=14)
+    assert act is True
+
+
+def test_communication_only_is_suppressed_before_two_weeks():
+    act, _ = decide([_ev("add_comment", 10)], days=1)
+    assert act is False
+
+
+def test_communication_only_acts_after_two_weeks():
+    act, _ = decide([_ev("add_comment", 10)], days=30)
+    assert act is True
+
+
+def test_resubmission_beats_the_two_week_rule():
+    # Metadata plus a re-submission, one day in: still acts.
+    act, _ = decide([_ev(page_url=".../postProperty", when=5),
+                     _wf(10, "SUBMITTED", frm="REVISION REQUESTED")], days=1)
+    assert act is True
+
+
+def test_passive_only_never_acts():
+    act, _ = decide([_ev("file_download", 10)], days=99)
+    assert act is False
+
+
+def test_nothing_never_acts():
+    act, _ = decide([], days=99)
+    assert act is False
+
+
+def test_our_revision_request_alone_never_acts():
+    act, _ = decide([_wf(10, "REVISION REQUESTED")], days=99)
+    assert act is False

@@ -45,6 +45,13 @@ TARGET_STATUS = "Assess openICPSR changes"
 # pending status and would otherwise be commented on again every run.
 MARKER = "{{openicpsr-change-detector}}"
 
+# Metadata or communication alone is normal churn in the fortnight after we ask
+# for revisions. Only once it has gone stale is it worth a human's attention.
+METADATA_ONLY_MIN_DAYS = 14
+
+BASELINE_REVISION_REQUESTED = "revision-requested"
+BASELINE_JIRA = "jira-transition"
+
 BUCKET_ORDER = (
     classify.CONTENT,
     classify.METADATA,
@@ -77,9 +84,41 @@ def entered_status(issue, status_name):
     return latest
 
 
-def marker_line(cutoff):
+def resolve_baseline(log, cutoff):
+    """The moment the author's response window opens, and where it came from.
+
+    Preferred: the last time we sent the deposit back for revision. That is the
+    request the author is answering, and it is usually within a day of the Jira
+    transition either way. Falls back to the Jira transition when the deposit has
+    no revision request in its log -- either because we never sent one, or
+    because the 1000-event cap dropped it.
+    """
+    last = classify.last_revision_requested(log.events)
+    if last is not None:
+        return last, BASELINE_REVISION_REQUESTED
+    return cutoff, BASELINE_JIRA
+
+
+def decide(assessment, days_since_baseline):
+    """Whether to act on this ticket, and why. Returns (act, reason)."""
+    if assessment.resubmitted:
+        return True, "the author re-submitted the deposit after our revision request"
+    if assessment.content_changed:
+        return True, "file content changed"
+    stale = sum(assessment.counts.get(b, 0)
+                for b in (classify.METADATA, classify.COMMUNICATION, classify.WORKFLOW))
+    if stale:
+        if days_since_baseline >= METADATA_ONLY_MIN_DAYS:
+            return True, (f"metadata/communication only, but {days_since_baseline} days "
+                          f"have passed since our revision request")
+        return False, (f"metadata/communication only, and only {days_since_baseline} days "
+                       f"since our revision request (under {METADATA_ONLY_MIN_DAYS})")
+    return False, "no author activity"
+
+
+def marker_line(baseline):
     """The machine-readable line identifying one report."""
-    return f"{MARKER} cutoff={cutoff.isoformat()}"
+    return f"{MARKER} baseline={baseline.isoformat()}"
 
 
 def already_reported(issue, cutoff):
@@ -89,13 +128,19 @@ def already_reported(issue, cutoff):
     return any(line in (getattr(c, "body", "") or "") for c in comments)
 
 
-def render_comment(assessment, log, cutoff, pipeline_note):
+def render_comment(assessment, log, baseline, pipeline_note, baseline_source=BASELINE_JIRA,
+                   reason=""):
     """Build the Jira wiki-markup comment body."""
+    origin = ("our last openICPSR revision request"
+              if baseline_source == BASELINE_REVISION_REQUESTED
+              else f"this ticket entering *{PENDING_STATUS}*")
     lines = [
-        f"openICPSR activity detected since this ticket entered "
-        f"*{PENDING_STATUS}* ({cutoff.isoformat()}).",
+        f"openICPSR activity detected since {origin} ({baseline.isoformat()}).",
         "",
     ]
+    if reason:
+        lines.append(f"Acting because {reason}.")
+        lines.append("")
 
     counted = [(b, assessment.counts[b]) for b in BUCKET_ORDER if assessment.counts.get(b)]
     if counted:
@@ -136,7 +181,7 @@ def render_comment(assessment, log, cutoff, pipeline_note):
         )
         lines.append("")
 
-    lines.append(marker_line(cutoff))
+    lines.append(marker_line(baseline))
     return "\n".join(lines)
 
 
@@ -153,6 +198,27 @@ class Result:
     resubmitted: bool = False
     content_changed: bool = False
     pipeline: str = ""
+    baseline: str = ""
+    baseline_source: str = ""
+    days_since_baseline: int = 0
+    truncated: bool = False
+    note: str = ""
+
+    @property
+    def exceptions(self):
+        """Things a human should look at, beyond the verdict itself."""
+        out = []
+        if self.status in ("skipped", "failed"):
+            out.append(self.reason)
+        if self.baseline_source == BASELINE_JIRA and self.pid:
+            out.append("no revision request in the log; baseline fell back to the "
+                       "Jira transition")
+        if self.truncated:
+            out.append("openICPSR log truncated at 1000 events; an older revision "
+                       "request may have been hidden")
+        if self.unknown_kinds:
+            out.append("unrecognised activity: " + ", ".join(sorted(self.unknown_kinds)))
+        return out
 
     @property
     def failed(self):
@@ -251,20 +317,25 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
     except Exception as exc:
         return Result(key, "failed", f"openICPSR fetch failed: {exc}", pid=pid)
 
-    after = [e for e in log.events if e.time > cutoff]
+    baseline, baseline_source = resolve_baseline(log, cutoff)
+    after = [e for e in log.events if e.time > baseline]
     assessment = classify.assess(after)
+    days = (datetime.now(baseline.tzinfo) - baseline).days
+    act, reason = decide(assessment, days)
 
     common = dict(
         pid=pid, counts=assessment.counts, unknown_kinds=assessment.unknown_kinds,
         resubmitted=assessment.resubmitted, content_changed=assessment.content_changed,
+        baseline=baseline.isoformat(), baseline_source=baseline_source,
+        days_since_baseline=days, truncated=log.truncated,
     )
 
-    if not assessment.changed:
-        return Result(key, "no-change", **common)
-    if already_reported(issue, cutoff):
-        return Result(key, "already-reported", **common)
+    if not act:
+        return Result(key, "no-change", reason, **common)
+    if already_reported(issue, baseline):
+        return Result(key, "already-reported", reason, **common)
     if not apply_changes:
-        return Result(key, "would-act", **common)
+        return Result(key, "would-act", reason, **common)
 
     triggered, detail = False, ""
     if assessment.content_changed and assessment.resubmitted:
@@ -280,7 +351,9 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
                 f"the pipeline trigger on {slug} failed; please start it manually."
             )
 
-    body = render_comment(assessment, log, cutoff, _pipeline_note(assessment, triggered, detail))
+    body = render_comment(assessment, log, baseline,
+                          _pipeline_note(assessment, triggered, detail),
+                          baseline_source, reason)
     try:
         jira.add_comment(key, body)
     except Exception as exc:
@@ -299,7 +372,7 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
         return Result(key, "failed", f"transition failed: {why}",
                       pipeline="triggered" if triggered else "", **common)
 
-    return Result(key, "acted", pipeline="triggered" if triggered else "", **common)
+    return Result(key, "acted", reason, pipeline="triggered" if triggered else "", **common)
 
 
 def bitbucket_credentials():
@@ -314,6 +387,8 @@ def _describe(result, verbose):
     line = f"{result.key:<14} {result.status:<16} {counts}"
     if result.reason:
         line += f"  ({result.reason})"
+    if verbose and result.baseline:
+        line += f"  baseline={result.baseline_source}@{result.baseline[:10]} d={result.days_since_baseline}"
     if result.pipeline:
         line += "  [pipeline triggered]"
     elif result.status == "would-act":
@@ -381,17 +456,25 @@ Examples:
     tally = Counter(r.status for r in results)
     print("Summary: " + ", ".join(f"{k}={v}" for k, v in sorted(tally.items())))
 
+    flagged = [r for r in results if r.exceptions]
+    if flagged:
+        print(f"\nExceptions ({len(flagged)} ticket(s) worth a look):")
+        for result in flagged:
+            for note in result.exceptions:
+                print(f"  {result.key:<14} {note}")
+
     unknown = Counter()
     for result in results:
         unknown.update(result.unknown_kinds)
     if unknown:
-        print("Unrecognised activity kinds seen (ignored, no action taken):")
+        print("\nUnrecognised activity kinds seen (ignored, no action taken):")
         for kind, count in unknown.most_common():
             print(f"  {kind}: {count}")
 
     if args.json:
         with open(args.json, "w") as handle:
-            json.dump([r.__dict__ for r in results], handle, indent=2, default=str)
+            json.dump([dict(r.__dict__, exceptions=r.exceptions) for r in results],
+                      handle, indent=2, default=str)
         print(f"Wrote {args.json}")
 
     return 1 if any(r.failed for r in results) else 0
