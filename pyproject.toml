@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aea-editor-scripts"
-version = "0.3.31"
+version = "0.3.32"
 description = "Scripts for AEA Data Editor workflow"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,6 +28,7 @@ aea-box-recover-files  = "aea_editor_scripts.box_recover_files:main"
 jira-approval-manager  = "aea_editor_scripts.jira_approval_manager:main"
 jira-openicpsr-changes = "aea_editor_scripts.jira_openicpsr_changes:main"
 jira-purge-query       = "aea_editor_scripts.jira_purge_query:main"
+jira-reason-sync       = "aea_editor_scripts.jira_reason_sync:main"
 jira-status-manager    = "aea_editor_scripts.jira_status_manager:main"
 zenodo-metadata-editor = "aea_editor_scripts.zenodo_metadata_editor:main"
 

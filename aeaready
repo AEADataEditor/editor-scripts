@@ -464,6 +464,32 @@ read
 git commit -m "$commitmsg"
 git push
 
+# Before the final Approved transition, verify that the reasons checked in
+# REPLICATION.md's "Reason for incomplete reproducibility" section match the
+# "Reason for Failure to be Fully Reproduced" field on the Jira issue.
+# REPLICATION.md is authoritative; on mismatch, offer to sync Jira to match it.
+if [[ "$decision" == "approve" ]]
+then
+   if command -v jira-reason-sync &> /dev/null
+   then
+      echo "::: Verifying REPLICATION.md reasons match Jira (AEAREP-$num)..."
+      if ! jira-reason-sync aearep-$num
+      then
+         echo "::: REPLICATION.md is authoritative."
+         read -p "::: Update Jira to match REPLICATION.md now? [y/N] " fix_reasons
+         if [[ "$fix_reasons" =~ ^[Yy] ]]
+         then
+            jira-reason-sync aearep-$num --execute
+            exit_on_error $? "Failed to sync Jira reasons to REPLICATION.md"
+         else
+            exit_on_error 2 "Aborting: REPLICATION.md and Jira reasons are not aligned"
+         fi
+      fi
+   else
+      echo "jira-reason-sync could not be found in PATH. Skipping REPLICATION.md/Jira reason alignment check."
+   fi
+fi
+
 # Now modify the Jira issue accordingly. Ask first, and then call jira-approval-manager
 echo "::: Ready to update Jira issue AEAREP-$num ? (Ctrl-C to abort)"
 read
