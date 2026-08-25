@@ -29,12 +29,15 @@ from jira import JIRA
 
 from aea_editor_scripts import openicpsr_classify as classify
 from aea_editor_scripts.aeagit_create import trigger_pipeline, workspace
-from aea_editor_scripts.openicpsr_activity import fetch_activity, login
+from aea_editor_scripts.openicpsr_activity import OPENICPSR_URL, fetch_activity, login
 
 JIRA_URL = "https://aeadataeditors.atlassian.net"
 PROJECT = "AEAREP"
 DEPOSIT_FIELD = "openICPSR Project Number"
 REPO_FIELD = "Bitbucket short name"
+
+# Where a human goes to look at the deposit themselves, relative to OPENICPSR_URL.
+WORKSPACE_PATH = "tenant/openicpsr/module/aea/workspace?goToPath=/openicpsr/"
 
 PENDING_STATUS = "Pending openICPSR changes"
 TRANSITION_NAME = "Changes received"
@@ -249,6 +252,35 @@ class Result:
         return self.status == "failed"
 
 
+def normalize_issue_key(value):
+    """Accept "1234", "aearep-1234" or "train-4352" and return a real Jira key.
+
+    A bare number is assumed to be an AEAREP ticket; anything else is passed
+    through, only uppercased and given the hyphen it may be missing.
+    """
+    key = value.strip().upper()
+    if key.isdigit():
+        return f"{PROJECT}-{key}"
+    if "-" not in key and key.startswith(PROJECT):
+        return key.replace(PROJECT, f"{PROJECT}-", 1)
+    return key
+
+
+def split_apply_token(positional):
+    """Peel a trailing "a"/"apply" off the positional arguments.
+
+    Returns (issue arguments, apply requested).
+    """
+    if positional and positional[-1].lower() in ("a", "apply"):
+        return list(positional[:-1]), True
+    return list(positional), False
+
+
+def workspace_url(pid):
+    """The openICPSR page where a human can inspect the deposit."""
+    return f"{OPENICPSR_URL}{WORKSPACE_PATH}{pid}"
+
+
 def get_jira_client():
     """Authenticated Jira client, following the pattern in jira_purge_query."""
     username = os.environ.get("JIRA_USERNAME")
@@ -415,9 +447,10 @@ def bitbucket_credentials():
     return user, secret
 
 
-def _describe(result, verbose):
+def _describe(result, verbose, show_url=False):
     counts = " ".join(f"{k}={v}" for k, v in sorted(result.counts.items())) or "-"
-    line = f"{result.key:<14} {result.status:<16} {counts}"
+    pid = result.pid or "-"
+    line = f"{result.key:<14} {pid:<8} {result.status:<16} {counts}"
     if result.reason:
         line += f"  ({result.reason})"
     if verbose and result.baseline:
@@ -431,6 +464,8 @@ def _describe(result, verbose):
             line += "  [content changed, not re-submitted: no pipeline]"
     if verbose and result.unknown_kinds:
         line += f"  unknown: {sorted(result.unknown_kinds)}"
+    if show_url and result.pid:
+        line += f"\n{'':<14} {workspace_url(result.pid)}"
     return line
 
 
@@ -444,14 +479,24 @@ pipelines. A first --apply run should always be bounded with --limit: there are
 typically over a hundred tickets in "{PENDING_STATUS}", and most of them have
 had activity.
 
+Issues may be given positionally. A bare number is treated as an AEAREP
+ticket, so "9962" and "aearep-9962" are the same thing; a key from another
+project such as "train-4352" is used as given. A final positional "a" or
+"apply" is shorthand for --apply.
+
 Examples:
   %(prog)s                          # dry run over every pending ticket
   %(prog)s --limit 5 -v             # dry run over the five most recently updated
-  %(prog)s --issue AEAREP-9962      # dry run one ticket
+  %(prog)s 9962                     # dry run one ticket
+  %(prog)s 9962 9304                # dry run two tickets
+  %(prog)s 9962 apply               # same as --issue AEAREP-9962 --apply
   %(prog)s --apply --limit 5        # act on at most five tickets
   %(prog)s --apply --reassess-after 14   # also re-report tickets last reported 14+ days ago
 """,
     )
+    parser.add_argument("issues", nargs="*", metavar="ISSUE",
+                        help='issue number or key ("1234", "aearep-1234", "train-4352"); '
+                             'a final "a" or "apply" means --apply')
     parser.add_argument("--apply", action="store_true",
                         help="actually comment, transition and trigger pipelines")
     parser.add_argument("--limit", type=int, help="process at most this many tickets")
@@ -466,6 +511,10 @@ Examples:
     parser.add_argument("--json", metavar="FILE", help="write per-ticket results as JSON")
     args = parser.parse_args()
 
+    positional, apply_shorthand = split_apply_token(args.issues)
+    apply_changes = args.apply or apply_shorthand
+    keys = [normalize_issue_key(k) for k in (args.issue or []) + positional] or None
+
     try:
         jira = get_jira_client()
         field_map = build_field_map(jira)
@@ -475,21 +524,21 @@ Examples:
         return 2
 
     bitbucket_auth = bitbucket_credentials()
-    if args.apply and not all(bitbucket_auth):
+    if apply_changes and not all(bitbucket_auth):
         print("Error: P_BITBUCKET_PAT and P_BITBUCKET_EMAIL (or JIRA_USERNAME) must be set "
               "to trigger pipelines", file=sys.stderr)
         return 2
 
-    issues = find_issues(jira, keys=args.issue, limit=args.limit)
-    if not args.apply:
+    issues = find_issues(jira, keys=keys, limit=args.limit)
+    if not apply_changes:
         print(f"DRY RUN over {len(issues)} ticket(s); nothing will be written.\n")
 
     results = []
     for issue in issues:
-        result = process_issue(jira, field_map, session, issue, args.apply, bitbucket_auth,
+        result = process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth,
                                args.reassess_after)
         results.append(result)
-        print(_describe(result, args.verbose))
+        print(_describe(result, args.verbose, show_url=not apply_changes))
 
     print()
     tally = Counter(r.status for r in results)

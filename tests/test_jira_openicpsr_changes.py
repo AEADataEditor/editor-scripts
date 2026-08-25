@@ -273,3 +273,76 @@ def test_render_comment_marks_a_reassessment():
                             reassessed_after_days=21)
     assert "re-assess" in body.lower()
     assert "21" in body
+
+
+# --- CLI argument handling ---------------------------------------------------
+
+def test_normalize_bare_number_gets_the_aearep_prefix():
+    assert J.normalize_issue_key("1234") == "AEAREP-1234"
+
+
+def test_normalize_passes_through_a_full_key_uppercased():
+    assert J.normalize_issue_key("aearep-1234") == "AEAREP-1234"
+
+
+def test_normalize_passes_through_another_project():
+    assert J.normalize_issue_key("train-4352") == "TRAIN-4352"
+
+
+def test_normalize_repairs_a_missing_hyphen():
+    assert J.normalize_issue_key("aearep1234") == "AEAREP-1234"
+
+
+def test_normalize_strips_surrounding_whitespace():
+    assert J.normalize_issue_key(" 1234 ") == "AEAREP-1234"
+
+
+def test_split_apply_token_recognises_a():
+    assert J.split_apply_token(["1234", "a"]) == (["1234"], True)
+
+
+def test_split_apply_token_recognises_apply_in_any_case():
+    assert J.split_apply_token(["1234", "APPLY"]) == (["1234"], True)
+
+
+def test_split_apply_token_leaves_plain_issues_alone():
+    assert J.split_apply_token(["1234", "5678"]) == (["1234", "5678"], False)
+
+
+def test_split_apply_token_only_looks_at_the_last_token():
+    assert J.split_apply_token(["a", "1234"]) == (["a", "1234"], False)
+
+
+def test_split_apply_token_on_an_empty_list():
+    assert J.split_apply_token([]) == ([], False)
+
+
+# --- openICPSR workspace URL -------------------------------------------------
+
+def test_workspace_url_ends_in_the_project_number():
+    assert J.workspace_url("251458").endswith("/openicpsr/251458")
+
+
+def test_workspace_url_is_built_on_the_openicpsr_base():
+    from aea_editor_scripts.openicpsr_activity import OPENICPSR_URL
+    assert J.workspace_url("251458").startswith(OPENICPSR_URL)
+
+
+def test_describe_always_shows_the_deposit_number():
+    result = J.Result("AEAREP-1", "no-change", pid="251458")
+    assert "251458" in J._describe(result, verbose=False)
+
+
+def test_describe_shows_the_workspace_url_when_asked():
+    result = J.Result("AEAREP-1", "would-act", pid="251458")
+    assert J.workspace_url("251458") in J._describe(result, verbose=False, show_url=True)
+
+
+def test_describe_omits_the_url_by_default():
+    result = J.Result("AEAREP-1", "acted", pid="251458")
+    assert "workspace" not in J._describe(result, verbose=False)
+
+
+def test_describe_without_a_deposit_number_has_no_url():
+    result = J.Result("AEAREP-1", "skipped", reason="no deposit number")
+    assert "workspace" not in J._describe(result, verbose=False, show_url=True)

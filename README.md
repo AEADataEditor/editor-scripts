@@ -335,10 +335,20 @@ commented on once per baseline. `--reassess-after DAYS` relaxes that: a report o
 revisited rather than going quiet after its first report. Without the flag, one report per
 baseline is final.
 
+Every diagnostic line names the openICPSR project number. On a dry run each ticket is
+followed by the openICPSR management URL for its deposit, so you can look at the deposit
+yourself before deciding to `--apply`.
+
+Issues may be given positionally: a bare number is taken as an AEAREP ticket, while a key
+from another project is used as given. A final positional `a` or `apply` is shorthand for
+`--apply`.
+
 ```
 jira-openicpsr-changes                        # dry run over every pending ticket
 jira-openicpsr-changes --limit 5 -v           # dry run over the five most recently updated
-jira-openicpsr-changes --issue AEAREP-9962    # dry run a single ticket
+jira-openicpsr-changes 9962                   # dry run a single ticket
+jira-openicpsr-changes 9962 aearep-9304       # dry run two tickets
+jira-openicpsr-changes 9962 apply             # act on one ticket
 jira-openicpsr-changes --apply --limit 5      # act on at most five tickets
 jira-openicpsr-changes --apply --reassess-after 14   # also re-report reports 14+ days old
 ```
