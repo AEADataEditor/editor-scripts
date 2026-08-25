@@ -346,3 +346,173 @@ def test_describe_omits_the_url_by_default():
 def test_describe_without_a_deposit_number_has_no_url():
     result = J.Result("AEAREP-1", "skipped", reason="no deposit number")
     assert "workspace" not in J._describe(result, verbose=False, show_url=True)
+
+
+# --- refresh-tools before re-ingest ------------------------------------------
+
+REAL_PIPELINES = J.pipelines  # captured before any monkeypatching
+
+
+class FakeBitbucket:
+    """Stands in for the Bitbucket module: records calls, replays canned answers."""
+
+    def __init__(self, latest=None, yaml_text="  custom:\n    4-refresh-tools:\n",
+                 trigger_results=None, wait_result=(True, "SUCCESSFUL")):
+        self.latest = latest
+        self.yaml_text = yaml_text
+        self.trigger_results = list(trigger_results or [("{uuid-1}", "started"),
+                                                        ("{uuid-2}", "started")])
+        self.wait_result = wait_result
+        self.triggered = []
+
+    REFRESH_PIPELINE = J.pipelines.REFRESH_PIPELINE
+    BIG_INGEST_PIPELINE = J.pipelines.BIG_INGEST_PIPELINE
+    REFRESH_NEEDED = J.pipelines.REFRESH_NEEDED
+    REFRESH_NOT_NEEDED = J.pipelines.REFRESH_NOT_NEEDED
+    REFRESH_BUSY = J.pipelines.REFRESH_BUSY
+    DEFAULT_TIMEOUT = J.pipelines.DEFAULT_TIMEOUT
+
+    def pattern_of(self, pipeline):
+        return REAL_PIPELINES.pattern_of(pipeline)
+
+    def latest_pipeline(self, auth, workspace, slug):
+        return self.latest
+
+    def refresh_state(self, latest, needle=None):
+        return REAL_PIPELINES.refresh_state(latest)
+
+    def pipelines_yaml(self, auth, workspace, slug):
+        return self.yaml_text
+
+    def find_pipeline_name(self, yaml_text, needle):
+        return REAL_PIPELINES.find_pipeline_name(yaml_text, needle)
+
+    def trigger_custom_pipeline(self, auth, workspace, slug, pattern, variables=None):
+        self.triggered.append(pattern)
+        return self.trigger_results.pop(0)
+
+    def get_pipeline(self, auth, workspace, slug, uuid):
+        return None
+
+    def wait_for_pipeline(self, fetch, timeout=None):
+        return self.wait_result
+
+
+def run_pipeline(bb, monkeypatch, **kwargs):
+    monkeypatch.setattr(J, "pipelines", bb)
+    return J.start_reingest(("u", "s"), "aearep-1", "251458", "AEAREP-1", **kwargs)
+
+
+def done(pattern, result="SUCCESSFUL"):
+    return {"state": {"name": "COMPLETED", "result": {"name": result}},
+            "target": {"selector": {"type": "custom", "pattern": pattern}}}
+
+
+def test_reingest_runs_refresh_tools_first_when_the_last_run_was_something_else(monkeypatch):
+    bb = FakeBitbucket(latest=done("w-big-populate-from-icpsr"))
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert bb.triggered == ["4-refresh-tools", J.pipelines.BIG_INGEST_PIPELINE]
+    assert triggered is True
+    assert refresh == "ran"
+
+
+def test_reingest_skips_refresh_when_the_last_run_was_a_successful_refresh(monkeypatch):
+    bb = FakeBitbucket(latest=done("4-refresh-tools"))
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert bb.triggered == [J.pipelines.BIG_INGEST_PIPELINE]
+    assert triggered is True
+    assert refresh == "not-needed"
+
+
+def test_reingest_refreshes_when_the_last_refresh_failed(monkeypatch):
+    bb = FakeBitbucket(latest=done("4-refresh-tools", result="FAILED"))
+    triggered, _, refresh = run_pipeline(bb, monkeypatch)
+    assert bb.triggered[0] == "4-refresh-tools"
+    assert triggered is True
+
+
+def test_reingest_refreshes_a_repository_that_never_built(monkeypatch):
+    bb = FakeBitbucket(latest=None)
+    triggered, _, refresh = run_pipeline(bb, monkeypatch)
+    assert bb.triggered == ["4-refresh-tools", J.pipelines.BIG_INGEST_PIPELINE]
+
+
+def test_reingest_starts_nothing_while_another_pipeline_is_running(monkeypatch):
+    latest = {"state": {"name": "IN_PROGRESS"},
+              "target": {"selector": {"type": "custom", "pattern": "2-merge-report"}}}
+    bb = FakeBitbucket(latest=latest)
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert bb.triggered == []
+    assert triggered is False
+    assert refresh == "busy"
+    assert "already running" in detail
+
+
+def test_reingest_is_skipped_when_the_refresh_pipeline_fails(monkeypatch):
+    bb = FakeBitbucket(latest=done("w-big-populate-from-icpsr"),
+                       wait_result=(False, "FAILED"))
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert bb.triggered == ["4-refresh-tools"]
+    assert triggered is False
+    assert refresh == "failed"
+    assert "FAILED" in detail
+
+
+def test_reingest_is_skipped_when_the_refresh_pipeline_times_out(monkeypatch):
+    bb = FakeBitbucket(latest=done("w-big-populate-from-icpsr"),
+                       wait_result=(False, "timed out after 900s"))
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert bb.triggered == ["4-refresh-tools"]
+    assert triggered is False
+    assert "timed out" in detail
+
+
+def test_reingest_is_skipped_when_the_refresh_pipeline_will_not_start(monkeypatch):
+    bb = FakeBitbucket(latest=done("w-big-populate-from-icpsr"),
+                       trigger_results=[(None, "403 Forbidden")])
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert triggered is False
+    assert "403 Forbidden" in detail
+
+
+def test_reingest_is_skipped_when_the_repository_has_no_refresh_pipeline(monkeypatch):
+    bb = FakeBitbucket(latest=done("w-big-populate-from-icpsr"),
+                       yaml_text="  custom:\n    1-populate-from-icpsr:\n")
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert bb.triggered == []
+    assert triggered is False
+    assert refresh == "missing"
+    assert "refresh-tools" in detail
+
+
+def test_reingest_reports_a_failed_big_pipeline(monkeypatch):
+    bb = FakeBitbucket(latest=done("4-refresh-tools"),
+                       trigger_results=[(None, "500 Server Error")])
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert triggered is False
+    assert "500 Server Error" in detail
+
+
+def test_reingest_passes_the_deposit_and_ticket_as_variables(monkeypatch):
+    captured = {}
+    bb = FakeBitbucket(latest=done("4-refresh-tools"))
+
+    def trigger(auth, workspace, slug, pattern, variables=None):
+        captured[pattern] = variables
+        return "{uuid}", "started"
+    bb.trigger_custom_pipeline = trigger
+    run_pipeline(bb, monkeypatch)
+    assert captured[J.pipelines.BIG_INGEST_PIPELINE] == {
+        "openICPSRID": "251458", "jiraticket": "AEAREP-1"}
+
+
+def test_reingest_gives_the_refresh_run_no_variables(monkeypatch):
+    captured = {}
+    bb = FakeBitbucket(latest=done("w-big-populate-from-icpsr"))
+
+    def trigger(auth, workspace, slug, pattern, variables=None):
+        captured[pattern] = variables
+        return "{uuid}", "started"
+    bb.trigger_custom_pipeline = trigger
+    run_pipeline(bb, monkeypatch)
+    assert not captured["4-refresh-tools"]

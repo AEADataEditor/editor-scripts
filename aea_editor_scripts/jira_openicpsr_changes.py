@@ -25,10 +25,12 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 
+import requests
 from jira import JIRA
 
+from aea_editor_scripts import bitbucket_pipelines as pipelines
 from aea_editor_scripts import openicpsr_classify as classify
-from aea_editor_scripts.aeagit_create import trigger_pipeline, workspace
+from aea_editor_scripts.aeagit_create import workspace
 from aea_editor_scripts.openicpsr_activity import OPENICPSR_URL, fetch_activity, login
 
 JIRA_URL = "https://aeadataeditors.atlassian.net"
@@ -54,6 +56,14 @@ METADATA_ONLY_MIN_DAYS = 14
 
 BASELINE_REVISION_REQUESTED = "revision-requested"
 BASELINE_JIRA = "jira-transition"
+
+# Why a re-ingest did not start, in words, for the Exceptions section.
+REFRESH_EXCEPTIONS = {
+    "busy": "another pipeline was already running",
+    "failed": f"the {pipelines.REFRESH_PIPELINE} pre-run did not succeed",
+    "missing": f"the repository has no {pipelines.REFRESH_PIPELINE} pipeline",
+    "unknown": "the pipeline history could not be read",
+}
 
 BUCKET_ORDER = (
     classify.CONTENT,
@@ -224,6 +234,7 @@ class Result:
     resubmitted: bool = False
     content_changed: bool = False
     pipeline: str = ""
+    refresh: str = ""
     baseline: str = ""
     baseline_source: str = ""
     days_since_baseline: int = 0
@@ -245,6 +256,9 @@ class Result:
                        "request may have been hidden")
         if self.unknown_kinds:
             out.append("unrecognised activity: " + ", ".join(sorted(self.unknown_kinds)))
+        if self.refresh in ("busy", "failed", "missing", "unknown"):
+            out.append(f"re-ingest not started ({REFRESH_EXCEPTIONS[self.refresh]}); "
+                       "someone has to run it by hand")
         return out
 
     @property
@@ -342,6 +356,67 @@ def transition_by_name(jira, issue, name):
     return False, f"transition '{name}' not available (offered: {names})"
 
 
+def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None):
+    """Refresh the repository's tools if needed, then start the re-ingest.
+
+    Older repositories carry a stale toolchain, so the refresh-tools pipeline
+    has to run first. Bitbucket cannot chain pipelines, so we trigger the
+    refresh and poll it to completion before starting the re-ingest. A refresh
+    that does not succeed means no re-ingest: the ticket still moves, and the
+    comment says a human has to start the re-ingest by hand.
+
+    Returns (triggered, detail, refresh) where detail is a sentence fragment
+    for the comment and refresh records what happened to the pre-run.
+    """
+    auth = requests.auth.HTTPBasicAuth(*bitbucket_auth)
+    timeout = refresh_timeout or pipelines.DEFAULT_TIMEOUT
+
+    try:
+        latest = pipelines.latest_pipeline(auth, workspace, slug)
+    except Exception as exc:
+        return False, f"the pipeline history of {slug} could not be read ({exc}); " \
+                      f"no re-ingest was started.", "unknown"
+
+    state = pipelines.refresh_state(latest)
+    if state == pipelines.REFRESH_BUSY:
+        running = pipelines.pattern_of(latest) or "a branch build"
+        return False, f"a pipeline is already running on {slug} ({running}); " \
+                      f"no re-ingest was started.", "busy"
+
+    refresh = "not-needed"
+    if state == pipelines.REFRESH_NEEDED:
+        yaml_text = pipelines.pipelines_yaml(auth, workspace, slug)
+        name = pipelines.find_pipeline_name(yaml_text, pipelines.REFRESH_PIPELINE) \
+            if yaml_text else None
+        if not name:
+            return False, f"{slug} has no {pipelines.REFRESH_PIPELINE} pipeline, which " \
+                          f"this repository needs before a re-ingest; no re-ingest was " \
+                          f"started.", "missing"
+
+        uuid, why = pipelines.trigger_custom_pipeline(auth, workspace, slug, name)
+        if not uuid:
+            return False, f"the {name} pipeline on {slug} could not be started ({why}); " \
+                          f"no re-ingest was started.", "failed"
+
+        ok, result = pipelines.wait_for_pipeline(
+            lambda: pipelines.get_pipeline(auth, workspace, slug, uuid), timeout=timeout)
+        if not ok:
+            return False, f"the {name} pipeline on {slug} did not succeed ({result}); " \
+                          f"no re-ingest was started.", "failed"
+        refresh = "ran"
+
+    uuid, why = pipelines.trigger_custom_pipeline(
+        auth, workspace, slug, pipelines.BIG_INGEST_PIPELINE,
+        variables={"openICPSRID": pid, "jiraticket": key})
+    if not uuid:
+        return False, f"the re-ingest on {slug} could not be started ({why}); " \
+                      f"please start it manually.", refresh
+
+    ran = f"Ran {pipelines.REFRESH_PIPELINE} first, then triggered" if refresh == "ran" \
+        else "Triggered"
+    return True, f"{ran} the {pipelines.BIG_INGEST_PIPELINE} pipeline on {slug}.", refresh
+
+
 def _pipeline_note(assessment, triggered, detail):
     """The sentence about re-ingestion that goes into the comment."""
     if not assessment.content_changed:
@@ -358,7 +433,7 @@ def _pipeline_note(assessment, triggered, detail):
 
 
 def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth,
-                  reassess_after=None):
+                  reassess_after=None, refresh_timeout=None):
     """Assess one ticket and, when applying, act on it."""
     key = issue.key
     pid = deposit_number(issue, field_map)
@@ -401,19 +476,14 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
         status = "would-reassess" if reassessed_days is not None else "would-act"
         return Result(key, status, reason, reassessed=reassessed_days is not None, **common)
 
-    triggered, detail = False, ""
+    triggered, detail, refresh = False, "", ""
     if assessment.content_changed and assessment.resubmitted:
         slug = field_value(issue, field_map, REPO_FIELD)
         if not slug:
             detail = f"the {REPO_FIELD} field is empty, so no pipeline could be started."
         else:
-            user, secret = bitbucket_auth
-            triggered = trigger_pipeline(user, secret, workspace, slug, pid, key, big=True)
-            detail = (
-                f"Triggered the w-big-populate-from-icpsr pipeline on {slug}."
-                if triggered else
-                f"the pipeline trigger on {slug} failed; please start it manually."
-            )
+            triggered, detail, refresh = start_reingest(bitbucket_auth, slug, pid, key,
+                                                        refresh_timeout)
 
     body = render_comment(assessment, log, baseline,
                           _pipeline_note(assessment, triggered, detail),
@@ -434,10 +504,10 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
         except Exception:
             pass
         return Result(key, "failed", f"transition failed: {why}",
-                      pipeline="triggered" if triggered else "", **common)
+                      pipeline="triggered" if triggered else "", refresh=refresh, **common)
 
     return Result(key, "acted", reason, pipeline="triggered" if triggered else "",
-                  reassessed=reassessed_days is not None, **common)
+                  refresh=refresh, reassessed=reassessed_days is not None, **common)
 
 
 def bitbucket_credentials():
@@ -456,10 +526,13 @@ def _describe(result, verbose, show_url=False):
     if verbose and result.baseline:
         line += f"  baseline={result.baseline_source}@{result.baseline[:10]} d={result.days_since_baseline}"
     if result.pipeline:
-        line += "  [pipeline triggered]"
+        prefix = f"{pipelines.REFRESH_PIPELINE} then " if result.refresh == "ran" else ""
+        line += f"  [{prefix}pipeline triggered]"
+    elif result.refresh:
+        line += f"  [no pipeline: {REFRESH_EXCEPTIONS.get(result.refresh, result.refresh)}]"
     elif result.status in ("would-act", "would-reassess"):
         if result.content_changed and result.resubmitted:
-            line += "  [would trigger pipeline]"
+            line += f"  [would {pipelines.REFRESH_PIPELINE} if needed, then trigger pipeline]"
         elif result.content_changed:
             line += "  [content changed, not re-submitted: no pipeline]"
     if verbose and result.unknown_kinds:
@@ -508,6 +581,11 @@ Examples:
                         help="re-report a ticket whose last report on the same baseline "
                              "is at least DAYS old; without this, one report per baseline "
                              "is final")
+    parser.add_argument("--refresh-timeout", type=int, metavar="SECONDS",
+                        default=pipelines.DEFAULT_TIMEOUT,
+                        help=f"how long to wait for the {pipelines.REFRESH_PIPELINE} pre-run "
+                             f"before giving up on the re-ingest "
+                             f"(default {pipelines.DEFAULT_TIMEOUT})")
     parser.add_argument("--json", metavar="FILE", help="write per-ticket results as JSON")
     args = parser.parse_args()
 
@@ -536,7 +614,7 @@ Examples:
     results = []
     for issue in issues:
         result = process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth,
-                               args.reassess_after)
+                               args.reassess_after, args.refresh_timeout)
         results.append(result)
         print(_describe(result, args.verbose, show_url=not apply_changes))
 

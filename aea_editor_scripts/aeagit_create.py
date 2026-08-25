@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import requests
 from requests.exceptions import ConnectionError
 
+from aea_editor_scripts import bitbucket_pipelines as bb
+
 # defaults
 workspace = "aeaverification"
 import_repo_url = "https://github.com/AEADataEditor/replication-template.git"
@@ -214,41 +216,18 @@ def enable_pipelines(consumer_user, consumer_key, workspace, repo_slug):
 def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicpsr_id, jira_key,
                      big=False):
     """Trigger the populate-from-icpsr custom pipeline (standard or "big" variant)."""
-    pipeline = 'w-big-populate-from-icpsr' if big else '1-populate-from-icpsr'
+    pipeline = bb.BIG_INGEST_PIPELINE if big else bb.INGEST_PIPELINE
     print(f"Triggering pipeline {pipeline} with openICPSRID={openicpsr_id}, jiraticket={jira_key}...")
 
     auth = requests.auth.HTTPBasicAuth(consumer_user, consumer_key)
-    api_url = f'https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/pipelines/'
-
-    data = {
-        "target": {
-            "type": "pipeline_ref_target",
-            "ref_type": "branch",
-            "ref_name": "master",
-            "selector": {"type": "custom", "pattern": pipeline}
-        },
-        "variables": [
-            {"key": "openICPSRID", "value": str(openicpsr_id), "secured": False},
-            {"key": "jiraticket", "value": jira_key, "secured": False}
-        ]
-    }
-
-    try:
-        response = requests.post(api_url, auth=auth, json=data)
-        if response.status_code in (200, 201):
-            pipeline_uuid = response.json().get('uuid', '')
-            print(f"Pipeline triggered successfully (uuid: {pipeline_uuid})")
-            return True
-        else:
-            print(f"Failed to trigger pipeline: {response.status_code}, {response.reason}")
-            try:
-                print(response.json().get('error', {}).get('message', ''))
-            except Exception:
-                pass
-            return False
-    except ConnectionError:
-        print(f"Error: Could not connect to Bitbucket API")
+    uuid, detail = bb.trigger_custom_pipeline(
+        auth, workspace, repo_slug, pipeline,
+        variables={"openICPSRID": openicpsr_id, "jiraticket": jira_key})
+    if uuid is None:
+        print(f"Failed to trigger pipeline: {detail}")
         return False
+    print(f"Pipeline triggered successfully (uuid: {uuid})")
+    return True
 
 
 def main():
