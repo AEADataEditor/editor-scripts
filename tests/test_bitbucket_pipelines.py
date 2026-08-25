@@ -1,6 +1,10 @@
 """Tests for the Bitbucket Pipelines read side: naming, the refresh rule, waiting."""
 
+import datetime
+
 from aea_editor_scripts import bitbucket_pipelines as B
+
+NOW = datetime.datetime(2026, 8, 25, 12, 0, tzinfo=datetime.timezone.utc)
 
 YAML = """\
 image: dataeditors/stata18:2024-06-27
@@ -21,15 +25,22 @@ pipelines:
 """
 
 
-def pipeline(pattern=None, state="COMPLETED", result="SUCCESSFUL"):
+def pipeline(pattern=None, state="COMPLETED", result="SUCCESSFUL", age_days=0):
     """A pipeline object shaped like the Bitbucket API's."""
-    body = {"state": {"name": state}, "target": {"type": "pipeline_ref_target",
-                                                 "ref_type": "branch", "ref_name": "master"}}
+    created = NOW - datetime.timedelta(days=age_days)
+    body = {"state": {"name": state},
+            "created_on": created.strftime("%Y-%m-%dT%H:%M:%S.%f000Z"),
+            "target": {"type": "pipeline_ref_target",
+                       "ref_type": "branch", "ref_name": "master"}}
     if result is not None:
         body["state"]["result"] = {"name": result}
     if pattern is not None:
         body["target"]["selector"] = {"type": "custom", "pattern": pattern}
     return body
+
+
+def state_of(*runs):
+    return B.refresh_state(list(runs), "refresh-tools", now=NOW)
 
 
 # --- reading the pipeline name -----------------------------------------------
@@ -44,6 +55,33 @@ def test_pattern_of_a_branch_run_is_none():
 
 def test_pattern_of_nothing_is_none():
     assert B.pattern_of(None) is None
+
+
+# --- timestamps ---------------------------------------------------------------
+
+def test_parse_time_accepts_bitbucket_nanoseconds():
+    parsed = B.parse_time("2026-08-25T02:21:54.527156825Z")
+    assert parsed.year == 2026 and parsed.microsecond == 527156
+
+
+def test_parse_time_accepts_microseconds():
+    assert B.parse_time("2026-08-25T02:21:54.527156Z").microsecond == 527156
+
+
+def test_parse_time_accepts_a_whole_second():
+    assert B.parse_time("2026-08-25T02:21:54Z").second == 54
+
+
+def test_parse_time_is_timezone_aware():
+    assert B.parse_time("2026-08-25T02:21:54Z").tzinfo is not None
+
+
+def test_parse_time_of_nothing_is_none():
+    assert B.parse_time(None) is None
+
+
+def test_parse_time_of_nonsense_is_none():
+    assert B.parse_time("not a date") is None
 
 
 # --- finding the pipeline by name, not by number prefix ----------------------
@@ -77,47 +115,83 @@ def test_find_pipeline_name_only_looks_at_custom_pipelines():
     assert B.find_pipeline_name(yaml, "refresh-tools") is None
 
 
-# --- the refresh rule ---------------------------------------------------------
+# --- the refresh rule: tooling age, not run order ----------------------------
 
-def test_no_refresh_needed_after_a_successful_refresh_run():
-    assert B.refresh_state(pipeline("4-refresh-tools"), "refresh-tools") == B.REFRESH_NOT_NEEDED
-
-
-def test_refresh_needed_after_a_big_ingest_run():
-    assert B.refresh_state(pipeline("w-big-populate-from-icpsr"), "refresh-tools") == B.REFRESH_NEEDED
+def test_a_refresh_from_today_is_fresh_enough():
+    assert state_of(pipeline("4-refresh-tools")) == B.REFRESH_NOT_NEEDED
 
 
-def test_refresh_needed_after_a_failed_refresh_run():
-    latest = pipeline("4-refresh-tools", result="FAILED")
-    assert B.refresh_state(latest, "refresh-tools") == B.REFRESH_NEEDED
+def test_a_refresh_from_last_week_is_still_fresh_enough():
+    assert state_of(pipeline("4-refresh-tools", age_days=7)) == B.REFRESH_NOT_NEEDED
+
+
+def test_a_refresh_from_six_months_ago_is_too_old():
+    assert state_of(pipeline("4-refresh-tools", age_days=180)) == B.REFRESH_NEEDED
+
+
+def test_a_refresh_just_past_the_fortnight_is_too_old():
+    assert state_of(pipeline("4-refresh-tools", age_days=15)) == B.REFRESH_NEEDED
+
+
+def test_a_fresh_refresh_counts_even_when_later_runs_followed_it():
+    """Order stopped mattering: only the age of the tooling does."""
+    assert state_of(pipeline("w-big-populate-from-icpsr", age_days=1),
+                    pipeline("2-merge-report", age_days=2),
+                    pipeline("4-refresh-tools", age_days=3)) == B.REFRESH_NOT_NEEDED
+
+
+def test_a_stale_refresh_behind_recent_runs_does_not_count():
+    assert state_of(pipeline("2-merge-report", age_days=1),
+                    pipeline("4-refresh-tools", age_days=200)) == B.REFRESH_NEEDED
+
+
+def test_refresh_needed_after_a_big_ingest_run_alone():
+    assert state_of(pipeline("w-big-populate-from-icpsr")) == B.REFRESH_NEEDED
+
+
+def test_a_recent_but_failed_refresh_does_not_count():
+    assert state_of(pipeline("4-refresh-tools", result="FAILED")) == B.REFRESH_NEEDED
 
 
 def test_refresh_needed_after_a_branch_build():
-    assert B.refresh_state(pipeline(None), "refresh-tools") == B.REFRESH_NEEDED
+    assert state_of(pipeline(None)) == B.REFRESH_NEEDED
 
 
 def test_refresh_needed_when_the_repo_has_never_built():
-    assert B.refresh_state(None, "refresh-tools") == B.REFRESH_NEEDED
+    assert B.refresh_state([], "refresh-tools", now=NOW) == B.REFRESH_NEEDED
 
 
 def test_a_run_in_flight_blocks_everything():
     latest = pipeline("2-merge-report", state="IN_PROGRESS", result=None)
-    assert B.refresh_state(latest, "refresh-tools") == B.REFRESH_BUSY
+    assert state_of(latest, pipeline("4-refresh-tools", age_days=1)) == B.REFRESH_BUSY
 
 
 def test_a_pending_run_blocks_everything():
-    latest = pipeline("2-merge-report", state="PENDING", result=None)
-    assert B.refresh_state(latest, "refresh-tools") == B.REFRESH_BUSY
+    assert state_of(pipeline("2-merge-report", state="PENDING", result=None)) == B.REFRESH_BUSY
 
 
 def test_a_refresh_run_still_in_flight_also_blocks():
     latest = pipeline("4-refresh-tools", state="IN_PROGRESS", result=None)
-    assert B.refresh_state(latest, "refresh-tools") == B.REFRESH_BUSY
+    assert state_of(latest) == B.REFRESH_BUSY
 
 
 def test_the_rule_matches_by_name_not_by_the_exact_pattern():
-    """A repo whose refresh pipeline carries a different number still counts."""
-    assert B.refresh_state(pipeline("9-refresh-tools"), "refresh-tools") == B.REFRESH_NOT_NEEDED
+    assert state_of(pipeline("9-refresh-tools")) == B.REFRESH_NOT_NEEDED
+
+
+def test_a_run_without_a_timestamp_is_not_counted_as_fresh():
+    run = pipeline("4-refresh-tools")
+    del run["created_on"]
+    assert state_of(run) == B.REFRESH_NEEDED
+
+
+def test_the_age_limit_is_configurable():
+    runs = [pipeline("4-refresh-tools", age_days=20)]
+    assert B.refresh_state(runs, "refresh-tools", max_age_days=30, now=NOW) == B.REFRESH_NOT_NEEDED
+
+
+def test_the_default_age_limit_is_a_fortnight():
+    assert B.REFRESH_MAX_AGE_DAYS == 14
 
 
 # --- waiting ------------------------------------------------------------------

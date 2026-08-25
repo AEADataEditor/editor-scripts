@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Bitbucket Pipelines: trigger custom pipelines and watch them finish.
 
-Older repositories need the refresh-tools pipeline run before a re-ingest,
-because their tooling image predates the current one. Bitbucket has no way to
-say "run B after A", so ordering means triggering the refresh, polling it to
-completion, and only then starting the re-ingest.
+The refresh-tools pipeline updates the tooling that lives inside a repository
+and that the other pipelines call. Tooling more than a fortnight old is assumed
+stale, so a re-ingest is preceded by a refresh unless the repository has had a
+successful refresh recently. What has run since does not matter: only the age
+of the last good refresh does. Bitbucket has no way to say "run B after A", so
+ordering means triggering the refresh, polling it to completion, and only then
+starting the re-ingest.
 
 The refresh pipeline is identified by name rather than by its number prefix:
 it is `4-refresh-tools` today, but the numbering has drifted over the years, so
@@ -13,6 +16,7 @@ the exact key is read out of each repository's own bitbucket-pipelines.yml.
 
 import re
 import time
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -26,6 +30,9 @@ BIG_INGEST_PIPELINE = "w-big-populate-from-icpsr"
 # pipeline takes well under a minute, so this is a couple of polls at most.
 POLL_SECONDS = 30
 DEFAULT_TIMEOUT = 900
+
+# Tooling older than this is assumed too stale to re-ingest against.
+REFRESH_MAX_AGE_DAYS = 14
 
 # What the newest pipeline run tells us about whether a refresh is due.
 REFRESH_NEEDED = "needed"
@@ -53,6 +60,21 @@ class _RealClock:
 def repo_url(workspace, repo_slug):
     """API root for one repository."""
     return f"{API_BASE}/{workspace}/{repo_slug}"
+
+
+def parse_time(text):
+    """Parse a Bitbucket timestamp, or None if there isn't a usable one.
+
+    Bitbucket stamps these with nanoseconds, which fromisoformat does not
+    accept on every supported Python, so the fraction is cut to microseconds.
+    """
+    if not text:
+        return None
+    trimmed = re.sub(r"\.(\d{6})\d+", r".\1", text)
+    try:
+        return datetime.fromisoformat(trimmed.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def pattern_of(pipeline):
@@ -102,28 +124,57 @@ def result_of(pipeline):
     return ((pipeline or {}).get("state", {}).get("result") or {}).get("name")
 
 
-def refresh_state(latest, needle=REFRESH_PIPELINE):
-    """Whether the repository needs a refresh run before anything else.
+def refresh_state(runs, needle=REFRESH_PIPELINE, max_age_days=REFRESH_MAX_AGE_DAYS,
+                  now=None):
+    """Whether the repository's tooling needs refreshing before anything else.
 
-    `latest` is the most recent pipeline run, or None if there has never been
-    one. A run still in flight blocks us: triggering now would race it, and the
-    ordering the refresh buys us would be lost.
+    `runs` are the repository's pipeline runs, newest first. The tooling counts
+    as fresh if any successful refresh run inside the age window is present,
+    whatever has run since. A run still in flight blocks us: triggering now
+    would race it, and the ordering the refresh buys us would be lost.
     """
-    if latest and not is_finished(latest):
+    runs = list(runs or [])
+    if runs and not is_finished(runs[0]):
         return REFRESH_BUSY
-    pattern = pattern_of(latest)
-    if pattern and needle in pattern and result_of(latest) == "SUCCESSFUL":
-        return REFRESH_NOT_NEEDED
+
+    cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=max_age_days)
+    for run in runs:
+        created = parse_time(run.get("created_on"))
+        if created is None:
+            continue  # cannot date it, so cannot call it fresh
+        if created < cutoff:
+            break  # newest-first, so everything below is older still
+        pattern = pattern_of(run)
+        if pattern and needle in pattern and result_of(run) == "SUCCESSFUL":
+            return REFRESH_NOT_NEEDED
     return REFRESH_NEEDED
 
 
-def latest_pipeline(auth, workspace, repo_slug, timeout=30):
-    """The most recent pipeline run for a repository, or None if there is none."""
-    response = requests.get(f"{repo_url(workspace, repo_slug)}/pipelines/", auth=auth,
-                            params={"sort": "-created_on", "pagelen": 1}, timeout=timeout)
-    response.raise_for_status()
-    values = response.json().get("values") or []
-    return values[0] if values else None
+def recent_pipelines(auth, workspace, repo_slug, since, page_len=50, max_pages=10,
+                     timeout=30):
+    """Pipeline runs from `since` onwards, newest first.
+
+    The newest run is always included even when it predates `since`, because it
+    is what tells us whether a build is currently in flight.
+    """
+    url = f"{repo_url(workspace, repo_slug)}/pipelines/"
+    out = []
+    for page in range(1, max_pages + 1):
+        response = requests.get(url, auth=auth, timeout=timeout,
+                                params={"sort": "-created_on", "pagelen": page_len,
+                                        "page": page})
+        response.raise_for_status()
+        values = response.json().get("values") or []
+        if not values:
+            break
+        for run in values:
+            created = parse_time(run.get("created_on"))
+            if out and created is not None and created < since:
+                return out
+            out.append(run)
+        if len(values) < page_len:
+            break
+    return out
 
 
 def get_pipeline(auth, workspace, repo_slug, uuid, timeout=30):

@@ -301,11 +301,12 @@ meaningful, the ticket gets a comment summarising the activity and moves to
 "Assess openICPSR changes". When the author changed file content *and* re-submitted the
 deposit, the `w-big-populate-from-icpsr` Bitbucket pipeline is triggered to re-ingest it.
 
-Older repositories carry a stale toolchain, so the re-ingest is preceded by a
-`refresh-tools` run whenever the repository's most recent pipeline was not already a
-successful `refresh-tools`. The pipeline is looked up by name in the repository's own
-`bitbucket-pipelines.yml`, so a repository numbering it something other than
-`4-refresh-tools` still works. Bitbucket cannot chain pipelines, so the refresh is polled
+The `refresh-tools` pipeline updates the tooling that lives inside a repository and that
+the other pipelines call, so the re-ingest is preceded by a `refresh-tools` run unless the
+repository has had a successful one in the last 14 days (`--refresh-max-age`). Only the age
+of the last good refresh counts; what has run since does not. The pipeline is looked up by
+name in the repository's own `bitbucket-pipelines.yml`, so a repository numbering it
+something other than `4-refresh-tools` still works. Bitbucket cannot chain pipelines, so the refresh is polled
 to completion (every 30s, up to `--refresh-timeout`, default 900s) before the re-ingest
 starts. If the refresh fails, times out, does not exist in that repository, or another
 pipeline is already running, the ticket is still commented on and transitioned but **no

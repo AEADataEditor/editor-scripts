@@ -23,7 +23,7 @@ import os
 import sys
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import requests
 from jira import JIRA
@@ -356,30 +356,34 @@ def transition_by_name(jira, issue, name):
     return False, f"transition '{name}' not available (offered: {names})"
 
 
-def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None):
+def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None,
+                   refresh_max_age=None):
     """Refresh the repository's tools if needed, then start the re-ingest.
 
-    Older repositories carry a stale toolchain, so the refresh-tools pipeline
-    has to run first. Bitbucket cannot chain pipelines, so we trigger the
-    refresh and poll it to completion before starting the re-ingest. A refresh
-    that does not succeed means no re-ingest: the ticket still moves, and the
-    comment says a human has to start the re-ingest by hand.
+    The tooling inside a repository goes stale, so unless it has been refreshed
+    within the last fortnight the refresh-tools pipeline has to run first.
+    Bitbucket cannot chain pipelines, so we trigger the refresh and poll it to
+    completion before starting the re-ingest. A refresh that does not succeed
+    means no re-ingest: the ticket still moves, and the comment says a human
+    has to start the re-ingest by hand.
 
     Returns (triggered, detail, refresh) where detail is a sentence fragment
     for the comment and refresh records what happened to the pre-run.
     """
     auth = requests.auth.HTTPBasicAuth(*bitbucket_auth)
     timeout = refresh_timeout or pipelines.DEFAULT_TIMEOUT
+    max_age = refresh_max_age or pipelines.REFRESH_MAX_AGE_DAYS
+    since = datetime.now(timezone.utc) - timedelta(days=max_age)
 
     try:
-        latest = pipelines.latest_pipeline(auth, workspace, slug)
+        runs = pipelines.recent_pipelines(auth, workspace, slug, since)
     except Exception as exc:
         return False, f"the pipeline history of {slug} could not be read ({exc}); " \
                       f"no re-ingest was started.", "unknown"
 
-    state = pipelines.refresh_state(latest)
+    state = pipelines.refresh_state(runs, max_age_days=max_age)
     if state == pipelines.REFRESH_BUSY:
-        running = pipelines.pattern_of(latest) or "a branch build"
+        running = pipelines.pattern_of(runs[0]) or "a branch build"
         return False, f"a pipeline is already running on {slug} ({running}); " \
                       f"no re-ingest was started.", "busy"
 
@@ -433,7 +437,7 @@ def _pipeline_note(assessment, triggered, detail):
 
 
 def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth,
-                  reassess_after=None, refresh_timeout=None):
+                  reassess_after=None, refresh_timeout=None, refresh_max_age=None):
     """Assess one ticket and, when applying, act on it."""
     key = issue.key
     pid = deposit_number(issue, field_map)
@@ -483,7 +487,7 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
             detail = f"the {REPO_FIELD} field is empty, so no pipeline could be started."
         else:
             triggered, detail, refresh = start_reingest(bitbucket_auth, slug, pid, key,
-                                                        refresh_timeout)
+                                                        refresh_timeout, refresh_max_age)
 
     body = render_comment(assessment, log, baseline,
                           _pipeline_note(assessment, triggered, detail),
@@ -586,6 +590,12 @@ Examples:
                         help=f"how long to wait for the {pipelines.REFRESH_PIPELINE} pre-run "
                              f"before giving up on the re-ingest "
                              f"(default {pipelines.DEFAULT_TIMEOUT})")
+    parser.add_argument("--refresh-max-age", type=int, metavar="DAYS",
+                        default=pipelines.REFRESH_MAX_AGE_DAYS,
+                        help=f"treat repository tooling as stale, and so re-run "
+                             f"{pipelines.REFRESH_PIPELINE}, when the last successful "
+                             f"refresh is older than DAYS "
+                             f"(default {pipelines.REFRESH_MAX_AGE_DAYS})")
     parser.add_argument("--json", metavar="FILE", help="write per-ticket results as JSON")
     args = parser.parse_args()
 
@@ -614,7 +624,8 @@ Examples:
     results = []
     for issue in issues:
         result = process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth,
-                               args.reassess_after, args.refresh_timeout)
+                               args.reassess_after, args.refresh_timeout,
+                               args.refresh_max_age)
         results.append(result)
         print(_describe(result, args.verbose, show_url=not apply_changes))
 
