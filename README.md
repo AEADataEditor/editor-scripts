@@ -361,7 +361,9 @@ AEAREP-9212  openICPSR 246447  ==>  would act
 
 Under `--apply` the ticket is named first and the verdict follows the work, so the pipeline
 steps report progress as they happen — a spinner while each one runs, a green tick when it
-succeeds and a red cross when it does not:
+succeeds and a red cross when it does not. With `CI` set (to `true`, `1`, `yes` or `on`),
+or with the output redirected, nothing animates and no colour is emitted: each step still
+prints its one line, so the log records exactly the same steps and outcomes.
 
 ```
 AEAREP-9212  openICPSR 246447

@@ -1,10 +1,12 @@
 """Terminal niceties: wrapped label/value lines and a spinner.
 
-Everything here degrades to plain text when the stream is not a terminal, so
-piping a run into a log file gives one clean line per step and no escape codes.
+Everything here degrades to plain text when the stream is not a terminal or
+when CI is set, so a logged run gives one clean line per step, no escape codes
+and no spinner frames. Only the animation goes: the output stays as verbose.
 """
 
 import itertools
+import os
 import shutil
 import sys
 import textwrap
@@ -22,6 +24,15 @@ RESET = "\033[0m"
 # Long lines are hard to read even on a wide terminal, so wrap well short of it.
 MAX_WIDTH = 100
 LABEL_WIDTH = 11
+
+
+# What a CI system puts in CI to say so. Anything else, including empty, is not CI.
+TRUTHY = ("1", "true", "yes", "on")
+
+
+def in_ci():
+    """Whether this is an unattended run, and so nothing may animate."""
+    return os.environ.get("CI", "").strip().lower() in TRUTHY
 
 
 def width():
@@ -54,7 +65,7 @@ class Spinner:
         self.label = label
         self.stream = stream or sys.stdout
         self.indent = " " * indent
-        self.animated = bool(getattr(self.stream, "isatty", lambda: False)())
+        self.animated = bool(getattr(self.stream, "isatty", lambda: False)()) and not in_ci()
         self._stop = threading.Event()
         self._thread = None
         self._finished = False

@@ -1,7 +1,15 @@
 """Tests for the terminal helpers: wrapped label lines and the spinner."""
 import time
 
+import pytest
+
 from aea_editor_scripts import console
+
+
+@pytest.fixture(autouse=True)
+def not_ci(monkeypatch):
+    """Tests describe interactive behaviour unless they say otherwise."""
+    monkeypatch.delenv("CI", raising=False)
 
 
 class FakeStream:
@@ -108,6 +116,42 @@ def test_an_exception_leaves_a_cross_behind():
     except RuntimeError:
         pass
     assert console.CROSS in stream.text
+
+
+# --- unattended runs ----------------------------------------------------------
+
+def test_ci_is_recognised_however_it_is_spelled(monkeypatch):
+    for value in ("TRUE", "true", "1", "yes", " on "):
+        monkeypatch.setenv("CI", value)
+        assert console.in_ci()
+
+
+def test_anything_else_is_not_ci(monkeypatch):
+    for value in ("", "false", "0", "no"):
+        monkeypatch.setenv("CI", value)
+        assert not console.in_ci()
+
+
+def test_an_unset_ci_is_not_ci(monkeypatch):
+    monkeypatch.delenv("CI", raising=False)
+    assert not console.in_ci()
+
+
+def test_ci_keeps_a_terminal_from_animating(monkeypatch):
+    monkeypatch.setenv("CI", "TRUE")
+    stream = FakeStream(tty=True)
+    with console.Spinner("refresh-tools", stream=stream) as spin:
+        time.sleep(console.INTERVAL * 3)
+        spin.finish(ok=True)
+    assert stream.text == f"  {console.TICK}  refresh-tools\n"
+
+
+def test_ci_still_reports_a_failed_step(monkeypatch):
+    monkeypatch.setenv("CI", "TRUE")
+    stream = FakeStream(tty=True)
+    with console.Spinner("refresh-tools", stream=stream) as spin:
+        spin.finish(ok=False)
+    assert stream.text == f"  {console.CROSS}  refresh-tools\n"
 
 
 def test_the_wrap_width_never_exceeds_the_maximum():
