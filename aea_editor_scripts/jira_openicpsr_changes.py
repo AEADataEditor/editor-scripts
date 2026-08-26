@@ -29,6 +29,7 @@ import requests
 from jira import JIRA
 
 from aea_editor_scripts import bitbucket_pipelines as pipelines
+from aea_editor_scripts import console
 from aea_editor_scripts import openicpsr_classify as classify
 from aea_editor_scripts.aeagit_create import workspace
 from aea_editor_scripts.openicpsr_activity import OPENICPSR_URL, fetch_activity, login
@@ -56,6 +57,22 @@ METADATA_ONLY_MIN_DAYS = 14
 
 BASELINE_REVISION_REQUESTED = "revision-requested"
 BASELINE_JIRA = "jira-transition"
+
+# The same things in words, for the terminal.
+BASELINE_LABELS = {
+    BASELINE_REVISION_REQUESTED: "revision request",
+    BASELINE_JIRA: "Jira transition",
+}
+
+VERDICTS = {
+    "would-act": "would act",
+    "would-reassess": "would act again",
+    "already-reported": "already reported",
+    "no-change": "no change",
+    "acted": "acted",
+    "skipped": "skipped",
+    "failed": "failed",
+}
 
 # Why a re-ingest did not start, in words, for the Exceptions section.
 REFRESH_EXCEPTIONS = {
@@ -357,7 +374,7 @@ def transition_by_name(jira, issue, name):
 
 
 def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None,
-                   refresh_max_age=None):
+                   refresh_max_age=None, spinner=console.Spinner):
     """Refresh the repository's tools if needed, then start the re-ingest.
 
     The tooling inside a repository goes stale, so unless it has been refreshed
@@ -397,21 +414,26 @@ def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None,
                           f"this repository needs before a re-ingest; no re-ingest was " \
                           f"started.", "missing"
 
-        uuid, why = pipelines.trigger_custom_pipeline(auth, workspace, slug, name)
-        if not uuid:
-            return False, f"the {name} pipeline on {slug} could not be started ({why}); " \
-                          f"no re-ingest was started.", "failed"
+        with spinner(name) as spin:
+            uuid, why = pipelines.trigger_custom_pipeline(auth, workspace, slug, name)
+            if not uuid:
+                spin.finish(ok=False)
+                return False, f"the {name} pipeline on {slug} could not be started " \
+                              f"({why}); no re-ingest was started.", "failed"
 
-        ok, result = pipelines.wait_for_pipeline(
-            lambda: pipelines.get_pipeline(auth, workspace, slug, uuid), timeout=timeout)
+            ok, result = pipelines.wait_for_pipeline(
+                lambda: pipelines.get_pipeline(auth, workspace, slug, uuid), timeout=timeout)
+            spin.finish(ok=ok)
         if not ok:
             return False, f"the {name} pipeline on {slug} did not succeed ({result}); " \
                           f"no re-ingest was started.", "failed"
         refresh = "ran"
 
-    uuid, why = pipelines.trigger_custom_pipeline(
-        auth, workspace, slug, pipelines.BIG_INGEST_PIPELINE,
-        variables={"openICPSRID": pid, "jiraticket": key})
+    with spinner("launching re-ingest") as spin:
+        uuid, why = pipelines.trigger_custom_pipeline(
+            auth, workspace, slug, pipelines.BIG_INGEST_PIPELINE,
+            variables={"openICPSRID": pid, "jiraticket": key})
+        spin.finish(ok=bool(uuid))
     if not uuid:
         return False, f"the re-ingest on {slug} could not be started ({why}); " \
                       f"please start it manually.", refresh
@@ -521,29 +543,79 @@ def bitbucket_credentials():
     return user, secret
 
 
-def _describe(result, verbose, show_url=False):
-    counts = " ".join(f"{k}={v}" for k, v in sorted(result.counts.items())) or "-"
-    pid = result.pid or "-"
-    line = f"{result.key:<14} {pid:<8} {result.status:<16} {counts}"
-    if result.reason:
-        line += f"  ({result.reason})"
-    if verbose and result.baseline:
-        line += f"  baseline={result.baseline_source}@{result.baseline[:10]} d={result.days_since_baseline}"
+def _verdict(result):
+    """The status in words, for the header line."""
+    return VERDICTS.get(result.status, result.status)
+
+
+def _changes(result):
+    """The activity counts, busiest kind first."""
+    if not result.counts:
+        return "none"
+    ordered = sorted(result.counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    return " · ".join(f"{kind} {count}" for kind, count in ordered)
+
+
+def _baseline(result):
+    """Where the "since when" came from, and how long ago it was."""
+    if not result.baseline:
+        return ""
+    source = BASELINE_LABELS.get(result.baseline_source, result.baseline_source)
+    return f"{source} {result.baseline[:10]} ({result.days_since_baseline} days)"
+
+
+def _action(result):
+    """What was done, or would be done, beyond reading the log."""
     if result.pipeline:
-        prefix = f"{pipelines.REFRESH_PIPELINE} then " if result.refresh == "ran" else ""
-        line += f"  [{prefix}pipeline triggered]"
-    elif result.refresh:
-        line += f"  [no pipeline: {REFRESH_EXCEPTIONS.get(result.refresh, result.refresh)}]"
-    elif result.status in ("would-act", "would-reassess"):
+        if result.refresh == "ran":
+            return f"ran {pipelines.REFRESH_PIPELINE}, then triggered re-ingest"
+        return "triggered re-ingest"
+    if result.refresh:
+        return f"no re-ingest: {REFRESH_EXCEPTIONS.get(result.refresh, result.refresh)}"
+    if result.status in ("would-act", "would-reassess"):
         if result.content_changed and result.resubmitted:
-            line += f"  [would {pipelines.REFRESH_PIPELINE} if needed, then trigger pipeline]"
-        elif result.content_changed:
-            line += "  [content changed, not re-submitted: no pipeline]"
+            return f"{pipelines.REFRESH_PIPELINE} if stale, then re-ingest"
+        if result.content_changed:
+            return "no re-ingest: content changed but the deposit was not re-submitted"
+        return f"comment and move to {TARGET_STATUS}"
+    if result.status == "acted":
+        return f"commented and moved to {TARGET_STATUS}"
+    return ""
+
+
+def _lead(key, pid):
+    """The identity line, printed before a ticket that is about to be worked on."""
+    return f"{key}  openICPSR {pid}" if pid else key
+
+
+def _describe(result, verbose, show_url=False, header_printed=False):
+    """One ticket as a small block: header, then indented detail lines.
+
+    When applying, the identity line has already been printed so that the
+    spinners for the pipeline runs appear underneath it; the verdict then
+    arrives on its own line once it is known.
+    """
+    if header_printed:
+        lines = [f"  ==>  {_verdict(result)}"]
+    else:
+        lines = [f"{_lead(result.key, result.pid)}  ==>  {_verdict(result)}"]
+
+    if result.counts or result.pid:
+        lines.append(console.field("Changes", _changes(result)))
+    baseline = _baseline(result)
+    if baseline:
+        lines.append(console.field("Baseline", baseline))
+    if result.reason:
+        lines.append(console.field("Reason", result.reason))
+    action = _action(result)
+    if action:
+        lines.append(console.field("Action", action))
     if verbose and result.unknown_kinds:
-        line += f"  unknown: {sorted(result.unknown_kinds)}"
+        lines.append(console.field("Unknown", ", ".join(sorted(result.unknown_kinds))))
     if show_url and result.pid:
-        line += f"\n{'':<14} {workspace_url(result.pid)}"
-    return line
+        # Never wrapped: a broken URL cannot be clicked or copied.
+        lines.append(f"  {workspace_url(result.pid)}")
+    return "\n".join(lines)
 
 
 def main():
@@ -623,13 +695,16 @@ Examples:
 
     results = []
     for issue in issues:
+        if apply_changes:
+            print(_lead(issue.key, deposit_number(issue, field_map)), flush=True)
         result = process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth,
                                args.reassess_after, args.refresh_timeout,
                                args.refresh_max_age)
         results.append(result)
-        print(_describe(result, args.verbose, show_url=not apply_changes))
+        print(_describe(result, args.verbose, show_url=not apply_changes,
+                        header_printed=apply_changes))
+        print()
 
-    print()
     tally = Counter(r.status for r in results)
     print("Summary: " + ", ".join(f"{k}={v}" for k, v in sorted(tally.items())))
 
@@ -637,8 +712,9 @@ Examples:
     if flagged:
         print(f"\nExceptions ({len(flagged)} ticket(s) worth a look):")
         for result in flagged:
+            print(f"  {result.key}")
             for note in result.exceptions:
-                print(f"  {result.key:<14} {note}")
+                print(console.note(note))
 
     unknown = Counter()
     for result in results:

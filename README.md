@@ -346,9 +346,30 @@ commented on once per baseline. `--reassess-after DAYS` relaxes that: a report o
 revisited rather than going quiet after its first report. Without the flag, one report per
 baseline is final.
 
-Every diagnostic line names the openICPSR project number. On a dry run each ticket is
-followed by the openICPSR management URL for its deposit, so you can look at the deposit
-yourself before deciding to `--apply`.
+Each ticket is reported as a short block, wrapped to the terminal. On a dry run the block
+ends with the openICPSR management URL for the deposit, so you can look at it yourself
+before deciding to `--apply`:
+
+```
+AEAREP-9212  openICPSR 246447  ==>  would act
+  Changes:   content 72 · metadata 3 · communication 1 · passive 1 · workflow 1
+  Baseline:  revision request 2026-07-05 (51 days)
+  Reason:    the author re-submitted the deposit after our revision request
+  Action:    refresh-tools if stale, then re-ingest
+  https://www.openicpsr.org/openicpsr/.../workspace?goToPath=/openicpsr/246447
+```
+
+Under `--apply` the ticket is named first and the verdict follows the work, so the pipeline
+steps report progress as they happen — a spinner while each one runs, a green tick when it
+succeeds and a red cross when it does not:
+
+```
+AEAREP-9212  openICPSR 246447
+  ✔  4-refresh-tools
+  ✔  launching re-ingest
+  ==>  acted
+  ...
+```
 
 Issues may be given positionally: a bare number is taken as an AEAREP ticket, while a key
 from another project is used as given. A final positional `a` or `apply` is shorthand for

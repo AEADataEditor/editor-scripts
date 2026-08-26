@@ -2,6 +2,7 @@
 import datetime
 from types import SimpleNamespace
 
+from aea_editor_scripts import console
 from aea_editor_scripts import jira_openicpsr_changes as J
 from aea_editor_scripts import openicpsr_classify as C
 from aea_editor_scripts.openicpsr_activity import ActivityLog, Event
@@ -348,6 +349,84 @@ def test_describe_without_a_deposit_number_has_no_url():
     assert "workspace" not in J._describe(result, verbose=False, show_url=True)
 
 
+# --- the shape of a ticket block ---------------------------------------------
+
+def block(**kwargs):
+    kwargs.setdefault("pid", "251458")
+    result = J.Result(kwargs.pop("key", "AEAREP-1"), kwargs.pop("status", "would-act"),
+                      **kwargs)
+    return J._describe(result, verbose=False).splitlines()
+
+
+def test_the_header_carries_the_key_the_deposit_and_the_verdict():
+    assert block()[0] == "AEAREP-1  openICPSR 251458  ==>  would act"
+
+
+def test_detail_lines_are_indented_under_the_header():
+    lines = block(reason="metadata only")
+    assert all(line.startswith("  ") for line in lines[1:])
+
+
+def test_no_line_is_wider_than_the_wrap_width():
+    long = "transition failed: " + "a very long explanation " * 8
+    lines = block(status="failed", reason=long)
+    assert max(len(line) for line in lines) <= console.width()
+
+
+def test_changes_are_listed_busiest_first():
+    lines = block(counts={"metadata": 3, "content": 72, "workflow": 1})
+    assert "Changes:" in lines[1]
+    assert lines[1].split("Changes:")[1].strip() == "content 72 · metadata 3 · workflow 1"
+
+
+def test_a_ticket_with_no_activity_says_so():
+    assert "none" in block(counts={})[1]
+
+
+def test_the_baseline_line_names_its_source_in_words():
+    lines = block(baseline="2026-03-14T10:02:00+00:00",
+                  baseline_source=J.BASELINE_REVISION_REQUESTED, days_since_baseline=165)
+    assert "revision request 2026-03-14 (165 days)" in lines[2]
+
+
+def test_the_baseline_line_is_dropped_when_there_is_none():
+    assert not any("Baseline" in line for line in block())
+
+
+def test_a_pending_pipeline_is_announced_as_an_action():
+    lines = block(content_changed=True, resubmitted=True)
+    assert "refresh-tools if stale, then re-ingest" in "\n".join(lines)
+
+
+def test_a_refresh_that_ran_is_named_in_the_action():
+    lines = block(status="acted", pipeline="triggered", refresh="ran")
+    assert "ran refresh-tools, then triggered re-ingest" in "\n".join(lines)
+
+
+def test_a_refusal_to_re_ingest_says_why():
+    lines = block(status="acted", refresh="busy")
+    assert "no re-ingest: another pipeline was already running" in "\n".join(lines)
+
+
+def test_content_changed_without_resubmission_explains_the_lack_of_a_pipeline():
+    lines = block(content_changed=True, resubmitted=False)
+    assert "not re-submitted" in "\n".join(lines)
+
+
+def test_the_lead_line_is_printed_before_the_work_starts():
+    assert J._lead("AEAREP-1", "251458") == "AEAREP-1  openICPSR 251458"
+
+
+def test_the_lead_line_survives_a_missing_deposit_number():
+    assert J._lead("AEAREP-1", None) == "AEAREP-1"
+
+
+def test_the_verdict_stands_alone_when_the_header_was_already_printed():
+    result = J.Result("AEAREP-1", "acted", pid="251458")
+    assert J._describe(result, verbose=False, header_printed=True).splitlines()[0] \
+        == "  ==>  acted"
+
+
 # --- refresh-tools before re-ingest ------------------------------------------
 
 REAL_PIPELINES = J.pipelines  # captured before any monkeypatching
@@ -410,6 +489,51 @@ def done(pattern, result="SUCCESSFUL", age_days=0):
     return {"state": {"name": "COMPLETED", "result": {"name": result}},
             "created_on": created.strftime("%Y-%m-%dT%H:%M:%S.%f000Z"),
             "target": {"selector": {"type": "custom", "pattern": pattern}}}
+
+
+class RecordingSpinner:
+    """Stands in for the console spinner: remembers labels and outcomes."""
+
+    seen = []
+
+    def __init__(self, label, **kwargs):
+        self.label = label
+        self.finished = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.finish(ok=exc_type is None)
+        return False
+
+    def finish(self, ok=True):
+        if self.finished:
+            return
+        self.finished = True
+        RecordingSpinner.seen.append((self.label, ok))
+
+
+def spinners(bb, monkeypatch, **kwargs):
+    RecordingSpinner.seen = []
+    run_pipeline(bb, monkeypatch, spinner=RecordingSpinner, **kwargs)
+    return RecordingSpinner.seen
+
+
+def test_both_steps_report_progress_while_they_run(monkeypatch):
+    bb = FakeBitbucket(runs=[done("w-big-populate-from-icpsr")])
+    assert spinners(bb, monkeypatch) == [("4-refresh-tools", True),
+                                         ("launching re-ingest", True)]
+
+
+def test_only_the_re_ingest_reports_progress_when_no_refresh_is_needed(monkeypatch):
+    bb = FakeBitbucket(runs=[done("4-refresh-tools")])
+    assert spinners(bb, monkeypatch) == [("launching re-ingest", True)]
+
+
+def test_a_refresh_that_fails_is_reported_as_a_failure(monkeypatch):
+    bb = FakeBitbucket(runs=[done("w-big-populate-from-icpsr")], wait_result=(False, "FAILED"))
+    assert spinners(bb, monkeypatch) == [("4-refresh-tools", False)]
 
 
 def test_reingest_runs_refresh_tools_first_when_the_last_run_was_something_else(monkeypatch):
