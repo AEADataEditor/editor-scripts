@@ -31,10 +31,11 @@ UNKNOWN = "unknown"
 
 CONTENT_KINDS = frozenset({
     "Virus_Scan", "upload_file", "delete_path", "move_path", "file_move", "create_container",
+    "rename_file",
 })
 METADATA_KINDS = frozenset({
     "edit_project", "add_date_range", "add_funding_source", "add_person",
-    "create_project", "share_resource",
+    "create_project", "share_resource", "add_citation",
 })
 PASSIVE_KINDS = frozenset({
     "file_download", "file_get_binary", "file_metadata_view", "watch_comment",

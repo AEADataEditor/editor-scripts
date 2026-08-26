@@ -100,8 +100,8 @@ key** are metadata operations identified by the last path segment of `page_url`.
 
 | Bucket | Kinds |
 |---|---|
-| Content | `Virus_Scan`, `upload_file`, `delete_path`, `move_path`, `file_move`, `create_container` |
-| Metadata | `edit_project`, `add_date_range`, `add_funding_source`, `add_person`, `create_project`, `share_resource`, and no-`activity` events whose `page_url` ends in `postProperty`, `deleteProperty`, `postPropertyValues` |
+| Content | `Virus_Scan`, `upload_file`, `delete_path`, `move_path`, `file_move`, `create_container`, `rename_file` |
+| Metadata | `edit_project`, `add_date_range`, `add_funding_source`, `add_person`, `create_project`, `share_resource`, `add_citation`, and no-`activity` events whose `page_url` ends in `postProperty`, `deleteProperty`, `postPropertyValues` |
 | Passive | `file_download`, `file_get_binary`, `file_metadata_view`, `watch_comment` |
 | Communication | `add_comment`, `edit_comment`, `delete_comment`, `upload_comment_attachment` |
 | Workflow | `workflow_status_transition` |

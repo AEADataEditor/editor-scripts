@@ -271,3 +271,44 @@ def test_resubmission_false_when_recalled():
 
 def test_resubmission_false_without_workflow_events():
     assert C.assess([ev(activity="upload_file")]).resubmitted is False
+
+
+# --- kinds found in the full August 2026 sweep --------------------------------
+
+def _renamed(message='Renamed file from "README.pdf" to "readme.pdf" successfully'):
+    return ev("rename_file", message=message, page_url="https://deposit.icpsr.umich.edu"
+                                                       "/deposit/renameFile")
+
+
+def test_rename_file_is_content():
+    """Renaming changes the file tree, like move_path and file_move."""
+    assert C.bucket_of(_renamed()) == C.CONTENT
+
+
+def test_a_failed_rename_is_still_content():
+    """Success is not distinguished for any other kind either."""
+    failed = _renamed('Renaming file from "a.pdf" to "b.pdf" failed')
+    assert C.bucket_of(failed) == C.CONTENT
+
+
+def test_rename_file_is_not_unknown():
+    assert C.kind_of(_renamed()) == "rename_file"
+    assert C.assess([_renamed()]).unknown_kinds == {}
+
+
+def test_rename_file_counts_as_a_content_change():
+    assert C.assess([_renamed()]).content_changed is True
+
+
+def test_add_citation_is_metadata():
+    """A citation is bibliographic metadata, like add_person or add_funding_source."""
+    citation = ev("add_citation", message="added new citation with refid 962520",
+                  page_url="https://deposit.icpsr.umich.edu/bibliography/citations/data")
+    assert C.bucket_of(citation) == C.METADATA
+
+
+def test_add_citation_does_not_count_as_a_content_change():
+    citation = ev("add_citation", message="added new citation with refid 962520")
+    assessment = C.assess([citation])
+    assert assessment.content_changed is False
+    assert assessment.unknown_kinds == {}
