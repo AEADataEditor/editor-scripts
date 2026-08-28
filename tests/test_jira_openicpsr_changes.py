@@ -318,6 +318,97 @@ def test_split_apply_token_on_an_empty_list():
     assert J.split_apply_token([]) == ([], False)
 
 
+# --- openICPSR project-number lookup and ambiguous positionals --------------
+
+class FakeJira:
+    """Answers just the two JQL shapes the resolver issues."""
+
+    def __init__(self, existing=(), deposits=None):
+        self.existing = set(existing)
+        self.deposits = deposits or {}  # "12345" -> [keys]
+
+    def search_issues(self, jql, maxResults=None, expand=None):
+        if jql.startswith("key = "):
+            key = jql.split('"')[1]
+            return [SimpleNamespace(key=key)] if key in self.existing else []
+        if jql.startswith(f'"{J.DEPOSIT_FIELD}"'):
+            number = jql.split("=")[1].split("ORDER")[0].strip()
+            return [SimpleNamespace(key=k) for k in self.deposits.get(number, [])]
+        raise AssertionError(f"unexpected JQL: {jql}")
+
+
+def test_ambiguous_number_is_exactly_five_digits():
+    assert J.ambiguous_number("12345")
+    assert J.ambiguous_number(" 12345 ")
+    assert not J.ambiguous_number("1234")
+    assert not J.ambiguous_number("123456")
+    assert not J.ambiguous_number("aearep-12345")
+
+
+def test_find_keys_by_openicpsr_returns_matches_as_given():
+    jira = FakeJira(deposits={"10043": ["AEAREP-27551"]})
+    assert J.find_keys_by_openicpsr(jira, "10043") == ["AEAREP-27551"]
+
+
+def test_find_keys_by_openicpsr_normalises_a_float_like_value():
+    jira = FakeJira(deposits={"10043": ["AEAREP-27551"]})
+    assert J.find_keys_by_openicpsr(jira, "10043.0") == ["AEAREP-27551"]
+
+
+def test_issue_exists_is_true_only_for_a_known_key():
+    jira = FakeJira(existing=["AEAREP-10043"])
+    assert J.issue_exists(jira, "AEAREP-10043")
+    assert not J.issue_exists(jira, "AEAREP-99999")
+
+
+def test_resolve_positionals_passes_short_numbers_straight_through():
+    keys, clashes = J.resolve_positionals(FakeJira(), ["9962", "train-4352"])
+    assert keys == ["AEAREP-9962", "TRAIN-4352"]
+    assert clashes == []
+
+
+def test_resolve_positionals_uses_the_ticket_when_only_it_resolves():
+    jira = FakeJira(existing=["AEAREP-10043"])
+    keys, clashes = J.resolve_positionals(jira, ["10043"])
+    assert keys == ["AEAREP-10043"]
+    assert clashes == []
+
+
+def test_resolve_positionals_uses_the_deposit_when_only_it_resolves():
+    jira = FakeJira(deposits={"10043": ["AEAREP-27551"]})
+    keys, clashes = J.resolve_positionals(jira, ["10043"])
+    assert keys == ["AEAREP-27551"]
+    assert clashes == []
+
+
+def test_resolve_positionals_reports_a_clash_and_queues_neither():
+    jira = FakeJira(existing=["AEAREP-10043"], deposits={"10043": ["AEAREP-27551"]})
+    keys, clashes = J.resolve_positionals(jira, ["10043"])
+    assert keys == []
+    assert len(clashes) == 1
+    assert clashes[0].ticket == "AEAREP-10043"
+    assert clashes[0].deposit_keys == ["AEAREP-27551"]
+
+
+def test_resolve_positionals_falls_back_to_the_aearep_key_when_nothing_resolves():
+    keys, clashes = J.resolve_positionals(FakeJira(), ["10043"])
+    assert keys == ["AEAREP-10043"]
+    assert clashes == []
+
+
+def test_resolve_positionals_is_not_a_clash_when_both_point_at_one_ticket():
+    jira = FakeJira(existing=["AEAREP-10043"], deposits={"10043": ["AEAREP-10043"]})
+    keys, clashes = J.resolve_positionals(jira, ["10043"])
+    assert keys == ["AEAREP-10043"]
+    assert clashes == []
+
+
+def test_clash_report_names_both_readings_and_the_way_out():
+    report = J.clash_report(J.Clash("10043", "AEAREP-10043", ["AEAREP-27551"]))
+    assert "AEAREP-10043" in report and "AEAREP-27551" in report
+    assert "--issue" in report and "--openicpsr" in report
+
+
 # --- openICPSR workspace URL -------------------------------------------------
 
 def test_workspace_url_ends_in_the_project_number():

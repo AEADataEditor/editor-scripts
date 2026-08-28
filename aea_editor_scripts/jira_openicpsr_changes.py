@@ -21,7 +21,7 @@ import argparse
 import json
 import os
 import sys
-from collections import Counter
+from collections import Counter, namedtuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -295,6 +295,71 @@ def normalize_issue_key(value):
     if "-" not in key and key.startswith(PROJECT):
         return key.replace(PROJECT, f"{PROJECT}-", 1)
     return key
+
+
+# An openICPSR project number is always five digits; an AEAREP ticket number is
+# one to five. So a five-digit positional is ambiguous and has to be tried both
+# ways; anything shorter can only be a ticket.
+OPENICPSR_DIGITS = 5
+
+Clash = namedtuple("Clash", "number ticket deposit_keys")
+
+
+def ambiguous_number(token):
+    """True when a bare positional could be an AEAREP number *or* an openICPSR
+    project number -- i.e. exactly five digits."""
+    token = token.strip()
+    return token.isdigit() and len(token) == OPENICPSR_DIGITS
+
+
+def find_keys_by_openicpsr(jira, number):
+    """Jira keys whose ``openICPSR Project Number`` is ``number``, newest first."""
+    number = str(int(float(str(number).strip())))
+    jql = f'"{DEPOSIT_FIELD}" = {number} ORDER BY created DESC'
+    return [issue.key for issue in jira.search_issues(jql, maxResults=False)]
+
+
+def issue_exists(jira, key):
+    """True when ``key`` resolves to a real Jira issue."""
+    try:
+        return bool(jira.search_issues(f'key = "{key}"', maxResults=1))
+    except Exception:
+        return False
+
+
+def resolve_positionals(jira, tokens):
+    """Turn positional tokens into Jira keys.
+
+    Returns ``(keys, clashes)``. A five-digit number is ambiguous: it might be an
+    AEAREP ticket number or an openICPSR project number. When both readings
+    resolve to different tickets that is a clash -- it is reported and neither
+    reading is queued. When only one resolves, that one is used; when neither
+    does, the AEAREP key is queued so the usual "not found" path handles it.
+    """
+    keys = []
+    clashes = []
+    for token in tokens:
+        if not ambiguous_number(token):
+            keys.append(normalize_issue_key(token))
+            continue
+        number = token.strip()
+        ticket = f"{PROJECT}-{number}"
+        ticket_hit = [ticket] if issue_exists(jira, ticket) else []
+        deposit_hits = find_keys_by_openicpsr(jira, number)
+        if ticket_hit and deposit_hits and set(ticket_hit) != set(deposit_hits):
+            clashes.append(Clash(number, ticket, deposit_hits))
+            continue
+        combined = list(dict.fromkeys(ticket_hit + deposit_hits))
+        keys.extend(combined or [ticket])
+    return list(dict.fromkeys(keys)), clashes
+
+
+def clash_report(clash):
+    """One line explaining an unresolved ambiguous positional."""
+    deposits = ", ".join(clash.deposit_keys)
+    return (f"{clash.number}: could be ticket {clash.ticket} or openICPSR project "
+            f"{clash.number} (deposit on {deposits}). Neither was queued -- pass "
+            f"--issue {clash.number} or --openicpsr {clash.number} to choose.")
 
 
 def split_apply_token(positional):
@@ -633,11 +698,18 @@ ticket, so "9962" and "aearep-9962" are the same thing; a key from another
 project such as "train-4352" is used as given. A final positional "a" or
 "apply" is shorthand for --apply.
 
+A five-digit positional is ambiguous -- every openICPSR project number is five
+digits, and AEAREP numbers reach five digits too -- so it is looked up both as
+a ticket and as an openICPSR Project Number. If both readings resolve to
+different tickets the clash is reported and neither is queued; disambiguate
+with --issue or --openicpsr. Use --openicpsr to force the openICPSR reading.
+
 Examples:
   %(prog)s                          # dry run over every pending ticket
   %(prog)s --limit 5 -v             # dry run over the five most recently updated
   %(prog)s 9962                     # dry run one ticket
   %(prog)s 9962 9304                # dry run two tickets
+  %(prog)s --openicpsr 10043        # dry run the ticket for openICPSR project 10043
   %(prog)s 9962 apply               # same as --issue AEAREP-9962 --apply
   %(prog)s --apply --limit 5        # act on at most five tickets
   %(prog)s --apply --reassess-after 14   # also re-report tickets last reported 14+ days ago
@@ -651,6 +723,9 @@ Examples:
     parser.add_argument("--limit", type=int, help="process at most this many tickets")
     parser.add_argument("--issue", action="append", metavar="KEY",
                         help="restrict to this ticket (repeatable)")
+    parser.add_argument("--openicpsr", action="append", metavar="NUMBER",
+                        help="restrict to the ticket(s) carrying this openICPSR "
+                             "Project Number (repeatable)")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="show unknown activity kinds per ticket")
     parser.add_argument("--reassess-after", type=int, metavar="DAYS",
@@ -673,7 +748,7 @@ Examples:
 
     positional, apply_shorthand = split_apply_token(args.issues)
     apply_changes = args.apply or apply_shorthand
-    keys = [normalize_issue_key(k) for k in (args.issue or []) + positional] or None
+    selector_given = bool(args.issue or args.openicpsr or positional)
 
     try:
         jira = get_jira_client()
@@ -682,6 +757,28 @@ Examples:
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
+
+    keys = [normalize_issue_key(k) for k in (args.issue or [])]
+    for number in args.openicpsr or []:
+        hits = find_keys_by_openicpsr(jira, number)
+        if hits:
+            keys.extend(hits)
+        else:
+            print(f"No ticket carries openICPSR Project Number {number}.",
+                  file=sys.stderr)
+    pos_keys, clashes = resolve_positionals(jira, positional)
+    keys.extend(pos_keys)
+    if clashes:
+        print("Ambiguous argument(s), not resolved:")
+        for clash in clashes:
+            print(f"  {clash_report(clash)}")
+        print()
+    keys = list(dict.fromkeys(keys))
+    if selector_given and not keys:
+        print("Nothing to do: no tickets resolved from the given arguments.",
+              file=sys.stderr)
+        return 2
+    keys = keys or None
 
     bitbucket_auth = bitbucket_credentials()
     if apply_changes and not all(bitbucket_auth):
