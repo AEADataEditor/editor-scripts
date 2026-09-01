@@ -281,3 +281,6 @@ stata.lic*
 ## Python bytecode:
 __pycache__/
 *.pyc
+
+## Local exports from jira_workflow_cleanup.py (not for version control):
+workflow-archive/
