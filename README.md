@@ -1,6 +1,9 @@
 # Scripts to facilitate the Data Editors and report writer's lives
 
-These scripts will streamline a few things. They may not work in all environments.
+These scripts streamline a few recurring steps in the AEA Data Editor workflow.
+They may not work in all environments.
+
+**Full documentation:** <https://aeadataeditor.github.io/editor-scripts/>
 
 ## Requirements
 
@@ -8,15 +11,9 @@ These scripts will streamline a few things. They may not work in all environment
 
 ![Tested on Linux](https://img.shields.io/badge/Tested-on%20Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Partially Tested on Windows](https://img.shields.io/badge/Partially%20Tested-on%20Windows-yellow)
 
-- Some scripts have additional dependencies:
-  - ![Linux](https://img.shields.io/badge/-Linux-success) ![maybe macOS](https://img.shields.io/badge/-macOS-orange) ![Not Windows](https://img.shields.io/badge/-Windows-red) `pandoc` in `aeaready`
-    - will not work on Windows, but can be skipped
-    - used to work on MacOS, but only if an older version of Rstudio is installed; currently broken
-  - ![Linux](https://img.shields.io/badge/-Linux-success) ![maybe macOS](https://img.shields.io/badge/-macOS-orange) ![Not Windows](https://img.shields.io/badge/-Windows-red) `wkhtmltopdf`  in `aeaready`
-    - Maybe on MacOS, don't remember; will not work on Windows. See replacement by `docker`
-  - ![Linux](https://img.shields.io/badge/-Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Partially Tested on Windows](https://img.shields.io/badge/Partially%20Tested-on%20Windows-yellow) `docker`  in `aeaready`
-    - Tested on WSL on Windows. Works on MacOS and Linux.
-  - ![Linux](https://img.shields.io/badge/-Linux-success) ![not macOS](https://img.shields.io/badge/-macOS-red) ![Not Windows](https://img.shields.io/badge/-Windows-red)`qpdf` (Linux only - `aeamerge`)
+Some scripts have additional dependencies (`pandoc`, `wkhtmltopdf` or `docker`,
+`qpdf`); each script's documentation page lists its own requirements and platform
+support.
 
 ## Installation
 
@@ -24,21 +21,19 @@ The repository contains a script which should handle installation. As with anyth
 
 ### Method 1
 
-Use this method if you have no other scripts in `$HOME/bin`. That directory is usually part of the command search path in bash and Git-bash. 
+Use this method if you have no other scripts in `$HOME/bin`. That directory is usually part of the command search path in bash and Git-bash.
 
 1. Check if there are scripts in `$HOME/bin`: `ls $HOME/bin`
    - If the above gives you an error, there is no `bin` directory, and you can safely use this method.
-   - If the above methods does not give an error, but shows no files, you can also (probably) use this method.
+   - If the above does not give an error, but shows no files, you can also (probably) use this method.
 2. If the directory `$HOME/bin` exists, this will delete it (but will safely fail if there are files there): `rmdir $HOME/bin`
 3. Now you are ready to clone into `$HOME/bin`:
 
-```{bash}
+```bash
 cd $HOME
 rmdir bin
 git clone https://github.com/AEADataEditor/editor-scripts.git bin
 ```
-
-
 
 ### Method 2
 
@@ -47,9 +42,7 @@ git clone https://github.com/AEADataEditor/editor-scripts.git bin
 
 ### Method 3 (convenient, less secure)
 
-1. Run the following command in a Bash shell:
-
-```
+```bash
 bash <(wget -qO - https://raw.githubusercontent.com/AEADataEditor/editor-scripts/main/aeascripts)
 ```
 
@@ -77,386 +70,14 @@ pip uninstall aea-editor-scripts
 
 ## Updating
 
-```
+```bash
 cd $HOME/bin/
 [[ -d aea-scripts ]] && cd aea-scripts
 git pull
 ```
 
-## Setup (cloud)
-
-For the git actions undertaken by these scripts, two methods are available:
-
-- ssh
-- https
-
-The connection method should default to the right thing according to the environment. 
-
-For ssh, you need to have set up the SSH key.
-
-For https, it will use other authentication methods on your  machine (e.g., Github Desktop) if available. 
-
-In the cloud, set the variables P_BITBUCKET_PAT and P_BITBUCKET_USERNAME, which can be done in the [Codespaces secrets space](https://github.com/settings/codespaces) in your personal Github space, or from the command line (if you have `gh` installed):
-
-```
-gh secret set P_BITBUCKET_PAT --user
-gh secret set P_BITBUCKET_USERNAME --user 
-```
-
-
-## Descriptions
-
-### `aeascripts`
-
-This script can be downloaded manually, or as part of a separate `git clone`. It will clone this repo into `$HOME/bin/aea-scripts` and add that PATH to the `$PATH` variable in the `bash` profile. It is not otherwise used.
-
-### `aeaready` (issue) (pre|approve) [nopdf] [additional comments]
-
-Used once the report has been edited, and is ready to be signed off on. This script will compile the PDF from the Markdown `REPLICATION.md`, add some text to any `for openICPSR.md` notes, and commit all of these files, updating the issue (ticket). **Sign off still happens manually on Jira.**
-
-Arguments:
-
-- Required:
-  - (issue): the AEAREP-nnnn numerical part of the **JIRA issue** (not the repository!)
-  - pre|approved: (can be abbreviated to "a" or "p") Defines the message and action: preapproval or approval. This is purely in terms of the note added to the Git commit message, all actual (pre) approvals still need to be done manually on JIRA.
-
-- Optional:
-  - nopdf: No abbreviations. On systems that cannot automatically create the PDF (Windows, some Macs), the PDF must be generated manually before creating the script. `nopdf` then indicates to the script not to try to generate a PDF.
-  - additional comments: any words added after the required and `nopdf` arguments are taken verbatim and added to the commit message.
-
-### `aeamerge` 
-
-This script will merge the PDF from an external reviewer report to the AEA official report in PDF format, and commit the merged report, ready to be sent to the author.
-
-- This only works on Linux, untested on Codespaces.
-
-### `aeaopen`
-
-This script will open the Jira issue corresponding to a (properly named) Bitbucket repository.
-
-- May not work on Windows or Codespaces
-
-### `aea-parse-tags` (formerly `aeareq`)
-
-This script (Python, installed via `pip install`) parses the `REPLICATION.md` for `[REQUIRED]` and `[SUGGESTED]` tags and consolidates them into the Action Items checklists. Useful for pre-approvers and approvers. Compared to the old `aeareq` bash script, it
-
-- skips tags that already appear in the `### Action Items (manuscript)` section (e.g. the standing response-letter and returning-proofs tags), instead of duplicating them into the deposit checklist;
-- routes tags to the manuscript or deposit checklist based on the internal `{{ CATEGORY destination }}` markers (`m`, `d`, or `both`) defined in the replication template's `sample-language-report.md`;
-- orders each checklist by priority (`CRITICAL`, `CODE`, `FILES`, `METADATA`), with `[REQUIRED]` before `[SUGGESTED]` within a tier, and strips the `{{ ... }}` markers from the final text;
-- removes any remaining `> INSTRUCTION(S)` lines (like `aeaclean`).
-
-The deposit checklist is inserted at the `-----action items go here------` marker (which is then removed), so it works regardless of what the deposit section is called (openICPSR, Dataverse, ...). Without the marker, the script refuses to run unless called with `force`.
-
-### `aeaclean`
-
-This script will parse the `REPLICATION.md` for lines with:
-
-```
-----action items go here----
-> INSTRUCTIONS
-```
-
-and remove them.
-
-### `aearevision`
-
-This script will parse the `REPLICATION.md` and convert all `REQUIRED` tags into "[We REQUESTED]" tags, ready to be checked by a replicator working on a revision report.
-
-## Convenience scripts
-
-The following scripts may or may not work for some people:
-
-### `icpsrsearch`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Not Windows](https://img.shields.io/badge/-Windows-red)
-
-Searches for a specific openICPSR deposit on Jira. Opens a browser.
-
-### `system-info.sh`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Not Windows](https://img.shields.io/badge/-Windows-red)
-
-Prints information about the replicator's system.
-
-### `stataNN` 
-
-where `NN` is `16` or `17`. Will run Stata using the Docker image. Requires a local license for Stata, and of course Docker.
-
-Usage: `stata17 nameofdofile.do`
-
-Note: Sets the working directory to that of the do file, which may not work in all cases.
-
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Maybe Windows](https://img.shields.io/badge/-Windows-orange)
-
-### `stata17sh`
-
-same as above, but instead of running Stata, will provide a shell within the Stata17 docker image.
-
-
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Maybe Windows](https://img.shields.io/badge/-Windows-orange)
-
-## Python scripts
-
-The following scripts are installed as command-line tools via `pip` (see [Python scripts](#python-scripts) installation above).
-
-### `aeagit` (number|name) [method] [--no-editor]
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-`git clone`s (or updates) a repository from the AEA Bitbucket organization and, where possible, opens VS Code in the directory with the `REPLICATION.md` preloaded. Used during editing and sign-off.
-
-- If a plain number is given (e.g. `aeagit 1234`), the prefix `aearep-` is prepended automatically, cloning `aeaverification/aearep-1234`.
-- If a name containing non-numeric characters is given (e.g. `aeagit train-123`), the repository is cloned as-is without prepending any prefix.
-- `[method]` (optional) is `ssh` or `https` (can be abbreviated); defaults to `ssh` on Linux/macOS and `https` on Windows/Codespaces.
-- `-n`/`--no-editor` skips opening VS Code after clone/update (also honored via the `AEAGIT_NO_EDITOR` environment variable).
-
-### `aeagit-create`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Creates a new Bitbucket repository for an AEA replication package. Optionally populates it from a template, enables pipelines, and posts a comment to the corresponding Jira issue.
-
-Usage: `aeagit-create -r aearep-NNNN [--openicpsr [ID]] [--big]`
-
-With `-b`/`--big`, the `w-big-populate-from-icpsr` pipeline is triggered instead of `1-populate-from-icpsr`.
-
-### `aea-box-clean-folders`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Automates the cleanup of Box folders for completed Jira cases by:
-1. Scanning the Box root folder for case folders (aearep-XXXX)
-2. Checking if cases are ready for purging via Jira status
-3. For ready cases:
-   - Deleting data files (CSV, DTA, ZIP, etc.)
-   - Keeping documents (PDF, DOCX, TXT, etc.)
-   - Moving the folder to the `1Completed` subfolder
-
-Usage: 
-```bash
-# Test mode (dry run)
-aea-box-clean-folders --test
-
-# Process all ready cases
-aea-box-clean-folders
-
-# Process specific case
-aea-box-clean-folders --case 1234
-
-# List cases and their status
-aea-box-clean-folders --list
-```
-
-**Environment Variables Required:**
-- Box Authentication: `BOX_FOLDER_PRIVATE`, `BOX_PRIVATE_KEY_ID`, `BOX_ENTERPRISE_ID`, `BOX_CONFIG_PATH` (or `BOX_PRIVATE_JSON`)
-- Jira Authentication: `JIRA_USERNAME`, `JIRA_API_KEY`
-
-### `aea-box-recover-files`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Recovers files deleted from Box folders by:
-1. Taking a Jira case number and looking up Box Folder ID from Jira
-2. Listing files deleted by the service account in the past N days
-3. Restoring files back to their folder (in `1Completed`)
-
-Usage:
-```bash
-# List deleted files for case 8040
-aea-box-recover-files --case 8040 --list
-
-# Test mode (dry run)
-aea-box-recover-files --case 8040 --test
-
-# Restore files
-aea-box-recover-files --case 8040
-
-# Look back 14 days
-aea-box-recover-files --case 8040 --days 14
-```
-
-**Environment Variables Required:**
-- Box Authentication: `BOX_FOLDER_PRIVATE`, `BOX_PRIVATE_KEY_ID`, `BOX_ENTERPRISE_ID`, `BOX_CONFIG_PATH` (or `BOX_PRIVATE_JSON`)
-- Jira Authentication: `JIRA_USERNAME`, `JIRA_API_KEY`, optionally `JIRA_SERVER`
-
-**Note:** The cleanup script moves folders to `1Completed` and deletes data files inside. This recovery script finds those deleted files and restores them.
-
-### `jira-approval-manager`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Manages Jira approval transitions (Report Under Review → Pre-Approved → Approved) and updates the MC Recommendation field. Auto-detects the recommendation from `REPLICATION.md` if present in the current directory.
-
-Usage: `jira-approval-manager aearep-NNNN (approve|pre-approve) [recommendation]`
-
-### `jira-openicpsr-changes`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Finds every ticket in "Pending openICPSR changes" and asks openICPSR what has happened to
-the linked deposit since the ticket entered that status. When the author did something
-meaningful, the ticket gets a comment summarising the activity and moves to
-"Assess openICPSR changes". When the author changed file content *and* re-submitted the
-deposit, the `w-big-populate-from-icpsr` Bitbucket pipeline is triggered to re-ingest it.
-
-The `refresh-tools` pipeline updates the tooling that lives inside a repository and that
-the other pipelines call, so the re-ingest is preceded by a `refresh-tools` run unless the
-repository has had a successful one in the last 14 days (`--refresh-max-age`). Only the age
-of the last good refresh counts; what has run since does not. The pipeline is looked up by
-name in the repository's own `bitbucket-pipelines.yml`, so a repository numbering it
-something other than `4-refresh-tools` still works. Bitbucket cannot chain pipelines, so the refresh is polled
-to completion (every 30s, up to `--refresh-timeout`, default 900s) before the re-ingest
-starts. If the refresh fails, times out, does not exist in that repository, or another
-pipeline is already running, the ticket is still commented on and transitioned but **no
-re-ingest is started** — the comment says so and the ticket is listed under *Exceptions*.
-
-Activity is measured from a **baseline**: the last time we sent the deposit back for
-revision (`SUBMITTED` -> `REVISION REQUESTED` on openICPSR), falling back to the Jira
-transition when the deposit's log has no such event. Our own revision requests never count
-as author activity, and downloads or file views by our own account are classified as
-passive.
-
-The decision rules, in order:
-
-| Situation | Action |
-| --- | --- |
-| The author re-submitted after our request | Comment and transition, even with no file changes. Re-ingest if content also changed. |
-| File content changed, no re-submission | Comment and transition; the author is probably still working, so no re-ingest. |
-| Metadata or communication only | Acted on only once 14 days have passed since our revision request. Silent before that. |
-| Passive or unrecognised activity only | Nothing. |
-
-Activity kinds the tool does not recognise are ignored and listed at the end of the run
-rather than acted on. The run also prints an *Exceptions* section naming tickets whose
-baseline fell back to the Jira transition, whose openICPSR log was truncated at the
-1000-event cap, or which could not be assessed at all — use `--json` to feed that into a
-scheduled summary report.
-
-If the Jira transition fails, that is recorded as its own comment and the command exits
-non-zero, because it means someone still has to move the ticket by hand.
-
-**Nothing is written unless you pass `--apply`.** There are usually well over a hundred
-tickets in this status and most of them have had activity, so bound your first real run
-with `--limit`.
-
-Each comment carries a marker line naming the baseline it reported on, so a ticket is
-commented on once per baseline. `--reassess-after DAYS` relaxes that: a report older than
-`DAYS` no longer suppresses a new one, so a ticket that sits in the status keeps being
-revisited rather than going quiet after its first report. Without the flag, one report per
-baseline is final.
-
-Each ticket is reported as a short block, wrapped to the terminal. On a dry run the block
-ends with the openICPSR management URL for the deposit, so you can look at it yourself
-before deciding to `--apply`:
-
-```
-AEAREP-9212  openICPSR 246447  ==>  would act
-  Changes:   content 72 · metadata 3 · communication 1 · passive 1 · workflow 1
-  Baseline:  revision request 2026-07-05 (51 days)
-  Reason:    the author re-submitted the deposit after our revision request
-  Action:    refresh-tools if stale, then re-ingest
-  https://www.openicpsr.org/openicpsr/.../workspace?goToPath=/openicpsr/246447
-```
-
-Under `--apply` the ticket is named first and the verdict follows the work, so the pipeline
-steps report progress as they happen — a spinner while each one runs, a green tick when it
-succeeds and a red cross when it does not. With `CI` set (to `true`, `1`, `yes` or `on`),
-or with the output redirected, nothing animates and no colour is emitted: each step still
-prints its one line, so the log records exactly the same steps and outcomes.
-
-```
-AEAREP-9212  openICPSR 246447
-  ✔  4-refresh-tools
-  ✔  launching re-ingest
-  ==>  acted
-  ...
-```
-
-Issues may be given positionally: a bare number is taken as an AEAREP ticket, while a key
-from another project is used as given. A final positional `a` or `apply` is shorthand for
-`--apply`.
-
-```
-jira-openicpsr-changes                        # dry run over every pending ticket
-jira-openicpsr-changes --limit 5 -v           # dry run over the five most recently updated
-jira-openicpsr-changes 9962                   # dry run a single ticket
-jira-openicpsr-changes 9962 aearep-9304       # dry run two tickets
-jira-openicpsr-changes 9962 apply             # act on one ticket
-jira-openicpsr-changes --apply --limit 5      # act on at most five tickets
-jira-openicpsr-changes --apply --reassess-after 14   # also re-report reports 14+ days old
-```
-
-Requires `JIRA_USERNAME`, `JIRA_API_KEY`, `ICPSR_EMAIL`, `ICPSR_PASS` and, for pipeline
-triggering, `P_BITBUCKET_PAT` plus `P_BITBUCKET_EMAIL`. `ICPSR_TOKEN` is used if set.
-
-### `jira-purge-query`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Checks whether one or more Jira issues are ready for purging based on their status history, including any linked revision issues. Issues that qualify but still have subtasks which are not Done are reported as `WARNING` (rather than `OK`): they count as ready for purge, but are listed in their own summary section rather than on the `READY:` line.
-
-Usage: `jira-purge-query aearep-NNNN [aearep-MMMM ...]`
-
-### `jira-status-manager`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Queries and updates Jira issue status and MC Recommendation fields. Can list available transitions and execute them by keyword or number.
-
-Usage: `jira-status-manager aearep-NNNN [action] [recommendation]`
-
-### `zenodo-metadata-editor`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Edits metadata of Zenodo deposits and adds related identifiers (e.g., linking a journal article DOI to a data and code package). Supports both the Zenodo sandbox and production environments.
-
-Usage: `zenodo-metadata-editor --deposit-id ID --article-doi DOI --replpkg-doi DOI [--production] [--publish]`
-
-## Standalone maintenance scripts
-
-These are **not** installed via `pip`. Run them directly with `python3` from a checkout
-of this repository.
-
-### `jira_workflow_cleanup.py`
-
-![Linux](https://img.shields.io/badge/-Linux-success) ![macOS](https://img.shields.io/badge/-macOS-success) ![Windows](https://img.shields.io/badge/-Windows-success)
-
-Archives and deletes **inactive** Jira Cloud workflows on the `aeadataeditors` site, which
-otherwise accumulate as dozens of dated backup/snapshot workflows that clutter the workflow
-admin and workflow-scheme pickers. Active workflows are never touched: every operation
-filters on Jira's own `isActive=false` flag, and Jira additionally refuses to delete any
-workflow that is active or still referenced by a workflow scheme (those are reported and
-skipped). The built-in system workflows (`jira`, `Builds Workflow`, `classic default
-workflow`) are always excluded.
-
-Three subcommands, escalating in risk:
-
-| Command | Effect |
-| --- | --- |
-| `list` | Read-only. Lists every workflow split into active / inactive, with scope. |
-| `archive` | Read-only against Jira. Writes the full JSON definition (statuses, transitions, layout) of every inactive workflow to `./workflow-archive/<timestamp>/`, plus a `_manifest.json`. |
-| `delete` | Re-archives first, re-verifies each target against a live `isActive=false` query, prints the list, then requires the operator to type `DELETE` (`--yes` skips the prompt). |
-
-```bash
-python3 jira_workflow_cleanup.py list
-python3 jira_workflow_cleanup.py archive
-python3 jira_workflow_cleanup.py delete            # prompts for confirmation
-python3 jira_workflow_cleanup.py delete --all-scopes   # also include team-managed workflows
-```
-
-`./workflow-archive/` is git-ignored; upload it wherever the definitions need to be kept
-(e.g. Box).
-
-**Authentication:** a scoped Atlassian API token with the *Workflow management* scopes
-(`read`/`write`/`delete` for `workflow`, `workflow-scheme`, `workflow.property`), used as
-Basic auth against the Atlassian gateway `https://api.atlassian.com/ex/jira/{cloudId}` (not
-the site URL — the classic `.../rest/api/3/workflow/search` endpoint rejects scoped
-tokens). By default the token is read from 1Password via the `op` CLI; set `JIRA_API_TOKEN`
-to supply it directly, or `OP_ITEM` / `OP_TOKEN_FIELD` to point at a different entry.
-
-## Note for neophytes
-
-All changes can be reverted using standard `git` commands, if necessary, and all commits prompt for confirmation before being executed. 
-
+## Documentation
+
+Per-script reference, cloud setup, and maintenance scripts are documented at
+<https://aeadataeditor.github.io/editor-scripts/>, built from [`docs/`](docs/)
+with [MyST](https://mystmd.org/).
