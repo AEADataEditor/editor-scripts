@@ -1,0 +1,65 @@
+# MyST v2 Configuration
+version: 1
+
+project:
+  title: AEA Data Editor Editor Scripts Documentation
+  description: Reference for the scripts that support the AEA Data Editor workflow
+  authors:
+    - name: AEA Data Editor Team
+  github: https://github.com/AEADataEditor/editor-scripts
+  license: CC-BY-4.0
+  exclude:
+    - superpowers/**
+  index: index.md
+  toc:
+    - file: index.md
+      title: Home
+    - file: installation/index.md
+      title: Installation
+    - file: tools/index.md
+      title: Tools
+      children:
+        - title: Report editing
+          children:
+            - file: tools/report/aeaready.md
+            - file: tools/report/aea-parse-tags.md
+            - file: tools/report/aeaclean.md
+            - file: tools/report/aearevision.md
+            - file: tools/report/aeamerge.md
+        - title: Repository
+          children:
+            - file: tools/repository/aeagit.md
+            - file: tools/repository/aeagit-create.md
+            - file: tools/repository/aeaopen.md
+        - title: Jira
+          children:
+            - file: tools/jira/jira-approval-manager.md
+            - file: tools/jira/jira-status-manager.md
+            - file: tools/jira/jira-purge-query.md
+            - file: tools/jira/jira-openicpsr-changes.md
+            - file: tools/jira/jira-reason-sync.md
+        - title: Box
+          children:
+            - file: tools/box/aea-box-clean-folders.md
+            - file: tools/box/aea-box-recover-files.md
+        - title: Zenodo
+          children:
+            - file: tools/zenodo/zenodo-metadata-editor.md
+        - title: Convenience
+          children:
+            - file: tools/convenience/icpsrsearch.md
+            - file: tools/convenience/system-info.md
+            - file: tools/convenience/stata.md
+    - file: automations/index.md
+      title: Automations
+    - file: maintenance/index.md
+      title: Maintenance
+      children:
+        - file: maintenance/jira_workflow_cleanup.md
+
+site:
+  template: book-theme
+  title: AEA Editor Scripts
+  options:
+    logo_text: AEA Data Editor
+    folders: true
