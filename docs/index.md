@@ -10,12 +10,10 @@ They are tightly integrated with that workflow and of limited independent value.
 
 - **[Installation](installation/index.md)** — how to install the bash and Python
   scripts, and how to configure authentication in the cloud.
-- **[Tools](tools/index.md)** — scripts run interactively during editing and
-  sign-off.
-- **[Automations](automations/index.md)** — the bootstrap installer and notes on
-  running scripts from CI.
-- **[Maintenance](maintenance/index.md)** — standalone administrative scripts
-  run from a checkout of this repository.
+- **[Python commands](python-commands/index.md)** — tools installed as
+  command-line programs by `pip install`.
+- **[Scripts](scripts/index.md)** — bash scripts placed on `PATH` by the bash
+  installer, plus `jira_workflow_cleanup.py`, run from a checkout.
 
 ## Requirements
 

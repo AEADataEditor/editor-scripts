@@ -16,46 +16,32 @@ project:
       title: Home
     - file: installation/index.md
       title: Installation
-    - file: tools/index.md
-      title: Tools
+    - file: python-commands/index.md
+      title: Python commands
       children:
-        - title: Report editing
-          children:
-            - file: tools/report/aeaready.md
-            - file: tools/report/aea-parse-tags.md
-            - file: tools/report/aeaclean.md
-            - file: tools/report/aearevision.md
-            - file: tools/report/aeamerge.md
-        - title: Repository
-          children:
-            - file: tools/repository/aeagit.md
-            - file: tools/repository/aeagit-create.md
-            - file: tools/repository/aeaopen.md
-        - title: Jira
-          children:
-            - file: tools/jira/jira-approval-manager.md
-            - file: tools/jira/jira-status-manager.md
-            - file: tools/jira/jira-purge-query.md
-            - file: tools/jira/jira-openicpsr-changes.md
-            - file: tools/jira/jira-reason-sync.md
-        - title: Box
-          children:
-            - file: tools/box/aea-box-clean-folders.md
-            - file: tools/box/aea-box-recover-files.md
-        - title: Zenodo
-          children:
-            - file: tools/zenodo/zenodo-metadata-editor.md
-        - title: Convenience
-          children:
-            - file: tools/convenience/icpsrsearch.md
-            - file: tools/convenience/system-info.md
-            - file: tools/convenience/stata.md
-    - file: automations/index.md
-      title: Automations
-    - file: maintenance/index.md
-      title: Maintenance
+        - file: python-commands/aea-box-clean-folders.md
+        - file: python-commands/aea-box-recover-files.md
+        - file: python-commands/aea-parse-tags.md
+        - file: python-commands/aeagit.md
+        - file: python-commands/aeagit-create.md
+        - file: python-commands/jira-approval-manager.md
+        - file: python-commands/jira-openicpsr-changes.md
+        - file: python-commands/jira-purge-query.md
+        - file: python-commands/jira-reason-sync.md
+        - file: python-commands/jira-status-manager.md
+        - file: python-commands/zenodo-metadata-editor.md
+    - file: scripts/index.md
+      title: Scripts
       children:
-        - file: maintenance/jira_workflow_cleanup.md
+        - file: scripts/aeaclean.md
+        - file: scripts/aeamerge.md
+        - file: scripts/aeaopen.md
+        - file: scripts/aeaready.md
+        - file: scripts/aearevision.md
+        - file: scripts/icpsrsearch.md
+        - file: scripts/jira_workflow_cleanup.md
+        - file: scripts/stata.md
+        - file: scripts/system-info.md
 
 site:
   template: book-theme
