@@ -27,6 +27,9 @@ Usage:
     # Test mode (dry run - no modifications)
     python3 box_clean_folders.py --test
 
+    # Also post a restricted-data deletion notice to Jira and email dataeditor@aeapubs.org
+    python3 box_clean_folders.py --all --email
+
 Environment Variables Required:
     Box Authentication:
         BOX_FOLDER_PRIVATE - Root Box folder ID
@@ -35,9 +38,17 @@ Environment Variables Required:
         BOX_CONFIG_PATH - Directory containing config JSON file
         BOX_PRIVATE_JSON - Base64 encoded config (alternative to config file)
 
-    Jira Authentication (for jira_purge_query.py):
+    Jira Authentication (for jira_purge_query.py, and for --email):
         JIRA_USERNAME - Your Jira email address
         JIRA_API_KEY - API token
+        JIRA_SERVER - Jira server URL (optional, default: https://aeadataeditors.atlassian.net)
+
+    Restricted-data deletion notice (--email), optional:
+        DATAEDITOR_EMAIL_PASSWORD - Password for dataeditor@aeapubs.org, used if the
+            1Password CLI ('op') is unavailable or has no session (e.g. when running remotely).
+            Otherwise read from the 1Password item "Email for AEA Dataeditor" (field "password").
+        DATAEDITOR_SMTP_HOST - SMTP host (default: mail.aeapubs.org)
+        DATAEDITOR_SMTP_PORT - SMTP port (default: 587)
 """
 
 import os
@@ -72,8 +83,32 @@ except ImportError:
     print("Error: shutil not available (should be in standard library)")
     sys.exit(1)
 
+import smtplib
+from email.mime.text import MIMEText
+
+try:
+    from jira import JIRA
+    from jira.exceptions import JIRAError
+except ImportError:
+    print("Error: jira not installed. Install with: pip install jira")
+    sys.exit(1)
+
+from aea_editor_scripts.jira_purge_query import get_revised_by_links
+
 # Configuration
 JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
+JIRA_SERVER = os.environ.get('JIRA_SERVER', 'https://aeadataeditors.atlassian.net')
+
+# Restricted-data deletion notice (--email / -e)
+RESTRICTED_SUBTASK_TYPE = 'Request confidential data'
+WAS_DATA_DELETED_FIELD = 'Was data deleted?'
+MANUSCRIPT_FIELD = 'Manuscript Central identifier'
+
+DATAEDITOR_EMAIL = 'dataeditor@aeapubs.org'
+SMTP_HOST = os.environ.get('DATAEDITOR_SMTP_HOST', 'mail.aeapubs.org')
+SMTP_PORT = int(os.environ.get('DATAEDITOR_SMTP_PORT', '587'))
+OP_ITEM_EMAIL = os.environ.get('OP_ITEM_EMAIL', 'Email for AEA Dataeditor')
+OP_EMAIL_PASSWORD_FIELD = os.environ.get('OP_EMAIL_PASSWORD_FIELD', 'password')
 
 # File extensions for classification
 DATA_FILE_EXTENSIONS = {
@@ -115,6 +150,8 @@ class BoxCleanup:
         self.skip_jira = skip_jira
         self.client = None
         self.root_folder_id = None
+        self.notify_deletion = False
+        self._notify_jira_client = None
         self.stats = {
             'folders_found': 0,
             'folders_checked': 0,
@@ -553,9 +590,172 @@ class BoxCleanup:
             print(f"  ✓ Deleted {deleted}/{len(data_files)} data files ({self._format_size(total_size)})")
         else:
             self.logger.info(f"  No data files to delete")
-        
+
+        if self.notify_deletion:
+            self.notify_restricted_data_deletion(case_number, folder_name)
+
         return True
-    
+
+    def _connect_jira_for_notify(self) -> JIRA:
+        """Authenticate to Jira for the restricted-data deletion notice (--email)."""
+        if self._notify_jira_client:
+            return self._notify_jira_client
+
+        jira_username = os.environ.get('JIRA_USERNAME')
+        jira_api_key = os.environ.get('JIRA_API_KEY')
+        if not jira_username or not jira_api_key:
+            self.logger.error("JIRA_USERNAME and JIRA_API_KEY environment variables required for --email")
+            sys.exit(1)
+
+        try:
+            self._notify_jira_client = JIRA(
+                server=JIRA_SERVER,
+                basic_auth=(jira_username, jira_api_key),
+                options={'verify': True}
+            )
+            return self._notify_jira_client
+        except JIRAError as e:
+            self.logger.error(f"Failed to authenticate to Jira for --email: {e}")
+            sys.exit(1)
+
+    def _find_last_revision_issue(self, jira, issue_key: str, _visited: Optional[Set[str]] = None) -> str:
+        """Walk the 'is revised by' link chain to the last (most recent) issue."""
+        if _visited is None:
+            _visited = set()
+        if issue_key in _visited:
+            return issue_key
+        _visited.add(issue_key)
+
+        try:
+            issue = jira.issue(issue_key)
+        except JIRAError:
+            return issue_key
+
+        revised_by_issues, _ = get_revised_by_links(issue)
+        if not revised_by_issues:
+            return issue_key
+
+        return self._find_last_revision_issue(jira, revised_by_issues[-1], _visited)
+
+    def _find_restricted_subtask(self, jira, issue_key: str):
+        """Find the most recently updated 'Request confidential data' subtask of issue_key, if any."""
+        jql = f'parent = "{issue_key}" AND issuetype = "{RESTRICTED_SUBTASK_TYPE}" ORDER BY updated DESC'
+        results = jira.search_issues(jql, maxResults=1)
+        return results[0] if results else None
+
+    def _get_email_password(self) -> Optional[str]:
+        """Get the dataeditor@aeapubs.org mailbox password from 1Password, falling back to an env var."""
+        if shutil.which('op'):
+            try:
+                result = subprocess.run(
+                    ['op', 'item', 'get', OP_ITEM_EMAIL, '--fields', f'label={OP_EMAIL_PASSWORD_FIELD}', '--reveal'],
+                    capture_output=True, text=True, timeout=15, check=True,
+                )
+                password = result.stdout.strip()
+                if password:
+                    return password
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                self.logger.debug(f"Could not read email password from 1Password: {e}")
+
+        return os.environ.get('DATAEDITOR_EMAIL_PASSWORD')
+
+    @staticmethod
+    def _build_internal_comment(case_number: str, folder_name: str) -> str:
+        return (
+            f"Box data for {folder_name} has been deleted as part of routine cleanup.\n\n"
+            f"Please also delete any offline/local copies of this data you may have.\n\n"
+            f"To undelete within the next 30 days, run:\n"
+            f"  aea-box-recover-files --case {case_number} --days 30"
+        )
+
+    @staticmethod
+    def _build_deletion_email(subtask_key: str, manuscript_number: str) -> Tuple[str, str]:
+        subject = f"Confirmation of Restricted Data Deletion ({subtask_key} / {manuscript_number})"
+        body = (
+            f'[EDITOR\'S NOTE: Forward this email to the author of {manuscript_number}, replacing '
+            f'"Dr. Author" and "[Manuscript Title]" below with the actual name and title. '
+            f'Delete this note before sending.]\n\n'
+            f"Dear Dr. Author,\n\n"
+            f'This email is to confirm that we have deleted the restricted access data for '
+            f'"[Manuscript Title]" from our workspaces. Your deposit is being moved along in the '
+            f"publication process.\n\n"
+            f"Best,\n"
+            f"AEA Data Editor"
+        )
+        return subject, body
+
+    def _send_deletion_email(self, subject: str, body: str) -> bool:
+        """Send the deletion-confirmation email to dataeditor@aeapubs.org for manual forwarding."""
+        password = self._get_email_password()
+        if not password:
+            self.logger.error(
+                "Could not obtain dataeditor@aeapubs.org mailbox password (1Password 'op' unavailable "
+                "and DATAEDITOR_EMAIL_PASSWORD not set) - skipping email send"
+            )
+            return False
+
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From'] = DATAEDITOR_EMAIL
+        msg['To'] = DATAEDITOR_EMAIL
+
+        try:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
+                smtp.starttls()
+                smtp.login(DATAEDITOR_EMAIL, password)
+                smtp.send_message(msg)
+            return True
+        except (smtplib.SMTPException, OSError) as e:
+            self.logger.error(f"Failed to send deletion-confirmation email: {e}")
+            return False
+
+    def notify_restricted_data_deletion(self, case_number: str, folder_name: str):
+        """
+        Post an internal Jira deletion notice and send an author-facing confirmation email,
+        for cases that requested restricted-access data. No-op if no such subtask is found.
+        """
+        jira = self._connect_jira_for_notify()
+        case_key = f"aearep-{case_number}"
+
+        last_issue_key = self._find_last_revision_issue(jira, case_key)
+        subtask = self._find_restricted_subtask(jira, last_issue_key)
+
+        if not subtask:
+            self.logger.debug(f"No '{RESTRICTED_SUBTASK_TYPE}' subtask found for {last_issue_key} - skipping deletion notice")
+            return
+
+        last_issue = jira.issue(last_issue_key)
+        field_map = {f['name']: f['id'] for f in jira.fields()}
+        manuscript_number = getattr(last_issue.fields, field_map.get(MANUSCRIPT_FIELD, ''), None) or last_issue_key
+
+        comment = self._build_internal_comment(case_number, folder_name)
+        subject, body = self._build_deletion_email(subtask.key, manuscript_number)
+
+        if self.test_mode:
+            self.logger.info(f"  [DRY RUN] Would comment on {last_issue_key} and {subtask.key}:")
+            self.logger.info(f"    {comment}")
+            self.logger.info(f"  [DRY RUN] Would set '{WAS_DATA_DELETED_FIELD}' = Yes on {last_issue_key}")
+            self.logger.info(f"  [DRY RUN] Would email '{subject}' to {DATAEDITOR_EMAIL}")
+            return
+
+        try:
+            jira.add_comment(last_issue_key, comment)
+            jira.add_comment(subtask.key, comment)
+
+            field_id = field_map.get(WAS_DATA_DELETED_FIELD)
+            if field_id:
+                last_issue.update(fields={field_id: {'value': 'Yes'}})
+            else:
+                self.logger.warning(f"Jira field '{WAS_DATA_DELETED_FIELD}' not found - could not set it")
+        except JIRAError as e:
+            self.logger.error(f"Failed to post deletion notice to Jira: {e}")
+            self.stats['errors'] += 1
+
+        if self._send_deletion_email(subject, body):
+            print(f"  ✓ Sent deletion-confirmation email to {DATAEDITOR_EMAIL} (forward to author)")
+        else:
+            self.stats['errors'] += 1
+
     def list_cases(self, specific_case: Optional[str] = None):
         """
         List all cases and their Jira status without making any changes.
@@ -593,14 +793,19 @@ class BoxCleanup:
         print(f"Summary: {ready_count}/{len(case_folders)} case(s) ready for purge")
         print(f"{'='*60}")
     
-    def run(self, specific_case: Optional[str] = None, auto_confirm: bool = False):
+    def run(self, specific_case: Optional[str] = None, auto_confirm: bool = False,
+            notify_email: bool = False):
         """
         Main execution method.
-        
+
         Args:
             specific_case: If provided, only process this case number
             auto_confirm: If True, skip confirmation prompt
+            notify_email: If True, post the restricted-data deletion notice to Jira and
+                email dataeditor@aeapubs.org for eligible cases, without prompting
         """
+        self.notify_deletion = notify_email
+
         # Authenticate
         self.authenticate_box()
         
@@ -629,7 +834,14 @@ class BoxCleanup:
             if response.lower() not in ['y', 'yes']:
                 self.logger.info("Cancelled by user")
                 return
-        
+
+            if not notify_email:
+                notify_response = input(
+                    "Also notify author of restricted-data deletion (Jira comment + email) "
+                    "for eligible cases? [y/N]: "
+                )
+                self.notify_deletion = notify_response.lower() in ['y', 'yes']
+
         # Get or create 1Completed folder
         completed_folder_id = self.get_or_create_completed_folder()
         
@@ -712,6 +924,9 @@ Examples:
   # Test mode (dry run - no modifications)
   %(prog)s --test
 
+  # Also post a restricted-data deletion notice to Jira and email dataeditor@aeapubs.org
+  %(prog)s --all --email
+
 Environment Variables Required:
   Box Authentication:
     BOX_FOLDER_PRIVATE - Root Box folder ID
@@ -720,9 +935,15 @@ Environment Variables Required:
     BOX_CONFIG_PATH - Directory containing config JSON file
     (or BOX_PRIVATE_JSON - Base64 encoded config)
 
-  Jira Authentication:
+  Jira Authentication (also used by --email):
     JIRA_USERNAME - Your Jira email address
     JIRA_API_KEY - API token
+    JIRA_SERVER - optional, default: https://aeadataeditors.atlassian.net
+
+  Restricted-data deletion notice (--email), optional:
+    DATAEDITOR_EMAIL_PASSWORD - fallback if 1Password CLI ('op') is unavailable
+    DATAEDITOR_SMTP_HOST - default: mail.aeapubs.org
+    DATAEDITOR_SMTP_PORT - default: 587
 """
     )
 
@@ -772,6 +993,14 @@ Environment Variables Required:
         help='Skip Jira status checks (process all folders found) - for testing only'
     )
 
+    parser.add_argument(
+        '--email', '-e',
+        action='store_true',
+        help="For eligible cases (restricted-access data requested), post a deletion notice "
+             "to Jira and email dataeditor@aeapubs.org for forwarding to the author. "
+             "Without this flag, you'll be prompted interactively instead."
+    )
+
     args = parser.parse_args()
 
     # Resolve which case(s) to process
@@ -806,7 +1035,7 @@ Environment Variables Required:
             cleanup.list_cases(specific_case=specific_case)
             return
 
-        cleanup.run(specific_case=specific_case, auto_confirm=args.yes)
+        cleanup.run(specific_case=specific_case, auto_confirm=args.yes, notify_email=args.email)
     except KeyboardInterrupt:
         cleanup.logger.info("\n\nInterrupted by user")
         cleanup._print_summary()
