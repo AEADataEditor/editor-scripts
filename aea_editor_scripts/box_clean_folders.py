@@ -709,6 +709,19 @@ class BoxCleanup:
             self.logger.error(f"Failed to send deletion-confirmation email: {e}")
             return False
 
+    @staticmethod
+    def _print_email_fallback(subject: str, body: str):
+        """Print the deletion-confirmation email so it can be copied into a mail client by hand."""
+        print(f"\n{'='*60}")
+        print("Could not send the deletion-confirmation email automatically.")
+        print(f"Copy the text below into an email from {DATAEDITOR_EMAIL}:")
+        print(f"{'='*60}")
+        print(f"To: {DATAEDITOR_EMAIL}")
+        print(f"Subject: {subject}")
+        print()
+        print(body)
+        print(f"{'='*60}\n")
+
     def notify_restricted_data_deletion(self, case_number: str, folder_name: str):
         """
         Post an internal Jira deletion notice and send an author-facing confirmation email,
@@ -755,6 +768,7 @@ class BoxCleanup:
             print(f"  ✓ Sent deletion-confirmation email to {DATAEDITOR_EMAIL} (forward to author)")
         else:
             self.stats['errors'] += 1
+            self._print_email_fallback(subject, body)
 
     def list_cases(self, specific_case: Optional[str] = None):
         """

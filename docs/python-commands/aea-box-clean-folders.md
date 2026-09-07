@@ -36,7 +36,9 @@ can additionally:
    with the subtask key and manuscript number in the subject line. The email
    includes an editor's note asking the recipient to fill in the author's name
    and the manuscript title and forward it — the author's own address isn't
-   available in Jira, so this can't be sent directly.
+   available in Jira, so this can't be sent directly. If sending fails (e.g. no
+   mailbox password available), the email's To/Subject/body are printed to the
+   console instead, to copy into a mail client by hand.
 
 Cases with no such subtask are skipped silently — there's nothing to notify.
 
