@@ -515,8 +515,8 @@ def _pipeline_note(assessment, triggered, detail):
     if not assessment.resubmitted:
         return (
             "File content changed, but the deposit has not been re-submitted "
-            "(workflow is not SUBMITTED), so the author appears to still be "
-            "working. No re-ingest was started."
+            "(workflow is not SUBMITTED or PUBLISHED), so the author appears to "
+            "still be working. No re-ingest was started."
         )
     if triggered:
         return f"File content changed and the deposit was re-submitted. {detail}"

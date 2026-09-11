@@ -27,7 +27,7 @@ passive.
 
 | Situation | Action |
 | --- | --- |
-| Author re-submitted after our request | Comment and transition, even with no file changes. Re-ingest if content also changed. |
+| Author re-submitted after our request, or the deposit was later published | Comment and transition, even with no file changes. Re-ingest if content also changed. |
 | File content changed, no re-submission | Comment and transition; no re-ingest (author is probably still working). |
 | Metadata or communication only | Acted on only after 14 days have passed since our revision request; silent before that. |
 | Passive or unrecognised activity only | Nothing. |

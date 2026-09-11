@@ -15,6 +15,10 @@ Two subtleties worth keeping in mind:
 * The passive bucket is load-bearing. Our own runs of the openICPSR downloader
   appear as ``file_download`` / ``file_get_binary``; counting them would flag
   tickets where the author did nothing at all.
+* PUBLISHED is reached by AEA staff manually publishing a SUBMITTED deposit
+  (observed on AEAREP-8094, 2026-09-10), not by the author. It counts the same
+  as SUBMITTED for ``resubmitted``: further into the workflow, not a different
+  outcome.
 """
 
 import re
@@ -85,6 +89,14 @@ def bucket_of(event):
 
 SUBMITTED = "SUBMITTED"
 REVISION_REQUESTED = "REVISION REQUESTED"
+PUBLISHED = "PUBLISHED"
+
+# States that mean the deposit reached (or passed) SUBMITTED, as opposed to
+# still sitting in DEPOSIT IN PROGRESS or REVISION REQUESTED. PUBLISHED is
+# reached by AEA staff manually publishing after SUBMITTED, so it is further
+# along the workflow than SUBMITTED, not a different outcome -- an author's
+# deposit that has been published obviously does not need to be re-submitted.
+SUBMITTED_OR_LATER = frozenset({SUBMITTED, PUBLISHED})
 
 # "Changed the workflow status from DEPOSIT IN PROGRESS to SUBMITTED"
 # "Changed the workflow status from SUBMITTED to REVISION REQUESTED with the following note: ..."
@@ -149,10 +161,11 @@ class Assessment:
     counts: dict
     kinds: dict
     unknown_kinds: dict
-    #: The deposit ended up SUBMITTED after the baseline. Because the baseline is
-    #: our last revision request, this is the strong signal that the author
-    #: responded -- and it catches REVISION REQUESTED -> DEPOSIT IN PROGRESS ->
-    #: SUBMITTED, which checking for a direct edge would miss.
+    #: The deposit ended up SUBMITTED (or later, e.g. PUBLISHED) after the
+    #: baseline. Because the baseline is our last revision request, this is the
+    #: strong signal that the author responded -- and it catches REVISION
+    #: REQUESTED -> DEPOSIT IN PROGRESS -> SUBMITTED, which checking for a
+    #: direct edge would miss.
     resubmitted: bool
     last_workflow: WorkflowChange | None
     changed: bool
@@ -182,7 +195,7 @@ def assess(events):
         counts=dict(counts),
         kinds=dict(kinds),
         unknown_kinds=dict(unknown_kinds),
-        resubmitted=bool(last and last.to_state == SUBMITTED),
+        resubmitted=bool(last and last.to_state in SUBMITTED_OR_LATER),
         last_workflow=last,
         changed=any(counts.get(bucket, 0) for bucket in CHANGE_BUCKETS),
         content_changed=counts.get(CONTENT, 0) > 0,

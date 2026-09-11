@@ -273,6 +273,21 @@ def test_resubmission_false_without_workflow_events():
     assert C.assess([ev(activity="upload_file")]).resubmitted is False
 
 
+def test_resubmission_true_when_published():
+    # AEAREP-8094: AEA staff published the deposit after SUBMITTED. Reaching
+    # PUBLISHED is further along than SUBMITTED, not a different outcome, so it
+    # must count as resubmitted -- otherwise a published deposit is wrongly
+    # reported as "the author appears to still be working".
+    a = C.assess([_wf(10, "PUBLISHED", frm="SUBMITTED", user="jenna@aeapubs.org")])
+    assert a.resubmitted is True
+
+
+def test_resubmission_true_when_published_via_deposit_in_progress():
+    a = C.assess([_wf(10, "SUBMITTED", frm="REVISION REQUESTED"),
+                  _wf(20, "PUBLISHED", frm="SUBMITTED", user="jenna@aeapubs.org")])
+    assert a.resubmitted is True
+
+
 # --- kinds found in the full August 2026 sweep --------------------------------
 
 def _renamed(message='Renamed file from "README.pdf" to "readme.pdf" successfully'):
