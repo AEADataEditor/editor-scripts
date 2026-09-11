@@ -2,8 +2,9 @@
 import datetime
 import json
 import pathlib
+from unittest.mock import patch
 
-from aea_editor_scripts.openicpsr_activity import ActivityLog, Event
+from aea_editor_scripts.openicpsr_activity import DEPOSIT_URL, OPENICPSR_URL, ActivityLog, Event, login
 
 FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "viewactivity_small.json"
 
@@ -47,3 +48,27 @@ def test_missing_fields_default_to_empty_string():
 def test_events_sorted_newest_first():
     times = [e.time for e in load().events]
     assert times == sorted(times, reverse=True)
+
+
+# --- login() starts on deposit.icpsr.umich.edu, not www.openicpsr.org -------
+#
+# As of 2026-09, www.openicpsr.org permanently redirects everything (including
+# the OAuth callback a login started there would use) to an
+# "openicpsr-has-moved" notice page, so a login started from OPENICPSR_URL
+# never lands its session cookie on deposit.icpsr.umich.edu -- the host
+# viewActivity is actually served from. Regression test for that.
+
+def test_login_authenticates_against_deposit_url_not_openicpsr_url():
+    login_page = '<form action="https://login.icpsr.umich.edu/authenticate">'
+    with patch("aea_editor_scripts.openicpsr_activity.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value.text = login_page
+        session.get.return_value.raise_for_status.return_value = None
+        session.post.return_value.raise_for_status.return_value = None
+
+        result = login(email="a@b.com", password="pw")
+
+        assert result is session
+        get_urls = [call.args[0] for call in session.get.call_args_list]
+        assert all(not url.startswith(OPENICPSR_URL) for url in get_urls)
+        assert any(url.startswith(DEPOSIT_URL) for url in get_urls)

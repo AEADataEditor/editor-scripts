@@ -93,8 +93,15 @@ def login(email=None, password=None, token=None):
 
     The OAuth form flow is taken from
     replication-template-development/tools/download_openicpsr-private.py
-    (Kacper Kowalik, Lars Vilhuber): fetch the app, fetch the login page, scrape
-    the form's action URL, then post the credentials.
+    (Kacper Kowalik, Lars Vilhuber): fetch the login page, scrape the form's
+    action URL, then post the credentials.
+
+    The flow starts at DEPOSIT_URL, not OPENICPSR_URL: as of 2026-09,
+    www.openicpsr.org permanently redirects everything (including the OAuth
+    callback a login there would use) to an "openicpsr-has-moved" notice page,
+    so a login started from OPENICPSR_URL never lands its session cookie on
+    deposit.icpsr.umich.edu -- the host viewActivity is actually served from.
+    Starting at DEPOSIT_URL keeps the whole OAuth round-trip on that host.
     """
     email = email or os.environ.get("ICPSR_EMAIL")
     password = password or os.environ.get("ICPSR_PASS")
@@ -113,9 +120,8 @@ def login(email=None, password=None, token=None):
 
     session = requests.Session()
     session.headers.update(headers)
-    session.get(OPENICPSR_URL).raise_for_status()
 
-    login_page = session.get(f"{OPENICPSR_URL}/login", allow_redirects=True)
+    login_page = session.get(f"{DEPOSIT_URL}/login", allow_redirects=True)
     login_page.raise_for_status()
     actions = re.findall(r'action="([^"]*)"', login_page.text)
     if not actions:
