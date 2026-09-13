@@ -15,6 +15,14 @@ the `w-big-populate-from-icpsr` Bitbucket pipeline is triggered to re-ingest it.
 **Nothing is written unless you pass `--apply`.** The status usually holds well
 over a hundred tickets, so bound the first real run with `--limit`.
 
+A ticket given directly by key may be an original that was since revised -- a
+separate "is revised by" ticket -- and so never itself entered *Pending
+openICPSR changes*, even though its revision did. In that case the revision
+chain is followed to the latest revision and that ticket is used instead; the
+report names both (`Resolved: AEAREP-3577 never entered ... using its revision
+AEAREP-3824`). The normal unattended run over every ticket currently in the
+status is unaffected -- it already finds the revision directly.
+
 ## Baseline
 
 Activity is measured from the last time the deposit was sent back for revision

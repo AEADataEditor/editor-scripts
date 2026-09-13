@@ -60,7 +60,7 @@ import logging
 import subprocess
 import re
 from datetime import datetime
-from typing import List, Tuple, Optional, Dict, Set
+from typing import List, Tuple, Optional, Dict
 
 try:
     from boxsdk import Client
@@ -93,7 +93,7 @@ except ImportError:
     print("Error: jira not installed. Install with: pip install jira")
     sys.exit(1)
 
-from aea_editor_scripts.jira_purge_query import get_revised_by_links
+from aea_editor_scripts.jira_purge_query import find_last_revision
 
 # Configuration
 JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
@@ -618,24 +618,9 @@ class BoxCleanup:
             self.logger.error(f"Failed to authenticate to Jira for --email: {e}")
             sys.exit(1)
 
-    def _find_last_revision_issue(self, jira, issue_key: str, _visited: Optional[Set[str]] = None) -> str:
+    def _find_last_revision_issue(self, jira, issue_key: str) -> str:
         """Walk the 'is revised by' link chain to the last (most recent) issue."""
-        if _visited is None:
-            _visited = set()
-        if issue_key in _visited:
-            return issue_key
-        _visited.add(issue_key)
-
-        try:
-            issue = jira.issue(issue_key)
-        except JIRAError:
-            return issue_key
-
-        revised_by_issues, _ = get_revised_by_links(issue)
-        if not revised_by_issues:
-            return issue_key
-
-        return self._find_last_revision_issue(jira, revised_by_issues[-1], _visited)
+        return find_last_revision(jira, issue_key)
 
     def _find_restricted_subtask(self, jira, issue_key: str):
         """Find the most recently updated 'Request confidential data' subtask of issue_key, if any."""

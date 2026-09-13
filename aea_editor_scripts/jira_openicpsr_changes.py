@@ -32,6 +32,7 @@ from aea_editor_scripts import bitbucket_pipelines as pipelines
 from aea_editor_scripts import console
 from aea_editor_scripts import openicpsr_classify as classify
 from aea_editor_scripts.aeagit_create import workspace
+from aea_editor_scripts.jira_purge_query import find_last_revision
 from aea_editor_scripts.openicpsr_activity import OPENICPSR_URL, fetch_activity, login
 
 JIRA_URL = "https://aeadataeditors.atlassian.net"
@@ -261,6 +262,9 @@ class Result:
     #: False only for the "acted, but no transition was made" case -- the
     #: ticket had already moved past TARGET_STATUS on its own.
     transitioned: bool = True
+    #: Set when `key` is a revision resolved from an originally-given ticket
+    #: that never itself entered PENDING_STATUS (see process_issue).
+    resolved_from: str = ""
 
     @property
     def exceptions(self):
@@ -546,20 +550,41 @@ def _pipeline_note(assessment, triggered, detail):
 
 def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth,
                   reassess_after=None, refresh_timeout=None, refresh_max_age=None):
-    """Assess one ticket and, when applying, act on it."""
-    key = issue.key
-    pid = deposit_number(issue, field_map)
-    if not pid:
-        return Result(key, "skipped", f"no {DEPOSIT_FIELD}")
+    """Assess one ticket and, when applying, act on it.
 
+    A ticket looked up directly by key may be an original that was since
+    revised -- a separate "is revised by" ticket -- and never itself entered
+    PENDING_STATUS, even though the revision did. Follow the chain to the
+    latest revision in that case, the same way box_clean_folders resolves "the
+    last associated issue", rather than reporting a false "never entered" skip.
+    """
+    key = issue.key
+    resolved_from = ""
     cutoff = entered_status(issue, PENDING_STATUS)
     if not cutoff:
-        return Result(key, "skipped", f"never entered {PENDING_STATUS}", pid=pid)
+        last_key = find_last_revision(jira, key)
+        if last_key != key:
+            try:
+                revision = jira.issue(last_key, expand='changelog')
+            except Exception:
+                revision = None
+            if revision is not None and entered_status(revision, PENDING_STATUS):
+                resolved_from, issue, key = key, revision, revision.key
+                cutoff = entered_status(issue, PENDING_STATUS)
+
+    pid = deposit_number(issue, field_map)
+    if not pid:
+        return Result(key, "skipped", f"no {DEPOSIT_FIELD}", resolved_from=resolved_from)
+
+    if not cutoff:
+        return Result(key, "skipped", f"never entered {PENDING_STATUS}", pid=pid,
+                      resolved_from=resolved_from)
 
     try:
         log = fetch_activity(session, pid)
     except Exception as exc:
-        return Result(key, "failed", f"openICPSR fetch failed: {exc}", pid=pid)
+        return Result(key, "failed", f"openICPSR fetch failed: {exc}", pid=pid,
+                      resolved_from=resolved_from)
 
     baseline, baseline_source = resolve_baseline(log, cutoff)
     after = [e for e in log.events if e.time > baseline]
@@ -571,7 +596,7 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
         pid=pid, counts=assessment.counts, unknown_kinds=assessment.unknown_kinds,
         resubmitted=assessment.resubmitted, content_changed=assessment.content_changed,
         baseline=baseline.isoformat(), baseline_source=baseline_source,
-        days_since_baseline=days, truncated=log.truncated,
+        days_since_baseline=days, truncated=log.truncated, resolved_from=resolved_from,
     )
 
     if not act:
@@ -703,6 +728,9 @@ def _describe(result, verbose, show_url=False, header_printed=False):
     else:
         lines = [f"{_lead(result.key, result.pid)}  ==>  {_verdict(result)}"]
 
+    if result.resolved_from:
+        lines.append(console.field("Resolved", f"{result.resolved_from} never entered "
+                                    f"{PENDING_STATUS}; using its revision {result.key}"))
     if result.counts or result.pid:
         lines.append(console.field("Changes", _changes(result)))
     baseline = _baseline(result)

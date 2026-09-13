@@ -189,6 +189,33 @@ def get_revised_by_links(issue, very_verbose=False, indent=""):
     return revised_by_issues, wrong_relates_links
 
 
+def find_last_revision(jira, issue_key, _visited=None):
+    """Walk the "is revised by" link chain to the last (most recent) issue.
+
+    An original ticket that was later revised keeps its own history (statuses,
+    comments) unchanged; the revision is what is actually current. Callers that
+    care about "the issue as it stands today" -- not the one a user happened to
+    give -- should resolve through this first. Returns issue_key unchanged when
+    there is no revision chain, or fetching an issue in it fails.
+    """
+    if _visited is None:
+        _visited = set()
+    if issue_key in _visited:
+        return issue_key
+    _visited.add(issue_key)
+
+    try:
+        issue = jira.issue(issue_key)
+    except JIRAError:
+        return issue_key
+
+    revised_by_issues, _ = get_revised_by_links(issue)
+    if not revised_by_issues:
+        return issue_key
+
+    return find_last_revision(jira, revised_by_issues[-1], _visited)
+
+
 def get_open_subtasks(issue):
     """
     Get all subtasks of an issue that are not in the "Done" status category.
