@@ -548,6 +548,15 @@ def test_content_changed_without_resubmission_explains_the_lack_of_a_pipeline():
     assert "not re-submitted" in "\n".join(lines)
 
 
+def test_a_resolved_revision_names_the_original_ticket():
+    # AEAREP-3577 never entered PENDING_STATUS itself; AEAREP-3824, its
+    # revision, did -- and is what block()'s key/pid describe here.
+    lines = block(key="AEAREP-3824", resolved_from="AEAREP-3577")
+    text = _unwrapped(lines)
+    assert f"AEAREP-3577 never entered {J.PENDING_STATUS}" in text
+    assert "using its revision AEAREP-3824" in text
+
+
 def test_the_lead_line_is_printed_before_the_work_starts():
     assert J._lead("AEAREP-1", "251458") == "AEAREP-1  openICPSR 251458"
 
