@@ -47,6 +47,14 @@ cap, or which could not be assessed; `--json` feeds this into a scheduled report
 
 ## Re-ingest
 
+Before anything else, Bitbucket Pipelines is confirmed enabled on the
+repository (`PUT .../pipelines_config`) -- a repository-level on/off switch,
+separate from `bitbucket-pipelines.yml`, that stays off until Pipelines has
+run there at least once. A repository that has never had a pipeline run 404s
+on a trigger no matter how correct its `bitbucket-pipelines.yml` is; enabling
+it is a one-time, idempotent fix, so it is just always confirmed rather than
+detected-and-retried.
+
 The `refresh-tools` pipeline updates the in-repository tooling the other
 pipelines call, so a re-ingest is preceded by a `refresh-tools` run unless the
 repository had a successful one within `--refresh-max-age` (14 days). Only the
@@ -54,9 +62,10 @@ age of the last good refresh counts. The pipeline is looked up by name in the
 repository's `bitbucket-pipelines.yml`, so a non-standard number still works.
 Bitbucket cannot chain pipelines, so the refresh is polled to completion (every
 30s, up to `--refresh-timeout`, default 900s) before the re-ingest starts. If
-the refresh fails, times out, is absent, or another pipeline is already running,
-the ticket is still commented on and transitioned but **no re-ingest starts** —
-the comment says so and the ticket is listed under *Exceptions*.
+Pipelines cannot be confirmed enabled, the refresh fails, times out, is absent,
+or another pipeline is already running, the ticket is still commented on and
+transitioned but **no re-ingest starts** — the comment says so and the ticket
+is listed under *Exceptions*.
 
 If the Jira transition fails, that is recorded as its own comment and the command
 exits non-zero -- *unless* the ticket's current status is already in the "Done"

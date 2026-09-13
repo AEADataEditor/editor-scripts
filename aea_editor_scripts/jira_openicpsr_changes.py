@@ -81,6 +81,7 @@ REFRESH_EXCEPTIONS = {
     "failed": f"the {pipelines.REFRESH_PIPELINE} pre-run did not succeed",
     "missing": f"the repository has no {pipelines.REFRESH_PIPELINE} pipeline",
     "unknown": "the pipeline history could not be read",
+    "not-enabled": "Bitbucket Pipelines could not be enabled for the repository",
 }
 
 BUCKET_ORDER = (
@@ -280,7 +281,7 @@ class Result:
                        "request may have been hidden")
         if self.unknown_kinds:
             out.append("unrecognised activity: " + ", ".join(sorted(self.unknown_kinds)))
-        if self.refresh in ("busy", "failed", "missing", "unknown"):
+        if self.refresh in ("busy", "failed", "missing", "unknown", "not-enabled"):
             out.append(f"re-ingest not started ({REFRESH_EXCEPTIONS[self.refresh]}); "
                        "someone has to run it by hand")
         return out
@@ -481,6 +482,16 @@ def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None,
     timeout = refresh_timeout or pipelines.DEFAULT_TIMEOUT
     max_age = refresh_max_age or pipelines.REFRESH_MAX_AGE_DAYS
     since = datetime.now(timezone.utc) - timedelta(days=max_age)
+
+    # A repository that has never used Pipelines before 404s on any trigger
+    # until this is called once, however correct its bitbucket-pipelines.yml
+    # is -- a repository-level switch, unrelated to the file. Idempotent, so
+    # always calling it here (rather than detecting the 404 and retrying) is
+    # simplest.
+    ok, why = pipelines.ensure_enabled(auth, workspace, slug)
+    if not ok:
+        return False, f"Pipelines could not be confirmed enabled on {slug} ({why}); " \
+                      f"no re-ingest was started.", "not-enabled"
 
     try:
         runs = pipelines.recent_pipelines(auth, workspace, slug, since)

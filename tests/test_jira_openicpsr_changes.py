@@ -580,12 +580,14 @@ class FakeBitbucket:
     """Stands in for the Bitbucket module: records calls, replays canned answers."""
 
     def __init__(self, runs=(), yaml_text="  custom:\n    4-refresh-tools:\n",
-                 trigger_results=None, wait_result=(True, "SUCCESSFUL")):
+                 trigger_results=None, wait_result=(True, "SUCCESSFUL"),
+                 enable_result=(True, "")):
         self.runs = list(runs)
         self.yaml_text = yaml_text
         self.trigger_results = list(trigger_results or [("{uuid-1}", "started"),
                                                         ("{uuid-2}", "started")])
         self.wait_result = wait_result
+        self.enable_result = enable_result
         self.triggered = []
 
     REFRESH_PIPELINE = J.pipelines.REFRESH_PIPELINE
@@ -595,6 +597,9 @@ class FakeBitbucket:
     REFRESH_BUSY = J.pipelines.REFRESH_BUSY
     DEFAULT_TIMEOUT = J.pipelines.DEFAULT_TIMEOUT
     REFRESH_MAX_AGE_DAYS = J.pipelines.REFRESH_MAX_AGE_DAYS
+
+    def ensure_enabled(self, auth, workspace, slug):
+        return self.enable_result
 
     def pattern_of(self, pipeline):
         return REAL_PIPELINES.pattern_of(pipeline)
@@ -707,6 +712,30 @@ def test_reingest_refreshes_a_repository_that_never_built(monkeypatch):
     bb = FakeBitbucket(runs=[])
     triggered, _, refresh = run_pipeline(bb, monkeypatch)
     assert bb.triggered == ["4-refresh-tools", J.pipelines.BIG_INGEST_PIPELINE]
+
+
+def test_reingest_enables_pipelines_before_the_first_ever_trigger(monkeypatch):
+    # aearep-3580: bitbucket-pipelines.yml was correct and runs=[] already
+    # triggered refresh-tools, but the trigger 404s until Pipelines has been
+    # turned on for the repository at least once -- confirmed live, 2026-09.
+    bb = FakeBitbucket(runs=[])
+    triggered, _, refresh = run_pipeline(bb, monkeypatch)
+    assert triggered is True
+    assert refresh == "ran"
+
+
+def test_reingest_fails_cleanly_when_pipelines_cannot_be_enabled(monkeypatch):
+    bb = FakeBitbucket(runs=[], enable_result=(False, "403 Forbidden"))
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch)
+    assert triggered is False
+    assert refresh == "not-enabled"
+    assert bb.triggered == []  # never got as far as trying to trigger anything
+    assert "403 Forbidden" in detail
+
+
+def test_a_not_enabled_refresh_is_flagged_as_an_exception():
+    result = J.Result("AEAREP-1", "failed", refresh="not-enabled")
+    assert any("Bitbucket Pipelines could not be enabled" in e for e in result.exceptions)
 
 
 def test_reingest_starts_nothing_while_another_pipeline_is_running(monkeypatch):

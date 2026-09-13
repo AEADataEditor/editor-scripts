@@ -195,6 +195,37 @@ def pipelines_yaml(auth, workspace, repo_slug, ref="master", timeout=30):
     return response.text
 
 
+def ensure_enabled(auth, workspace, repo_slug, timeout=30):
+    """Make sure Bitbucket Pipelines is turned on for this repository.
+
+    A repository that has never used Pipelines before 404s on every pipeline
+    endpoint that writes -- both this one and a trigger -- until this is
+    called once, no matter how correct its bitbucket-pipelines.yml is: it is a
+    repository-level on/off switch, entirely separate from the file. Confirmed
+    live on a never-triggered repository (aearep-3580, 2026-09): a trigger
+    404s beforehand and 400s (same as an already-enabled repository, rejecting
+    the bogus pattern) right after this call. Idempotent -- enabling an
+    already-enabled repository is a harmless no-op -- so callers can just call
+    it before every first attempt to trigger anything, rather than detecting
+    the 404 and retrying.
+
+    Returns (ok, detail).
+    """
+    try:
+        response = requests.put(f"{repo_url(workspace, repo_slug)}/pipelines_config",
+                                auth=auth, json={"enabled": True}, timeout=timeout)
+    except requests.exceptions.RequestException as exc:
+        return False, f"could not reach the Bitbucket API: {exc}"
+    if response.status_code not in (200, 201):
+        detail = f"{response.status_code} {response.reason}"
+        try:
+            message = response.json().get("error", {}).get("message", "")
+        except ValueError:
+            message = ""
+        return False, f"{detail}: {message}" if message else detail
+    return True, ""
+
+
 def trigger_custom_pipeline(auth, workspace, repo_slug, pattern, variables=None,
                             ref_name="master", timeout=30):
     """Start a custom pipeline. Returns (uuid, detail); uuid is None on failure."""
