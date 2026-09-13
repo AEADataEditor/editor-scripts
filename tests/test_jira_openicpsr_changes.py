@@ -361,6 +361,31 @@ def test_issue_exists_is_true_only_for_a_known_key():
     assert not J.issue_exists(jira, "AEAREP-99999")
 
 
+# --- already_past_target: a "Done"-category status needs no transition -----
+#
+# A ticket can leave PENDING_STATUS on its own (Pending publication, Pending
+# Article DOI, ...) while still ahead of us in Jira. AEAREP-8094 hit exactly
+# this: TRANSITION_NAME wasn't offered because the ticket had already moved on.
+
+def status_with_category(name, category_key):
+    return SimpleNamespace(fields=SimpleNamespace(
+        status=SimpleNamespace(name=name, statusCategory=SimpleNamespace(key=category_key))))
+
+
+def test_already_past_target_true_for_done_category():
+    assert J.already_past_target(status_with_category("Pending Article DOI", "done"))
+
+
+def test_already_past_target_false_for_in_progress_category():
+    assert not J.already_past_target(
+        status_with_category("Pending openICPSR changes", "indeterminate"))
+
+
+def test_already_past_target_false_when_status_category_missing():
+    issue = SimpleNamespace(fields=SimpleNamespace(status=SimpleNamespace(name="X")))
+    assert not J.already_past_target(issue)
+
+
 def test_resolve_positionals_passes_short_numbers_straight_through():
     keys, clashes = J.resolve_positionals(FakeJira(), ["9962", "train-4352"])
     assert keys == ["AEAREP-9962", "TRAIN-4352"]
@@ -497,6 +522,25 @@ def test_a_refresh_that_ran_is_named_in_the_action():
 def test_a_refusal_to_re_ingest_says_why():
     lines = block(status="acted", refresh="busy")
     assert "no re-ingest: another pipeline was already running" in "\n".join(lines)
+
+
+def _unwrapped(lines):
+    """Detail lines rejoined across wrapping, for substrings longer than a line."""
+    return " ".join(line.strip() for line in lines)
+
+
+def test_acted_without_transition_says_so():
+    lines = block(status="acted", transitioned=False)
+    assert f"already past {J.TARGET_STATUS}, no transition needed" in _unwrapped(lines)
+
+
+def test_acted_without_transition_still_names_the_pipeline_that_ran():
+    # AEAREP-8094: the re-ingest still ran even though the ticket was already
+    # past TARGET_STATUS and so was not (and should not be) transitioned.
+    text = _unwrapped(block(status="acted", pipeline="triggered", refresh="ran",
+                            transitioned=False))
+    assert "ran refresh-tools, then triggered re-ingest" in text
+    assert f"already past {J.TARGET_STATUS}, no transition needed" in text
 
 
 def test_content_changed_without_resubmission_explains_the_lack_of_a_pipeline():

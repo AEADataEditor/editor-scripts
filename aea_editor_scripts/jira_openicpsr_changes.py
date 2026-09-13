@@ -258,6 +258,9 @@ class Result:
     truncated: bool = False
     reassessed: bool = False
     note: str = ""
+    #: False only for the "acted, but no transition was made" case -- the
+    #: ticket had already moved past TARGET_STATUS on its own.
+    transitioned: bool = True
 
     @property
     def exceptions(self):
@@ -419,6 +422,24 @@ def find_issues(jira, keys=None, limit=None):
         jql = f'project = {PROJECT} AND status = "{PENDING_STATUS}" ORDER BY updated DESC'
     issues = jira.search_issues(jql, maxResults=False, expand="changelog")
     return issues[:limit] if limit else issues
+
+
+def already_past_target(issue):
+    """True when the issue's current status is in the "Done" category.
+
+    A ticket can leave PENDING_STATUS on its own (e.g. to Pending publication,
+    Pending Article DOI) while still ahead of us in Jira, even though openICPSR
+    activity we have not acted on yet keeps arriving. When that happens there
+    is no TARGET_STATUS to move it to -- whatever comes next for it is a human
+    decision made elsewhere -- so a missing transition there is not a failure.
+    Checking the status category rather than a list of status names keeps this
+    robust to the many workflow-specific status names (same idiom as
+    jira_purge_query.get_open_subtasks).
+    """
+    status = getattr(issue.fields, "status", None)
+    category = getattr(status, "statusCategory", None)
+    category_key = getattr(category, "key", None)
+    return bool(category_key and category_key.lower() == "done")
 
 
 def transition_by_name(jira, issue, name):
@@ -586,6 +607,19 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
 
     ok, why = transition_by_name(jira, issue, TRANSITION_NAME)
     if not ok:
+        if already_past_target(issue):
+            try:
+                jira.add_comment(
+                    key,
+                    f"No transition made: this ticket is already at "
+                    f"*{issue.fields.status.name}*, past *{TARGET_STATUS}*.",
+                )
+            except Exception:
+                pass
+            return Result(key, "acted", reason, pipeline="triggered" if triggered else "",
+                          refresh=refresh, reassessed=reassessed_days is not None,
+                          transitioned=False, **common)
+
         try:
             jira.add_comment(
                 key,
@@ -632,20 +666,24 @@ def _baseline(result):
 def _action(result):
     """What was done, or would be done, beyond reading the log."""
     if result.pipeline:
-        if result.refresh == "ran":
-            return f"ran {pipelines.REFRESH_PIPELINE}, then triggered re-ingest"
-        return "triggered re-ingest"
-    if result.refresh:
+        base = (f"ran {pipelines.REFRESH_PIPELINE}, then triggered re-ingest"
+                if result.refresh == "ran" else "triggered re-ingest")
+    elif result.refresh:
         return f"no re-ingest: {REFRESH_EXCEPTIONS.get(result.refresh, result.refresh)}"
-    if result.status in ("would-act", "would-reassess"):
+    elif result.status in ("would-act", "would-reassess"):
         if result.content_changed and result.resubmitted:
             return f"{pipelines.REFRESH_PIPELINE} if stale, then re-ingest"
         if result.content_changed:
             return "no re-ingest: content changed but the deposit was not re-submitted"
         return f"comment and move to {TARGET_STATUS}"
-    if result.status == "acted":
-        return f"commented and moved to {TARGET_STATUS}"
-    return ""
+    elif result.status == "acted":
+        base = "commented" if not result.transitioned else f"commented and moved to {TARGET_STATUS}"
+    else:
+        return ""
+
+    if result.status == "acted" and not result.transitioned:
+        return f"{base}; already past {TARGET_STATUS}, no transition needed"
+    return base
 
 
 def _lead(key, pid):

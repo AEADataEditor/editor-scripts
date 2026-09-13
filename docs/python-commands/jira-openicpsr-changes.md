@@ -51,7 +51,12 @@ the ticket is still commented on and transitioned but **no re-ingest starts** â€
 the comment says so and the ticket is listed under *Exceptions*.
 
 If the Jira transition fails, that is recorded as its own comment and the command
-exits non-zero.
+exits non-zero -- *unless* the ticket's current status is already in the "Done"
+category (e.g. `Pending publication`, `Pending Article DOI`). A ticket can move
+on by itself while openICPSR activity we have not acted on yet keeps arriving;
+in that case there is no status to move it to, whatever comes next for it is a
+human decision made elsewhere, and that is not a failure -- the comment says so
+and the command still exits zero.
 
 ## Reporting
 
