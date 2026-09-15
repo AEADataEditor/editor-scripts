@@ -8,6 +8,7 @@ An issue is considered completely done if:
    - "Pending openICPSR"
    - "Assess openICPSR"
    - "Pending Publication"
+   - "Delete NDA data"
 
 The issue does not need to be in "Done" status.
 
@@ -266,7 +267,8 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
     required_status_patterns = [
         "pending openicpsr",
         "assess openicpsr",
-        "pending publication"
+        "pending publication",
+        "delete nda data",
     ]
 
     try:
@@ -459,6 +461,7 @@ Environment Variables Required:
         print("  - Pending openICPSR")
         print("  - Assess openICPSR")
         print("  - Pending Publication")
+        print("  - Delete NDA data")
         print("Issues that qualify but still have open subtasks are flagged as WARNING.")
         print()
 

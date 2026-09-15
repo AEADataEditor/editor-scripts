@@ -7,7 +7,9 @@
 ![Windows](https://img.shields.io/badge/-Windows-success)
 
 Checks whether one or more Jira issues are ready for purging, based on their
-status history and that of any linked revision issues.
+status history and that of any linked revision issues. An issue qualifies once
+it has passed through (or currently sits in) one of: "Pending openICPSR",
+"Assess openICPSR", "Pending Publication", or "Delete NDA data".
 
 ```
 jira-purge-query aearep-NNNN [aearep-MMMM ...]
