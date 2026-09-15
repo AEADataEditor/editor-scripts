@@ -11,6 +11,7 @@ import requests
 from requests.exceptions import ConnectionError
 
 from aea_editor_scripts import bitbucket_pipelines as bb
+from aea_editor_scripts.jira_comment import automated
 
 # defaults
 workspace = "aeaverification"
@@ -92,7 +93,7 @@ def notify_jira(repo_slug, openicpsr_id=None):
         print(f"Warning: Could not update Bitbucket short name on {jira_key}: {e}")
 
     try:
-        jira.add_comment(jira_key, comment)
+        jira.add_comment(jira_key, automated(comment))
         print(f"Jira comment posted to {jira_key}")
     except Exception as e:
         print(f"Warning: Could not post Jira comment: {e}")

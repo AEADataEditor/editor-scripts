@@ -30,6 +30,8 @@ can additionally:
 1. Post an internal comment on both that issue and the subtask, confirming the
    Box deletion, reminding the reader to also delete any offline copies, and
    giving the `aea-box-recover-files --case <N> --days 30` command to undo it.
+   The comment is prefixed with a 🤖 marker and ends with an italicized note
+   identifying it as automated.
 2. Set the issue's `Was data deleted?` field to `Yes`.
 3. Send an author-facing deletion-confirmation email (based on the
    [restricted-data request template][ldi-template]) to `dataeditor@aeapubs.org`,

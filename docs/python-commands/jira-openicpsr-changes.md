@@ -105,6 +105,10 @@ Each comment carries a marker naming the baseline it reported on, so a ticket is
 commented on once per baseline. `--reassess-after DAYS` relaxes this: a report
 older than `DAYS` no longer suppresses a new one.
 
+Every comment posted by this script, including the ones about a failed or
+skipped transition, is prefixed with a 🤖 marker and ends with an italicized
+note identifying it as automated.
+
 ## Usage
 
 Issues may be given positionally: a bare number is an AEAREP ticket; a key from

@@ -32,6 +32,7 @@ from aea_editor_scripts import bitbucket_pipelines as pipelines
 from aea_editor_scripts import console
 from aea_editor_scripts import openicpsr_classify as classify
 from aea_editor_scripts.aeagit_create import workspace
+from aea_editor_scripts.jira_comment import automated
 from aea_editor_scripts.jira_purge_query import find_last_revision
 from aea_editor_scripts.openicpsr_activity import OPENICPSR_URL, fetch_activity, login
 
@@ -637,7 +638,7 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
                           _pipeline_note(assessment, triggered, detail),
                           baseline_source, reason, reassessed_days)
     try:
-        jira.add_comment(key, body)
+        jira.add_comment(key, automated(body))
     except Exception as exc:
         return Result(key, "failed", f"could not comment: {exc}", **common)
 
@@ -647,8 +648,10 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
             try:
                 jira.add_comment(
                     key,
-                    f"No transition made: this ticket is already at "
-                    f"*{issue.fields.status.name}*, past *{TARGET_STATUS}*.",
+                    automated(
+                        f"No transition made: this ticket is already at "
+                        f"*{issue.fields.status.name}*, past *{TARGET_STATUS}*."
+                    ),
                 )
             except Exception:
                 pass
@@ -659,8 +662,10 @@ def process_issue(jira, field_map, session, issue, apply_changes, bitbucket_auth
         try:
             jira.add_comment(
                 key,
-                f"(x) Changes were detected but this ticket could not be moved to "
-                f"*{TARGET_STATUS}*: {why}\n\nSomeone needs to move it by hand.",
+                automated(
+                    f"(x) Changes were detected but this ticket could not be moved to "
+                    f"*{TARGET_STATUS}*: {why}\n\nSomeone needs to move it by hand."
+                ),
             )
         except Exception:
             pass

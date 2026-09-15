@@ -8,7 +8,8 @@
 
 Creates a new Bitbucket repository for an AEA replication package. Optionally
 populates it from a template, enables pipelines, and posts a comment to the
-corresponding Jira issue.
+corresponding Jira issue. The comment is prefixed with a 🤖 marker and ends
+with an italicized note identifying it as automated.
 
 ```
 aeagit-create -r aearep-NNNN [--openicpsr [ID]] [--big]

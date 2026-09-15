@@ -94,6 +94,7 @@ except ImportError:
     sys.exit(1)
 
 from aea_editor_scripts.jira_purge_query import find_last_revision
+from aea_editor_scripts.jira_comment import automated
 
 # Configuration
 JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
@@ -726,7 +727,7 @@ class BoxCleanup:
         field_map = {f['name']: f['id'] for f in jira.fields()}
         manuscript_number = getattr(last_issue.fields, field_map.get(MANUSCRIPT_FIELD, ''), None) or last_issue_key
 
-        comment = self._build_internal_comment(case_number, folder_name)
+        comment = automated(self._build_internal_comment(case_number, folder_name))
         subject, body = self._build_deletion_email(subtask.key, manuscript_number)
 
         if self.test_mode:
