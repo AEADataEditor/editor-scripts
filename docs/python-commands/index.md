@@ -9,7 +9,7 @@ all platforms, including Windows.
 | [`aea-box-clean-folders`](aea-box-clean-folders.md) | Purge data files and archive folders for completed cases. |
 | [`aea-box-recover-files`](aea-box-recover-files.md) | Restore files deleted from Box folders. |
 | [`aea-parse-tags`](aea-parse-tags.md) | Consolidate `[REQUIRED]`/`[SUGGESTED]` tags into the Action Items checklists. |
-| [`aeagit`](aeagit.md) | Clone or update a Bitbucket replication repository and open it in VS Code. |
+| [`aeagit`](aeagit.md) | Clone or update a Bitbucket replication repository — one, or all pre-approved cases. |
 | [`aeagit-create`](aeagit-create.md) | Create a new Bitbucket replication repository. |
 | [`jira-approval-manager`](jira-approval-manager.md) | Run approval transitions and set the MC Recommendation. |
 | [`jira-openicpsr-changes`](jira-openicpsr-changes.md) | Assess openICPSR deposit activity for pending tickets and act on it. |

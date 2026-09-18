@@ -12,6 +12,7 @@ during editing and sign-off.
 
 ```
 aeagit (number|name) [method] [--no-editor]
+aeagit --all [method]
 ```
 
 ## Arguments
@@ -22,5 +23,26 @@ aeagit (number|name) [method] [--no-editor]
   cloned as given, with no prefix.
 - **method** — `ssh` or `https` (abbreviable). Defaults to `ssh` on Linux/macOS
   and `https` on Windows/Codespaces.
+- **`-a` / `--all`** — process every pre-approved case instead of a single
+  repository (see below).
 - **`-n` / `--no-editor`** — skip opening VS Code. Also honored via the
   `AEAGIT_NO_EDITOR` environment variable.
+
+## All pre-approved cases
+
+`--all` clones or updates the repository of every AEAREP ticket currently in
+`Pre-Approved` status, in ticket order. A ticket's repository is the value of its
+`Bitbucket short name` field, falling back to the ticket key (`aearep-1234`) when
+that field is empty; a repository named by more than one ticket is processed
+once.
+
+```
+aeagit --all           # into the current directory, using the default method
+aeagit --all https     # force HTTPS
+```
+
+No editor is opened, and a repository that fails to clone or pull does not stop
+the others: each is reported as it is processed, the failures are listed at the
+end, and the exit code is 1 if there were any.
+
+This mode reads Jira and needs `JIRA_USERNAME` and `JIRA_API_KEY` to be set.
