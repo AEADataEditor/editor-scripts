@@ -284,3 +284,4 @@ __pycache__/
 
 ## Local exports from jira_workflow_cleanup.py (not for version control):
 workflow-archive/
+*_config.json

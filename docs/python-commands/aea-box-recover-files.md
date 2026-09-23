@@ -22,6 +22,8 @@ aea-box-recover-files --case 8040 --days 14 # look back 14 days
 
 ## Environment
 
-- Box: `BOX_FOLDER_PRIVATE`, `BOX_PRIVATE_KEY_ID`, `BOX_ENTERPRISE_ID`, and
-  `BOX_CONFIG_PATH` (or `BOX_PRIVATE_JSON`)
+Variables not set in the environment are read from `~/.envvars`.
+
+- Box: `BOX_FOLDER_PRIVATE` and the Box app credentials (see
+  [Box setup](aea-box-clean-folders.md#box-setup))
 - Jira: `JIRA_USERNAME`, `JIRA_API_KEY`, optionally `JIRA_SERVER`

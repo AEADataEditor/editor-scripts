@@ -52,8 +52,9 @@ unconditionally, including under `--test` (which only previews the notice).
 
 ## Environment
 
-- Box: `BOX_FOLDER_PRIVATE`, `BOX_PRIVATE_KEY_ID`, `BOX_ENTERPRISE_ID`, and
-  `BOX_CONFIG_PATH` (or `BOX_PRIVATE_JSON`)
+Variables not set in the environment are read from `~/.envvars`.
+
+- Box: `BOX_FOLDER_PRIVATE` and the Box app credentials (see [Box setup](#box-setup))
 - Jira: `JIRA_USERNAME`, `JIRA_API_KEY`, optionally `JIRA_SERVER`
 - For `--email`: `DATAEDITOR_EMAIL_PASSWORD` (fallback if the 1Password CLI
   `op` has no session, e.g. when running remotely; otherwise read from the
@@ -61,3 +62,40 @@ unconditionally, including under `--test` (which only previews the notice).
   (default `mail.aeapubs.org`) and `DATAEDITOR_SMTP_PORT` (default `587`)
 
 Deleted files can be restored with [`aea-box-recover-files`](aea-box-recover-files.md).
+
+(box-setup)=
+## Box setup
+
+The scripts authenticate as a Box JWT app. Its credentials are a JSON file named
+`<ENTERPRISE_ID>_<KEY_ID>_config.json`, available at 🔒
+[this private Box link](https://cornell.box.com/s/ee8ovhdeaz6eqgs7tnzv36sztnvw6lhc).
+
+1. Download the JSON file and store it in `~/.config/box/`, readable only by you:
+
+   ```bash
+   mkdir -p ~/.config/box
+   mv ~/Downloads/*_config.json ~/.config/box/
+   chmod 600 ~/.config/box/*_config.json
+   ```
+
+2. Add the ID of the Box root folder holding the `aearep-XXXX` case folders
+   (the number at the end of its URL, `https://cornell.box.com/folder/<ID>`)
+   to `~/.envvars`:
+
+   ```bash
+   BOX_FOLDER_PRIVATE=<ID>
+   ```
+
+To keep the JSON file elsewhere, also add its directory to `~/.envvars`:
+
+```bash
+BOX_CONFIG_PATH=/path/to/directory
+```
+
+Credentials are looked up in this order:
+
+| Variable | Use |
+|---|---|
+| `BOX_PRIVATE_JSON` | Base64-encoded content of the JSON file (`base64 -w0 <file>`). When set, all other credential variables are ignored. Suited to CI or remote runs. |
+| `BOX_CONFIG_PATH` | Directory with the JSON file. Default: `~/.config/box`. The single `*_config.json` file there is used. |
+| `BOX_ENTERPRISE_ID`, `BOX_PRIVATE_KEY_ID` | Only needed if that directory holds several config files: selects `<BOX_ENTERPRISE_ID>_<BOX_PRIVATE_KEY_ID>_config.json`. |

@@ -33,10 +33,11 @@ Usage:
 Environment Variables Required:
     Box Authentication:
         BOX_FOLDER_PRIVATE - Root Box folder ID
-        BOX_PRIVATE_KEY_ID - JWT public key ID
-        BOX_ENTERPRISE_ID - Enterprise ID
-        BOX_CONFIG_PATH - Directory containing config JSON file
-        BOX_PRIVATE_JSON - Base64 encoded config (alternative to config file)
+        BOX_PRIVATE_JSON - Base64 encoded config JSON, or
+        BOX_CONFIG_PATH - Directory containing *_config.json (default: ~/.config/box)
+        BOX_ENTERPRISE_ID, BOX_PRIVATE_KEY_ID - Select {ENTERPRISE_ID}_{KEY_ID}_config.json
+          when BOX_CONFIG_PATH holds several config files
+        Variables not in the environment are read from ~/.envvars.
         
     Jira Authentication:
         JIRA_USERNAME - Your Jira email address
@@ -47,7 +48,6 @@ Environment Variables Required:
 import os
 import sys
 import json
-import base64
 import argparse
 import logging
 from datetime import datetime, timedelta
@@ -74,6 +74,8 @@ try:
 except ImportError:
     print("Error: jira not installed. Install with: pip install jira")
     sys.exit(1)
+
+from aea_editor_scripts.box_auth import load_envvars, box_settings
 
 
 class BoxRecovery:
@@ -143,63 +145,25 @@ class BoxRecovery:
         """
         self.logger.info("Authenticating to Box...")
         
-        # Get required environment variables
+        load_envvars()
+
         self.root_folder_id = os.environ.get('BOX_FOLDER_PRIVATE')
         if not self.root_folder_id:
             self.logger.error("BOX_FOLDER_PRIVATE environment variable not set")
             sys.exit(1)
-            
-        # Try authentication with base64-encoded JSON first
-        box_private_json = os.environ.get('BOX_PRIVATE_JSON')
-        
-        if box_private_json:
-            self.logger.debug("Using BOX_PRIVATE_JSON for authentication")
-            try:
-                config_json = base64.b64decode(box_private_json).decode('utf-8')
-                config = json.loads(config_json)
-                auth = JWTAuth.from_settings_dictionary(config)
-                self.box_client = Client(auth)
-                
-                # Test authentication
-                user = self.box_client.user().get()
-                self.logger.info(f"✓ Authenticated as: {user.name}")
-                return self.box_client
-                
-            except Exception as e:
-                self.logger.error(f"Failed to authenticate with BOX_PRIVATE_JSON: {e}")
-                sys.exit(1)
-        
-        # Alternative: Use config file
-        box_config_path = os.environ.get('BOX_CONFIG_PATH')
-        box_key_id = os.environ.get('BOX_PRIVATE_KEY_ID')
-        box_enterprise_id = os.environ.get('BOX_ENTERPRISE_ID')
-        
-        if not all([box_config_path, box_key_id, box_enterprise_id]):
-            self.logger.error("Missing required Box environment variables")
-            self.logger.error("Required: BOX_PRIVATE_JSON or (BOX_CONFIG_PATH, BOX_PRIVATE_KEY_ID, BOX_ENTERPRISE_ID)")
-            sys.exit(1)
-        
-        # Type checking - all variables are confirmed non-None by the check above
-        assert box_config_path and box_key_id and box_enterprise_id
-        config_file = os.path.join(box_config_path, f"{box_enterprise_id}_{box_key_id}_config.json")
-        
-        if not os.path.exists(config_file):
-            self.logger.error(f"Config file not found: {config_file}")
-            sys.exit(1)
-            
-        self.logger.debug(f"Using config file: {config_file}")
-        
+
+        settings = box_settings(self.logger)
         try:
-            auth = JWTAuth.from_settings_file(config_file)
+            auth = JWTAuth.from_settings_dictionary(settings)
             self.box_client = Client(auth)
-            
+
             # Test authentication
             user = self.box_client.user().get()
             self.logger.info(f"✓ Authenticated as: {user.name}")
             return self.box_client
-            
+
         except Exception as e:
-            self.logger.error(f"Failed to authenticate with config file: {e}")
+            self.logger.error(f"Failed to authenticate with Box: {e}")
             sys.exit(1)
     
     def authenticate_jira(self) -> JIRA:
@@ -901,10 +865,11 @@ Examples:
 Environment Variables Required:
   Box Authentication:
     BOX_FOLDER_PRIVATE - Root Box folder ID
-    BOX_PRIVATE_KEY_ID - JWT public key ID
-    BOX_ENTERPRISE_ID - Enterprise ID
-    BOX_CONFIG_PATH - Directory containing config JSON file
-    (or BOX_PRIVATE_JSON - Base64 encoded config)
+    BOX_PRIVATE_JSON - Base64 encoded config JSON, or
+    BOX_CONFIG_PATH - Directory containing *_config.json (default: ~/.config/box)
+    BOX_ENTERPRISE_ID, BOX_PRIVATE_KEY_ID - Select {ENTERPRISE_ID}_{KEY_ID}_config.json
+      when BOX_CONFIG_PATH holds several config files
+    Variables not in the environment are read from ~/.envvars.
     
   Jira Authentication:
     JIRA_USERNAME - Your Jira email address
