@@ -30,6 +30,9 @@ Usage:
     # Also post a restricted-data deletion notice to Jira and email dataeditor@aeapubs.org
     python3 box_clean_folders.py --all --email
 
+    # Also delete the files the extension filter keeps (asks again per case)
+    python3 box_clean_folders.py 1234 --force-all
+
 Environment Variables Required:
     Box Authentication:
         BOX_FOLDER_PRIVATE - Root Box folder ID
@@ -152,6 +155,7 @@ class BoxCleanup:
         self.client = None
         self.root_folder_id = None
         self.notify_deletion = False
+        self.force_all = False
         self._notify_jira_client = None
         self.stats = {
             'folders_found': 0,
@@ -160,6 +164,8 @@ class BoxCleanup:
             'folders_moved': 0,
             'files_deleted': 0,
             'bytes_deleted': 0,
+            'files_kept': 0,
+            'bytes_kept': 0,
             'errors': 0,
         }
         
@@ -396,10 +402,22 @@ class BoxCleanup:
         Returns:
             Number of files successfully deleted
         """
-        deleted_count = 0
+        return len(self.delete_files(data_files))
+
+    def delete_files(self, files: List[Dict]) -> set:
+        """
+        Delete files from Box (or log what would be deleted in test mode).
+
+        Args:
+            files: List of file dicts with 'id', 'name', 'size', 'path'
+
+        Returns:
+            IDs of the files successfully deleted
+        """
+        deleted_ids = set()
         deleted_bytes = 0
-        
-        for file_info in data_files:
+
+        for file_info in files:
             file_id = file_info['id']
             file_name = file_info['name']
             file_size = file_info['size']
@@ -407,23 +425,23 @@ class BoxCleanup:
             
             if self.test_mode:
                 self.logger.info(f"  [DRY RUN] Would delete: {file_path} ({self._format_size(file_size)})")
-                deleted_count += 1
+                deleted_ids.add(file_id)
                 deleted_bytes += file_size
             else:
                 try:
                     file_obj = self.client.file(file_id)
                     file_obj.delete()
                     self.logger.info(f"  Deleted: {file_path} ({self._format_size(file_size)})")
-                    deleted_count += 1
+                    deleted_ids.add(file_id)
                     deleted_bytes += file_size
                 except BoxAPIException as e:
                     self.logger.error(f"  Failed to delete {file_path}: {e}")
                     self.stats['errors'] += 1
         
-        self.stats['files_deleted'] += deleted_count
+        self.stats['files_deleted'] += len(deleted_ids)
         self.stats['bytes_deleted'] += deleted_bytes
-        
-        return deleted_count
+
+        return deleted_ids
     
     def get_or_create_completed_folder(self) -> Optional[str]:
         """
@@ -554,10 +572,60 @@ class BoxCleanup:
         else:
             self.logger.info(f"  No data files to delete")
 
+        if document_files:
+            self._print_extension_summary(document_files)
+            if self.force_all:
+                document_files = self._force_delete_kept_files(document_files)
+
+        self.stats['files_kept'] += len(document_files)
+        self.stats['bytes_kept'] += sum(f['size'] for f in document_files)
+
         if self.notify_deletion:
             self.notify_restricted_data_deletion(case_number, folder_name)
 
         return True
+
+    @staticmethod
+    def _summarize_by_extension(files: List[Dict]) -> List[Tuple[str, int, int]]:
+        """Group files by lowercase extension: [(ext, count, bytes), ...], largest total first."""
+        summary: Dict[str, List[int]] = {}
+        for f in files:
+            ext = os.path.splitext(f['name'].lower())[1] or '(none)'
+            entry = summary.setdefault(ext, [0, 0])
+            entry[0] += 1
+            entry[1] += f['size']
+        return sorted(((ext, n, size) for ext, (n, size) in summary.items()),
+                      key=lambda x: (-x[2], x[0]))
+
+    def _print_extension_summary(self, files: List[Dict]):
+        """Print the files not deleted by the extension filter, summarized by extension."""
+        total = sum(f['size'] for f in files)
+        print(f"  Files not deleted: {len(files)} ({self._format_size(total)})")
+        for ext, count, size in self._summarize_by_extension(files):
+            print(f"    {ext:<12} {count:>6} file(s)  {self._format_size(size):>12}")
+
+    def _force_delete_kept_files(self, files: List[Dict]) -> List[Dict]:
+        """
+        List the files kept by the extension filter and, after confirmation, delete them (--force-all).
+
+        Returns:
+            The files that remain (all of them if deletion was declined)
+        """
+        total = sum(f['size'] for f in files)
+        print(f"  --force-all: the following {len(files)} file(s) would also be deleted:")
+        for f in sorted(files, key=lambda f: f['path']):
+            print(f"    {f['path']} ({self._format_size(f['size'])})")
+
+        if not self.test_mode:
+            response = input(f"  Delete these {len(files)} file(s) ({self._format_size(total)}) as well? [y/N]: ")
+            if response.lower() not in ['y', 'yes']:
+                self.logger.info("  Kept remaining files")
+                return files
+
+        deleted_ids = self.delete_files(files)
+        verb = "Would delete" if self.test_mode else "✓ Deleted"
+        print(f"  {verb} {len(deleted_ids)}/{len(files)} remaining files")
+        return [f for f in files if f['id'] not in deleted_ids]
 
     def _connect_jira_for_notify(self) -> JIRA:
         """Authenticate to Jira for the restricted-data deletion notice (--email)."""
@@ -756,7 +824,7 @@ class BoxCleanup:
         print(f"{'='*60}")
     
     def run(self, specific_case: Optional[str] = None, auto_confirm: bool = False,
-            notify_email: bool = False):
+            notify_email: bool = False, force_all: bool = False):
         """
         Main execution method.
 
@@ -765,8 +833,11 @@ class BoxCleanup:
             auto_confirm: If True, skip confirmation prompt
             notify_email: If True, post the restricted-data deletion notice to Jira and
                 email dataeditor@aeapubs.org for eligible cases, without prompting
+            force_all: If True, offer to delete the files the extension filter keeps,
+                with a per-case confirmation once they are listed (not skipped by auto_confirm)
         """
         self.notify_deletion = notify_email
+        self.force_all = force_all
 
         # Authenticate
         self.authenticate_box()
@@ -830,6 +901,7 @@ class BoxCleanup:
         self.logger.info(f"Folders moved:          {self.stats['folders_moved']}")
         self.logger.info(f"Data files deleted:     {self.stats['files_deleted']}")
         self.logger.info(f"Total bytes deleted:    {self._format_size(self.stats['bytes_deleted'])}")
+        self.logger.info(f"Files not deleted:      {self.stats['files_kept']} ({self._format_size(self.stats['bytes_kept'])})")
         self.logger.info(f"Errors:                 {self.stats['errors']}")
         
         if self.test_mode:
@@ -888,6 +960,9 @@ Examples:
 
   # Also post a restricted-data deletion notice to Jira and email dataeditor@aeapubs.org
   %(prog)s --all --email
+
+  # Also delete the files the extension filter keeps (asks again per case)
+  %(prog)s 1234 --force-all
 
 Environment Variables Required:
   Box Authentication:
@@ -964,6 +1039,14 @@ Environment Variables Required:
              "Without this flag, you'll be prompted interactively instead."
     )
 
+    parser.add_argument(
+        '--force-all',
+        action='store_true',
+        help='Also delete files the extension filter keeps (documents, unknown types). '
+             'For each case, the kept files are listed and deletion is confirmed '
+             'separately; --yes does not skip this confirmation.'
+    )
+
     args = parser.parse_args()
 
     # Resolve which case(s) to process
@@ -998,7 +1081,8 @@ Environment Variables Required:
             cleanup.list_cases(specific_case=specific_case)
             return
 
-        cleanup.run(specific_case=specific_case, auto_confirm=args.yes, notify_email=args.email)
+        cleanup.run(specific_case=specific_case, auto_confirm=args.yes, notify_email=args.email,
+                    force_all=args.force_all)
     except KeyboardInterrupt:
         cleanup.logger.info("\n\nInterrupted by user")
         cleanup._print_summary()

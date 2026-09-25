@@ -19,7 +19,22 @@ aea-box-clean-folders                 # process all ready cases
 aea-box-clean-folders --case 1234     # process one case
 aea-box-clean-folders --list          # list cases and their status
 aea-box-clean-folders --all --email   # also send restricted-data deletion notices
+aea-box-clean-folders 1234 --force-all  # also delete files the filter keeps
 ```
+
+## Files not deleted
+
+For each processed case, the files kept by the extension filter (documents and
+unrecognized types) are reported, summarized by extension with file count and
+total size. The run summary gives the overall count and size of files not deleted.
+
+## Deleting everything (`--force-all`)
+
+When the extension filter keeps files that should also go, `--force-all` lists
+every kept file of the case (path and size) after the data files are deleted,
+then asks for confirmation (default No) before deleting them. The confirmation
+is per case and is not skipped by `--yes`. Under `--test`, the list is shown and
+the deletions are previewed without prompting.
 
 ## Restricted-data deletion notice (`--email` / `-e`)
 
