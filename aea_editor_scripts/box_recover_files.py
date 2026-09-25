@@ -8,11 +8,14 @@ This script recovers files deleted from Box folders by:
    - "Restricted data Box Folder ID" (the Box folder ID)
    - "Bitbucket short name" (the actual folder name, e.g., "aearep-7712")
 3. Listing files deleted by user "aeadata" in the past N days
-4. Restoring files back to their folder (which should be in '1Completed')
+4. Restoring files to their original folder (the case folder, which should be in
+   '1Completed', or one of its subfolders)
+5. Moving the folder out of '1Completed' back to the root folder, once all files
+   are restored, so that box_clean_folders.py can process it again
 
 Note: The cleanup script moves folders to '1Completed' and then deletes the data
-files inside. This recovery script finds those deleted files and restores them
-back to the folder in '1Completed'.
+files inside. This recovery script finds those deleted files, restores them to
+the folder, and undoes the move. Running it again on a recovered case does nothing.
 
 Usage:
     # List deleted files for case 8040 (Jira case, which may point to Box folder "aearep-7712")
@@ -95,9 +98,11 @@ class BoxRecovery:
         self.jira_client = None
         self.root_folder_id = None
         self.cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        self._ancestor_cache: Dict[str, Optional[List[str]]] = {}
         self.stats = {
             'items_found': 0,
             'items_restored': 0,
+            'folders_moved': 0,
             'errors': 0,
         }
         
@@ -472,16 +477,13 @@ class BoxRecovery:
                     self.logger.info(f"Found by parent ID: {item['name']} was in folder {folder_id}")
                     item_matches = True
             
-            # Check 3: Path collection (item was inside the folder hierarchy)
+            # Check 3: Parent folder is a subfolder of the target folder
             if not item_matches and folder_id:
-                path_collection = item.get('path_collection')
-                if path_collection and isinstance(path_collection, dict):
-                    entries = path_collection.get('entries', [])
-                    for entry in entries:
-                        if isinstance(entry, dict) and entry.get('id') == folder_id:
-                            self.logger.info(f"Found by path: {item['name']} was in folder {folder_id}")
-                            item_matches = True
-                            break
+                parent_id = item.get('parent_id')
+                ancestors = self._folder_ancestors(parent_id) if parent_id else None
+                if ancestors and folder_id in ancestors:
+                    self.logger.info(f"Found by path: {item['name']} was in a subfolder of folder {folder_id}")
+                    item_matches = True
             
             # Check 4: Name matching (fallback)
             if not item_matches and folder_name:
@@ -502,6 +504,31 @@ class BoxRecovery:
         self.logger.info(f"After filtering: {len(filtered)} item(s) match criteria")
         return filtered
     
+    def _folder_ancestors(self, folder_id: str) -> Optional[List[str]]:
+        """
+        IDs of an active folder's ancestors (root first), cached per folder.
+
+        Returns:
+            List of ancestor folder IDs, or None if the folder is trashed or inaccessible
+        """
+        if folder_id not in self._ancestor_cache:
+            ancestors = None
+            try:
+                folder = self.box_client.folder(folder_id).get(fields=['id', 'item_status', 'path_collection'])
+                if getattr(folder, 'item_status', 'active') == 'active':
+                    ancestors = [entry.id for entry in folder.path_collection['entries']]
+            except BoxAPIException as e:
+                self.logger.debug(f"Could not access folder {folder_id}: {e}")
+            self._ancestor_cache[folder_id] = ancestors
+        return self._ancestor_cache[folder_id]
+
+    def restore_destination(self, item: Dict, fallback_folder_id: Optional[str]) -> Optional[str]:
+        """The item's original folder if it still exists, else fallback_folder_id."""
+        parent_id = item.get('parent_id')
+        if parent_id and self._folder_ancestors(parent_id) is not None:
+            return parent_id
+        return fallback_folder_id
+
     def _matches_folder_name(self, item_name: str, expected_name: str) -> bool:
         """
         Check if item name matches expected folder name.
@@ -567,6 +594,56 @@ class BoxRecovery:
         
         print("\n" + "="*70)
     
+    def find_completed_folder(self) -> Optional[str]:
+        """Return the ID of the '1Completed' folder in the root, or None if it does not exist."""
+        completed_id = self.check_file_exists_in_folder(self.root_folder_id, '1Completed', 'folder')
+        if completed_id:
+            self.logger.debug(f"Found existing '1Completed' folder (ID: {completed_id})")
+        return completed_id
+
+    def get_folder_parent(self, folder_id: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Look up an active folder's name and parent folder ID.
+
+        Returns:
+            Tuple of (folder name, parent folder ID), or (None, None) if the folder
+            cannot be accessed or is trashed
+        """
+        try:
+            folder = self.box_client.folder(folder_id).get(fields=['id', 'name', 'parent', 'item_status'])
+        except BoxAPIException as e:
+            self.logger.debug(f"Could not access folder {folder_id}: {e}")
+            return None, None
+        if getattr(folder, 'item_status', 'active') != 'active' or not folder.parent:
+            return None, None
+        return folder.name, folder.parent.id
+
+    def move_folder_to_root(self, folder_id: str, folder_name: str) -> bool:
+        """
+        Move a case folder from '1Completed' back to the root folder, where
+        box_clean_folders.py looks for it.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if self.test_mode:
+            self.logger.info(f"[DRY RUN] Would move folder '{folder_name}' out of '1Completed' to the root folder")
+            self.stats['folders_moved'] += 1
+            return True
+
+        try:
+            self.box_client.folder(folder_id).move(self.box_client.folder(self.root_folder_id))
+            self.logger.info(f"✓ Moved folder '{folder_name}' out of '1Completed' to the root folder")
+            self.stats['folders_moved'] += 1
+            return True
+        except BoxAPIException as e:
+            if 'item_name_in_use' in str(e).lower():
+                self.logger.error(f"A folder named '{folder_name}' already exists in the root folder - not moved")
+            else:
+                self.logger.error(f"Failed to move folder '{folder_name}' to the root folder: {e}")
+            self.stats['errors'] += 1
+            return False
+
     def get_or_create_completed_folder(self) -> Optional[str]:
         """
         Get or create the '1Completed' folder in the root.
@@ -575,15 +652,12 @@ class BoxRecovery:
             Folder ID of '1Completed' folder, or None if in test mode and doesn't exist
         """
         try:
+            completed_id = self.find_completed_folder()
+            if completed_id:
+                return completed_id
+
             root_folder = self.box_client.folder(self.root_folder_id)
-            items = root_folder.get_items(limit=1000, fields=['id', 'name', 'type'])
-            
-            # Search for existing 1Completed folder
-            for item in items:
-                if item.type == 'folder' and item.name == '1Completed':
-                    self.logger.debug(f"Found existing '1Completed' folder (ID: {item.id})")
-                    return item.id
-            
+
             # Not found - create it
             if self.test_mode:
                 self.logger.info("[DRY RUN] Would create '1Completed' folder")
@@ -657,13 +731,14 @@ class BoxRecovery:
             self.logger.debug(f"Error checking if {file_type} exists in folder: {e}")
             return None
     
-    def restore_item(self, item: Dict, target_folder_id: Optional[str]) -> bool:
+    def restore_item(self, item: Dict, fallback_folder_id: Optional[str]) -> bool:
         """
-        Restore a trashed item to the specified target folder.
+        Restore a trashed item to its original folder, or to fallback_folder_id if
+        that folder no longer exists.
         
         Args:
             item: Trashed item dictionary
-            target_folder_id: ID of folder to restore to
+            fallback_folder_id: ID of folder to restore to if the original folder is gone
             
         Returns:
             True if successful, False otherwise
@@ -671,6 +746,7 @@ class BoxRecovery:
         item_type = item['type']
         item_name = item['name']
         item_id = item['id']
+        target_folder_id = self.restore_destination(item, fallback_folder_id)
         
         if self.test_mode:
             self.logger.info(f"[DRY RUN] Would restore {item_type} '{item_name}' to folder {target_folder_id}")
@@ -783,40 +859,73 @@ class BoxRecovery:
             self.logger.info("\n[LIST MODE] No restoration performed")
             return
         
-        # If no items found, stop here
-        if not filtered_items:
-            self.logger.info("No items to restore")
-            return
-        
-        # Confirmation prompt
-        if not auto_confirm and not self.test_mode:
-            response = input(f"\nRestore {len(filtered_items)} item(s) to their folder? [y/N]: ")
-            if response.lower() not in ['y', 'yes']:
-                self.logger.info("Cancelled by user")
-                return
-        
-        # Find the case folder in 1Completed (where files should be restored)
+        # Locate the case folder (where files are restored) and whether it is in 1Completed
         target_folder_id = None
-        if box_folder_name:
-            # First, try to find the case folder in 1Completed
+        in_completed = False
+        folder_name, parent_id = self.get_folder_parent(box_folder_id)
+        if parent_id:
+            target_folder_id = box_folder_id
+            completed_id = self.find_completed_folder()
+            in_completed = bool(completed_id) and completed_id in (self._folder_ancestors(box_folder_id) or [])
+            if in_completed:
+                location = "'1Completed'" if parent_id == completed_id else f"a subfolder of '1Completed' ({parent_id})"
+            elif parent_id == self.root_folder_id:
+                location = "the root folder"
+            else:
+                location = f"folder {parent_id}"
+            self.logger.info(f"Case folder '{folder_name}' is in {location}")
+        elif box_folder_name:
+            # Folder ID not accessible - try to find the case folder in 1Completed by name
             target_folder_id = self.find_case_folder_in_completed(box_folder_name)
-            
-            if not target_folder_id:
+            if target_folder_id:
+                folder_name = box_folder_name
+                in_completed = True
+            else:
                 self.logger.warning(f"Case folder not in '1Completed', trying to restore to '1Completed' root")
                 target_folder_id = self.get_or_create_completed_folder()
         else:
             # Fall back to 1Completed root
             target_folder_id = self.get_or_create_completed_folder()
-        
+
         if not target_folder_id:
             self.logger.error("Cannot restore: no target folder available")
             return
-        
+
+        # Nothing left to undo: no deleted items and the folder is not in 1Completed
+        if not filtered_items and not in_completed:
+            self.logger.info("No items to restore and the case folder is not in '1Completed' - nothing to do")
+            return
+
+        actions = []
+        if filtered_items:
+            actions.append(f"restore {len(filtered_items)} item(s) to their folder")
+        if in_completed:
+            actions.append(f"move '{folder_name}' out of '1Completed'")
+
+        # Confirmation prompt
+        if not auto_confirm and not self.test_mode:
+            response = input(f"\n{' and '.join(actions).capitalize()}? [y/N]: ")
+            if response.lower() not in ['y', 'yes']:
+                self.logger.info("Cancelled by user")
+                return
+
         # Restore items
-        self.logger.info(f"\nRestoring {len(filtered_items)} item(s)...")
-        for item in filtered_items:
-            self.restore_item(item, target_folder_id)
-        
+        failed = 0
+        if filtered_items:
+            self.logger.info(f"\nRestoring {len(filtered_items)} item(s)...")
+            for item in filtered_items:
+                if not self.restore_item(item, target_folder_id):
+                    failed += 1
+
+        # Undo the move to 1Completed only once everything is back
+        if in_completed:
+            if failed:
+                self.logger.warning(
+                    f"{failed} item(s) could not be restored - leaving '{folder_name}' in '1Completed'"
+                )
+            else:
+                self.move_folder_to_root(target_folder_id, folder_name)
+
         # Print summary
         self._print_summary()
     
@@ -827,6 +936,7 @@ class BoxRecovery:
         self.logger.info(f"{'='*60}")
         self.logger.info(f"Deleted items found:    {self.stats['items_found']}")
         self.logger.info(f"Items restored:         {self.stats['items_restored']}")
+        self.logger.info(f"Folders moved to root:  {self.stats['folders_moved']}")
         self.logger.info(f"Errors:                 {self.stats['errors']}")
         
         if self.test_mode:

@@ -1,4 +1,4 @@
-"""Tests for the kept-file report and --force-all in aea-box-clean-folders."""
+"""Tests for the kept-file report and --force-delete in aea-box-clean-folders."""
 
 from unittest import mock
 
@@ -33,20 +33,20 @@ def test_extensions_are_grouped_case_insensitively_largest_first():
     ]
 
 
-def test_force_all_declined_deletes_nothing(cleanup, monkeypatch):
+def test_force_delete_declined_deletes_nothing(cleanup, monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: 'n')
     assert cleanup._force_delete_kept_files(KEPT) == KEPT
     cleanup.client.file.assert_not_called()
 
 
-def test_force_all_confirmed_deletes_every_kept_file(cleanup, monkeypatch):
+def test_force_delete_confirmed_deletes_every_kept_file(cleanup, monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: 'y')
     assert cleanup._force_delete_kept_files(KEPT) == []
     assert cleanup.stats['files_deleted'] == 4
     assert cleanup.stats['bytes_deleted'] == 460
 
 
-def test_force_all_in_test_mode_does_not_prompt_or_delete(cleanup, monkeypatch):
+def test_force_delete_in_test_mode_does_not_prompt_or_delete(cleanup, monkeypatch):
     cleanup.test_mode = True
     monkeypatch.setattr('builtins.input', mock.Mock(side_effect=AssertionError))
     cleanup._force_delete_kept_files(KEPT)

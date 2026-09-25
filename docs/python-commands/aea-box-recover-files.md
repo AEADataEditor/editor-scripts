@@ -10,8 +10,17 @@ Restores files deleted from Box folders by
 [`aea-box-clean-folders`](aea-box-clean-folders.md):
 
 1. Takes a Jira case number and looks up the Box Folder ID from Jira.
-2. Lists files deleted by the service account in the past N days.
-3. Restores them to their folder (under `1Completed`).
+2. Lists files deleted by the service account in the past N days from the case
+   folder or any of its subfolders.
+3. Restores each file to its original folder (the case folder under `1Completed`,
+   or a subfolder of it). A file whose original folder no longer exists is
+   restored to the top of the case folder.
+4. Once every file is restored, moves the folder out of `1Completed` (or a
+   subfolder of it, such as `1Completed/aearep-9xxx`) back to the root folder, so that `aea-box-clean-folders` can process it again. If any
+   file fails to restore, the folder stays in `1Completed`.
+
+Running it again on a recovered case does nothing. A case folder still in
+`1Completed` with no deleted files left is moved back to the root folder.
 
 ```bash
 aea-box-recover-files --case 8040 --list    # list deleted files
