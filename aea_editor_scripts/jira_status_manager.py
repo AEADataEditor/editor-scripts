@@ -32,6 +32,8 @@ import sys
 import argparse
 from jira import JIRA
 
+from aea_editor_scripts import console
+
 
 def get_jira_client(verbose=False):
     """Initialize and return authenticated Jira client."""
@@ -219,6 +221,7 @@ def update_recommendation(jira, issue, field_id, field_name, new_value):
 
 
 def main():
+    console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description='Manage Jira issue status based on MC recommendations',
         formatter_class=argparse.RawDescriptionHelpFormatter,

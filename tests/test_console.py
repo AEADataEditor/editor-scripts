@@ -156,3 +156,38 @@ def test_ci_still_reports_a_failed_step(monkeypatch):
 
 def test_the_wrap_width_never_exceeds_the_maximum():
     assert console.width() <= console.MAX_WIDTH
+
+
+# --- UTF-8 stdio --------------------------------------------------------------
+
+class ReconfigurableStream:
+    """Stands in for a real TextIOWrapper's .reconfigure(encoding=...)."""
+
+    def __init__(self):
+        self.reconfigured_with = None
+
+    def reconfigure(self, **kwargs):
+        self.reconfigured_with = kwargs
+
+
+def test_ensure_utf8_stdio_reconfigures_given_streams_to_utf8():
+    out, err = ReconfigurableStream(), ReconfigurableStream()
+    console.ensure_utf8_stdio(streams=(out, err))
+    assert out.reconfigured_with == {"encoding": "utf-8"}
+    assert err.reconfigured_with == {"encoding": "utf-8"}
+
+
+def test_ensure_utf8_stdio_defaults_to_stdout_and_stderr(monkeypatch):
+    out, err = ReconfigurableStream(), ReconfigurableStream()
+    monkeypatch.setattr("sys.stdout", out)
+    monkeypatch.setattr("sys.stderr", err)
+    console.ensure_utf8_stdio()
+    assert out.reconfigured_with == {"encoding": "utf-8"}
+    assert err.reconfigured_with == {"encoding": "utf-8"}
+
+
+def test_ensure_utf8_stdio_skips_a_stream_that_cannot_reconfigure():
+    class NoReconfigure:
+        pass
+
+    console.ensure_utf8_stdio(streams=(NoReconfigure(),))

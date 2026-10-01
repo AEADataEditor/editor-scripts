@@ -11,6 +11,7 @@ import requests
 from requests.exceptions import ConnectionError
 
 from aea_editor_scripts import bitbucket_pipelines as bb
+from aea_editor_scripts import console
 from aea_editor_scripts.jira_comment import automated
 
 # defaults
@@ -232,6 +233,7 @@ def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicps
 
 
 def main():
+    console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description='Initialize AEA Bitbucket repository',
         formatter_class=argparse.RawDescriptionHelpFormatter,

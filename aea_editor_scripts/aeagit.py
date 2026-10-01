@@ -41,6 +41,8 @@ import subprocess
 import argparse
 from pathlib import Path
 
+from aea_editor_scripts import console
+
 
 AEASRC = "git@bitbucket.org:aeaverification"
 AEAHSRC = "bitbucket.org/aeaverification"
@@ -292,6 +294,7 @@ def print_help(prog: str) -> None:
 
 
 def main() -> None:
+    console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("name", nargs="?", default=None,
                         help="Repository number or name")

@@ -766,6 +766,7 @@ def _describe(result, verbose, show_url=False, header_printed=False):
 
 
 def main():
+    console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description=f'Detect openICPSR activity on tickets in "{PENDING_STATUS}"',
         formatter_class=argparse.RawDescriptionHelpFormatter,

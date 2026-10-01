@@ -13,6 +13,8 @@ import os
 import argparse
 from typing import Dict, List, Optional
 
+from aea_editor_scripts import console
+
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='Update Zenodo deposit metadata')
@@ -470,6 +472,7 @@ def main():
     """
     Main function to update Zenodo deposit metadata with related identifiers.
     """
+    console.ensure_utf8_stdio()
     # Load configuration from all sources
     config = load_config()
     if not config:

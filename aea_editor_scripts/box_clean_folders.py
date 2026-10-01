@@ -95,6 +95,7 @@ except ImportError:
     print("Error: jira not installed. Install with: pip install jira")
     sys.exit(1)
 
+from aea_editor_scripts import console
 from aea_editor_scripts.jira_purge_query import find_last_revision
 from aea_editor_scripts.jira_comment import automated
 from aea_editor_scripts.box_auth import load_envvars, box_settings
@@ -307,6 +308,7 @@ class BoxCleanup:
                 args,
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
                 timeout=30
             )
             
@@ -934,6 +936,7 @@ def _normalize_case(case_input: str) -> Optional[str]:
 
 def main():
     """Main entry point."""
+    console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description='Clean up Box folders for completed Jira cases',
         formatter_class=argparse.RawDescriptionHelpFormatter,

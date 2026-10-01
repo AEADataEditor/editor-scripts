@@ -58,6 +58,8 @@ import re
 import threading
 from jira import JIRA
 
+from aea_editor_scripts import console
+
 # Configuration
 COUNTDOWN_SECONDS = 8  # Delay before executing transition
 
@@ -350,6 +352,7 @@ def get_recommendation_options(jira, issue, field_id):
 
 
 def main():
+    console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description='Manage Jira approval transitions with recommendation updates',
         formatter_class=argparse.RawDescriptionHelpFormatter,

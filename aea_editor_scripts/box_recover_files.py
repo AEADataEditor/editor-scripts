@@ -56,6 +56,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Tuple, Optional, Dict
 
+from aea_editor_scripts import console
+
 try:
     from boxsdk import Client
     from boxsdk.exception import BoxAPIException
@@ -955,6 +957,7 @@ class BoxRecovery:
 
 def main():
     """Main entry point."""
+    console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
         description='Recover deleted Box files for completed Jira cases',
         formatter_class=argparse.RawDescriptionHelpFormatter,

@@ -35,6 +35,22 @@ def in_ci():
     return os.environ.get("CI", "").strip().lower() in TRUTHY
 
 
+def ensure_utf8_stdio(streams=None):
+    """Force stdout/stderr to UTF-8 so ticks, crosses and other symbols survive
+    being redirected or piped.
+
+    Python only bypasses the platform's default text encoding for a stream
+    attached to a real terminal. Once a stream is piped or captured — as
+    happens with `| cat`, output redirection, or a subprocess with
+    capture_output=True — it falls back to the locale's encoding, which on
+    Windows is typically a legacy codepage that cannot represent these
+    characters at all.
+    """
+    for stream in streams if streams is not None else (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+
+
 def width():
     """How wide to wrap, honouring the terminal but not following it forever."""
     return min(shutil.get_terminal_size((80, 24)).columns, MAX_WIDTH)
