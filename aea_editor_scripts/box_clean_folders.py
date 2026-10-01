@@ -98,6 +98,7 @@ except ImportError:
 from aea_editor_scripts import console
 from aea_editor_scripts.jira_purge_query import find_last_revision
 from aea_editor_scripts.jira_comment import automated
+from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
 from aea_editor_scripts.box_auth import load_envvars, box_settings
 
 # Configuration
@@ -642,8 +643,9 @@ class BoxCleanup:
                 basic_auth=(jira_username, jira_api_key),
                 options={'verify': True}
             )
+            verify_auth(self._notify_jira_client)
             return self._notify_jira_client
-        except JIRAError as e:
+        except (JIRAError, JiraAuthError) as e:
             self.logger.error(f"Failed to authenticate to Jira for --email: {e}")
             sys.exit(1)
 

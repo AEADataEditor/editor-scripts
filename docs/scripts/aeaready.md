@@ -26,6 +26,17 @@ Optional:
 - **additional comments** — any words after the required arguments and `nopdf`
   are appended verbatim to the commit message.
 
+## Jira updates
+
+After the push, `aeaready` updates the Jira issue. Each Jira command is printed
+before it runs, so it can be copied and run by hand if `aeaready` is aborted.
+
+- With **approve**, it first runs [`jira-reason-sync`](../python-commands/jira-reason-sync.md)
+  to check that the reasons checked in `REPLICATION.md` match Jira. On mismatch
+  it offers to update Jira; declining aborts.
+- It then runs [`jira-approval-manager`](../python-commands/jira-approval-manager.md)
+  after a confirmation prompt.
+
 ## Dependencies
 
 PDF generation needs `pandoc` and either `wkhtmltopdf` or `docker`. On Windows,

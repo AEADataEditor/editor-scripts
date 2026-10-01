@@ -29,6 +29,7 @@ def get_jira_client():
     """Initialize and return authenticated Jira client, or None if credentials missing."""
     try:
         from jira import JIRA
+        from aea_editor_scripts.jira_auth import verify_auth
     except ImportError:
         print("Warning: jira package not installed, skipping Jira integration")
         return None
@@ -46,7 +47,7 @@ def get_jira_client():
             basic_auth=(jira_username, jira_api_key),
             options={'verify': True}
         )
-        jira.myself()  # test connection
+        verify_auth(jira)
         return jira
     except Exception as e:
         print(f"Warning: Could not connect to Jira: {e}")

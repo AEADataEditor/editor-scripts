@@ -58,6 +58,8 @@ import re
 import threading
 from jira import JIRA
 
+from aea_editor_scripts.jira_auth import verify_auth
+
 from aea_editor_scripts import console
 
 # Configuration
@@ -152,8 +154,7 @@ def get_jira_client(verbose=False):
             basic_auth=(jira_username, jira_api_key),
             options={'verify': True}
         )
-        # Test connection
-        user_info = jira.myself()
+        user_info = verify_auth(jira)
         if verbose:
             print(f"✓ Successfully authenticated as {user_info.get('displayName', jira_username)}")
         return jira

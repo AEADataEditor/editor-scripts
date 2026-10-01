@@ -17,6 +17,8 @@ mismatch is resolved by overwriting the Jira field to match `REPLICATION.md`.
 jira-reason-sync aearep-NNNN [--execute] [--replication-md PATH]
 ```
 
+`aeaready ... approve` runs this command before the approval transition.
+
 ## Exit codes
 
 - `0` — aligned (or nothing to check), or `--execute` succeeded

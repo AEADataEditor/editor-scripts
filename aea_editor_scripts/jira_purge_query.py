@@ -50,6 +50,8 @@ import argparse
 from jira import JIRA
 from jira.exceptions import JIRAError
 
+from aea_editor_scripts.jira_auth import verify_auth
+
 from aea_editor_scripts import console
 
 JIRA_BASE_URL = "https://aeadataeditors.atlassian.net"
@@ -70,6 +72,7 @@ def get_jira_client():
             basic_auth=(jira_username, jira_api_key),
             options={'verify': True}
         )
+        verify_auth(jira)
         return jira
     except Exception as e:
         print(f"Error connecting to Jira: {e}")

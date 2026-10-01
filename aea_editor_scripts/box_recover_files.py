@@ -81,6 +81,7 @@ except ImportError:
     sys.exit(1)
 
 from aea_editor_scripts.box_auth import load_envvars, box_settings
+from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
 
 
 class BoxRecovery:
@@ -200,12 +201,11 @@ class BoxRecovery:
                 options={'verify': True}
             )
             
-            # Test authentication
-            myself = self.jira_client.myself()
+            myself = verify_auth(self.jira_client)
             self.logger.info(f"✓ Authenticated to Jira as: {myself['displayName']}")
             return self.jira_client
             
-        except JIRAError as e:
+        except (JIRAError, JiraAuthError) as e:
             self.logger.error(f"Failed to authenticate to Jira: {e}")
             sys.exit(1)
         except Exception as e:

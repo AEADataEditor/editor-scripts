@@ -37,6 +37,8 @@ import sys
 
 from jira import JIRA
 
+from aea_editor_scripts.jira_auth import verify_auth
+
 JIRA_URL = "https://aeadataeditors.atlassian.net"
 FIELD_NAME = "Reason for Failure to be Fully Reproduced"
 SECTION_HEADING = "### Reason for incomplete reproducibility"
@@ -90,7 +92,9 @@ def get_jira_client():
         return None
 
     try:
-        return JIRA(server=JIRA_URL, basic_auth=(jira_username, jira_api_key), options={'verify': True})
+        jira = JIRA(server=JIRA_URL, basic_auth=(jira_username, jira_api_key), options={'verify': True})
+        verify_auth(jira)
+        return jira
     except Exception as e:
         print(f"Error connecting to Jira: {e}", file=sys.stderr)
         return None

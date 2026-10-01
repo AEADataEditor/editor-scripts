@@ -220,6 +220,7 @@ def get_jira_client():
     neither needs Jira credentials nor pays for loading the Jira library.
     """
     from jira import JIRA
+    from aea_editor_scripts.jira_auth import verify_auth
 
     username = os.environ.get("JIRA_USERNAME")
     api_key = os.environ.get("JIRA_API_KEY")
@@ -228,8 +229,10 @@ def get_jira_client():
         sys.exit(1)
 
     try:
-        return JIRA(server=JIRA_URL, basic_auth=(username, api_key),
+        jira = JIRA(server=JIRA_URL, basic_auth=(username, api_key),
                     options={"verify": True})
+        verify_auth(jira)
+        return jira
     except Exception as exc:
         print(f"Error connecting to Jira: {exc}")
         sys.exit(1)

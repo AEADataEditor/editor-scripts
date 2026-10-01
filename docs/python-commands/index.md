@@ -17,3 +17,9 @@ all platforms, including Windows.
 | [`jira-reason-sync`](jira-reason-sync.md) | Sync the Jira failure-reason field to `REPLICATION.md`. |
 | [`jira-status-manager`](jira-status-manager.md) | Query and update issue status and MC Recommendation. |
 | [`zenodo-metadata-editor`](zenodo-metadata-editor.md) | Edit Zenodo deposit metadata and related identifiers. |
+
+## Jira credentials
+
+Commands that use Jira read `JIRA_USERNAME` and `JIRA_API_KEY`. On connecting,
+each one confirms that Jira accepts these credentials, and stops with an error
+naming them if it does not (for example, when the API token has expired).

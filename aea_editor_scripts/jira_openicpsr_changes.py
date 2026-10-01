@@ -28,6 +28,8 @@ from datetime import datetime, timedelta, timezone
 import requests
 from jira import JIRA
 
+from aea_editor_scripts.jira_auth import verify_auth
+
 from aea_editor_scripts import bitbucket_pipelines as pipelines
 from aea_editor_scripts import console
 from aea_editor_scripts import openicpsr_classify as classify
@@ -392,7 +394,9 @@ def get_jira_client():
     api_key = os.environ.get("JIRA_API_KEY")
     if not username or not api_key:
         raise RuntimeError("JIRA_USERNAME and JIRA_API_KEY must be set")
-    return JIRA(server=JIRA_URL, basic_auth=(username, api_key), options={"verify": True})
+    jira = JIRA(server=JIRA_URL, basic_auth=(username, api_key), options={"verify": True})
+    verify_auth(jira)
+    return jira
 
 
 def build_field_map(jira):
