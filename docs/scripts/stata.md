@@ -13,6 +13,10 @@ Run Stata from a Docker image. `NN` is the Stata version (`16`, `17`, `18`,
 stata17 nameofdofile.do
 ```
 
+Images are pulled from the [`sscng`](https://hub.docker.com/u/sscng) Docker Hub
+account. Stata 16 and 17 default to the `latest` tag; later versions default to
+the most recent dated tag. Set `STATA_TAG` to use a different tag.
+
 The working directory is set to that of the do file, which may not suit every
 project.
 

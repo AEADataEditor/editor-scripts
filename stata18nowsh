@@ -2,8 +2,8 @@
 
 SOFTWARE=stata
 VERSION=18_5-mp-i
-TAG=${STATA_TAG:-2024-12-18}
-MYHUBID=dataeditors
+TAG=${STATA_TAG:-2025-02-26}
+MYHUBID=sscng
 MYNAME=${SOFTWARE}${VERSION}
 MYIMG=$MYHUBID/${MYNAME}:${TAG}
 [[ -z $STATALIC ]] && STATALIC=$(find $(pwd)/ -name stata.lic* | sort | tail -1)
