@@ -3,7 +3,8 @@
 aeagit - Clone or update an AEA replication repository.
 
 Checks out a repo from the AEA Bitbucket workspace into the local directory,
-then opens the REPLICATION.md file in VS Code.
+then opens the REPLICATION.md file in VS Code. With --finalize, also opens the
+Claude Code extension in that window with the /aea-report-finalize skill.
 
 Arguments:
     number|name  Either the numerical part of an AEAREP-nnnn repository
@@ -29,6 +30,7 @@ Usage:
     aeagit 1234 https
     aeagit train-123
     aeagit --no-editor 1234
+    aeagit --finalize 1234
     aeagit --all
     aeagit --all https
 """
@@ -39,7 +41,9 @@ import platform
 import shutil
 import subprocess
 import argparse
+import time
 from pathlib import Path
+from urllib.parse import quote
 
 from aea_editor_scripts import console
 
@@ -52,6 +56,9 @@ JIRA_URL = "https://aeadataeditors.atlassian.net"
 PROJECT = "AEAREP"
 PRE_APPROVED_STATUS = "Pre-Approved"
 REPO_FIELD = "Bitbucket short name"
+
+FINALIZE_SKILL = "/aea-report-finalize"
+FINALIZE_DELAY = 4  # seconds for the new window to open and the extension to activate
 
 
 def detect_method() -> str:
@@ -118,12 +125,15 @@ def build_git_url(repo: str, method: str) -> str:
     return f"https://{AEAHSRC}/{repo}.git"
 
 
-def open_in_vscode(repo_dir: Path) -> None:
-    """Open the repo (and REPLICATION.md if present) in VS Code."""
+def open_in_vscode(repo_dir: Path) -> bool:
+    """Open the repo (and REPLICATION.md if present) in VS Code.
+
+    Returns False if VS Code is not available.
+    """
     code = _find_vscode()
     if code is None:
         print(f"Open {repo_dir} with an editor of your choice.")
-        return
+        return False
 
     args = [code, str(repo_dir)]
     replication_md = repo_dir / "REPLICATION.md"
@@ -131,6 +141,22 @@ def open_in_vscode(repo_dir: Path) -> None:
         args.append(str(replication_md))
 
     subprocess.Popen(args)
+    return True
+
+
+def finalize_url() -> str:
+    """vscode:// URL that opens Claude Code with the finalize skill as prompt."""
+    return ("vscode://anthropic.claude-code/open?prompt="
+            + quote(FINALIZE_SKILL, safe=""))
+
+
+def open_claude_finalize() -> None:
+    """Open Claude Code in the most recent VS Code window with the finalize skill."""
+    code = _find_vscode()
+    if code is None:
+        return
+    time.sleep(FINALIZE_DELAY)
+    subprocess.run([code, "--open-url", finalize_url()])
 
 
 def _find_vscode() -> str | None:
@@ -269,7 +295,7 @@ def clone_all(repos: list[str], method: str) -> list[str]:
 
 def print_help(prog: str) -> None:
     print(f"""
-  {prog} (number|name) [(method)]
+  {prog} (number|name) [(method)] [--no-editor | --finalize]
   {prog} --all [(method)]
 
   Checks out the repo from the AEA repository at
@@ -290,6 +316,9 @@ def print_help(prog: str) -> None:
                      No editor is opened. Needs JIRA_USERNAME and JIRA_API_KEY.
     -n, --no-editor  Skip opening VS Code after clone/update.
                      Also honoured via the AEAGIT_NO_EDITOR environment variable.
+    -f, --finalize   After opening VS Code, open the Claude Code extension
+                     with the {FINALIZE_SKILL} skill. Overrides
+                     AEAGIT_NO_EDITOR.
 
   For HTTPS, set P_BITBUCKET_PAT and P_BITBUCKET_USERNAME, or configure
   ~/.git-credentials.
@@ -308,15 +337,22 @@ def main() -> None:
                              f"'{PRE_APPROVED_STATUS}' status")
     parser.add_argument("-n", "--no-editor", action="store_true", default=False,
                         help="Skip opening VS Code after clone/update")
+    parser.add_argument("-f", "--finalize", action="store_true", default=False,
+                        help=f"Open Claude Code with {FINALIZE_SKILL}")
     parser.add_argument("-h", "--help", action="store_true")
 
     args = parser.parse_args()
 
-    no_editor = args.no_editor or bool(os.environ.get("AEAGIT_NO_EDITOR"))
-
     if args.help or (args.name is None and not args.all):
         print_help(parser.prog)
         sys.exit(0)
+
+    if args.finalize and (args.all or args.no_editor):
+        print("Error: --finalize cannot be combined with --all or --no-editor.")
+        sys.exit(1)
+
+    no_editor = not args.finalize and (
+        args.no_editor or bool(os.environ.get("AEAGIT_NO_EDITOR")))
 
     # With --all the repos come from Jira, so the only positional accepted is
     # the method, which argparse has parsed into `name`.
@@ -362,8 +398,8 @@ def main() -> None:
         sys.exit(1)
 
     repo_dir = Path(repo)
-    if not no_editor:
-        open_in_vscode(repo_dir)
+    if not no_editor and open_in_vscode(repo_dir) and args.finalize:
+        open_claude_finalize()
 
     print("Done")
     print(f"Type: cd {repo}")

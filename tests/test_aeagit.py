@@ -86,3 +86,35 @@ def test_all_rejects_a_repository_name(monkeypatch, argv):
     with pytest.raises(SystemExit) as exc:
         A.main()
     assert exc.value.code == 1
+
+
+def test_finalize_url_invokes_the_skill():
+    assert A.finalize_url() == (
+        "vscode://anthropic.claude-code/open?prompt=%2Faea-report-finalize")
+
+
+@pytest.mark.parametrize("argv", [
+    ["--finalize", "--all"],
+    ["--finalize", "--no-editor", "1234"],
+])
+def test_finalize_rejects_all_and_no_editor(monkeypatch, argv):
+    monkeypatch.setattr(A.sys, "argv", ["aeagit"] + argv)
+    with pytest.raises(SystemExit) as exc:
+        A.main()
+    assert exc.value.code == 1
+
+
+def test_finalize_opens_editor_then_claude(monkeypatch):
+    calls = []
+    monkeypatch.setenv("AEAGIT_NO_EDITOR", "1")
+    monkeypatch.setattr(A.sys, "argv", ["aeagit", "-f", "1234", "ssh"])
+    monkeypatch.setattr(A, "clone_or_update", lambda repo, url: True)
+    monkeypatch.setattr(A, "copy_to_clipboard", lambda text: None)
+    monkeypatch.setattr(A, "open_in_vscode",
+                        lambda d: calls.append(("editor", str(d))) or True)
+    monkeypatch.setattr(A, "open_claude_finalize",
+                        lambda: calls.append(("claude",)))
+
+    A.main()
+
+    assert calls == [("editor", "aearep-1234"), ("claude",)]

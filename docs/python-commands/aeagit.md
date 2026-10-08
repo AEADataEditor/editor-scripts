@@ -11,7 +11,7 @@ possible, opens VS Code in the directory with `REPLICATION.md` preloaded. Used
 during editing and sign-off.
 
 ```
-aeagit (number|name) [method] [--no-editor]
+aeagit (number|name) [method] [--no-editor | --finalize]
 aeagit --all [method]
 ```
 
@@ -27,6 +27,10 @@ aeagit --all [method]
   repository (see below).
 - **`-n` / `--no-editor`** — skip opening VS Code. Also honored via the
   `AEAGIT_NO_EDITOR` environment variable.
+- **`-f` / `--finalize`** — after opening VS Code, open the Claude Code extension
+  in that window with the `/aea-report-finalize` skill as the prompt (via
+  `code --open-url`, after a 4-second wait for the window to open). Overrides
+  `AEAGIT_NO_EDITOR`; cannot be combined with `--all` or `--no-editor`.
 
 ## All pre-approved cases
 
