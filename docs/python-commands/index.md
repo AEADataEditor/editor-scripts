@@ -7,6 +7,7 @@ all platforms, including Windows.
 | Command | Purpose |
 | --- | --- |
 | [`aea-box-clean-folders`](aea-box-clean-folders.md) | Purge data files and archive folders for completed cases. |
+| [`aea-box-create-folder`](aea-box-create-folder.md) | Create a case's restricted-data Box folder, file request, and Jira subtask. |
 | [`aea-box-recover-files`](aea-box-recover-files.md) | Restore files deleted from Box folders. |
 | [`aea-parse-tags`](aea-parse-tags.md) | Consolidate `[REQUIRED]`/`[SUGGESTED]` tags into the Action Items checklists. |
 | [`aeagit`](aeagit.md) | Clone or update a Bitbucket replication repository — one, or all pre-approved cases. |

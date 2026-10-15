@@ -20,6 +20,7 @@ project:
       title: Python commands
       children:
         - file: python-commands/aea-box-clean-folders.md
+        - file: python-commands/aea-box-create-folder.md
         - file: python-commands/aea-box-recover-files.md
         - file: python-commands/aea-parse-tags.md
         - file: python-commands/aeagit.md

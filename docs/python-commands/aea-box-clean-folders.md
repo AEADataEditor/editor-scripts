@@ -70,8 +70,8 @@ unconditionally, including under `--test` (which only previews the notice).
 
 Variables not set in the environment are read from `~/.envvars`.
 
-- Box: `BOX_FOLDER_PRIVATE` and the Box app credentials (see [Box setup](#box-setup))
-- Jira: `JIRA_USERNAME`, `JIRA_API_KEY`, optionally `JIRA_SERVER`
+- Box: the Box app credentials (see [Box setup](#box-setup))
+- Jira: `JIRA_USERNAME`, `JIRA_API_KEY`
 - For `--email`: `DATAEDITOR_EMAIL_PASSWORD` (fallback if the 1Password CLI
   `op` has no session, e.g. when running remotely; otherwise read from the
   1Password item "Email for AEA Dataeditor"), optionally `DATAEDITOR_SMTP_HOST`
@@ -94,14 +94,6 @@ The scripts authenticate as a Box JWT app. Its credentials are a JSON file named
    chmod 600 ~/.config/box/*_config.json
    ```
 
-2. Add the ID of the Box root folder holding the `aearep-XXXX` case folders
-   (the number at the end of its URL, `https://cornell.box.com/folder/<ID>`)
-   to `~/.envvars`:
-
-   ```bash
-   BOX_FOLDER_PRIVATE=<ID>
-   ```
-
 To keep the JSON file elsewhere, also add its directory to `~/.envvars`:
 
 ```bash
@@ -115,3 +107,18 @@ Credentials are looked up in this order:
 | `BOX_PRIVATE_JSON` | Base64-encoded content of the JSON file (`base64 -w0 <file>`). When set, all other credential variables are ignored. Suited to CI or remote runs. |
 | `BOX_CONFIG_PATH` | Directory with the JSON file. Default: `~/.config/box`. The single `*_config.json` file there is used. |
 | `BOX_ENTERPRISE_ID`, `BOX_PRIVATE_KEY_ID` | Only needed if that directory holds several config files: selects `<BOX_ENTERPRISE_ID>_<BOX_PRIVATE_KEY_ID>_config.json`. |
+
+(box-settings)=
+### Shared settings
+
+The non-confidential settings of the Box scripts are in [`box_config.py`](https://github.com/AEADataEditor/editor-scripts/blob/main/aea_editor_scripts/box_config.py). An environment
+variable (or `~/.envvars` entry) overrides the corresponding setting:
+
+| Setting | Default | Override |
+|---|---|---|
+| Root folder holding the `aearep-NNNN` case folders (Restricted-Access-Data) | `144685329952` | `BOX_FOLDER_PRIVATE` |
+| File request copied onto new case folders (on the `template` folder) | `24714815504` | `BOX_FILE_REQUEST_TEMPLATE` |
+| Jira server | `https://aeadataeditors.atlassian.net` | `JIRA_SERVER` |
+| Box web address used in links | `https://cornell.app.box.com` | — |
+| Folder for cleaned-up cases | `1Completed` | — |
+| Jira subtask type and field names | `Request confidential data`, `Restricted data Box Folder ID`, `Bitbucket short name` | — |

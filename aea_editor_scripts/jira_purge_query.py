@@ -222,6 +222,61 @@ def find_last_revision(jira, issue_key, _visited=None):
     return find_last_revision(jira, revised_by_issues[-1], _visited)
 
 
+def get_revision_of_links(issue):
+    """Keys of the issues that `issue` "is a revision of" (the earlier rounds)."""
+    originals = []
+    for link in getattr(issue.fields, 'issuelinks', None) or []:
+        inward = getattr(link.type, 'inward', '') or ''
+        if 'revised by' in inward.lower() and hasattr(link, 'outwardIssue'):
+            originals.append(link.outwardIssue.key)
+    return originals
+
+
+def find_first_revision(jira, issue_key, _visited=None):
+    """Walk the "is a revision of" link chain back to the first (original) issue.
+
+    The inverse of find_last_revision. Returns issue_key unchanged when it is
+    not a revision of anything, or fetching an issue in the chain fails.
+    """
+    if _visited is None:
+        _visited = set()
+    if issue_key in _visited:
+        return issue_key
+    _visited.add(issue_key)
+
+    try:
+        issue = jira.issue(issue_key)
+    except JIRAError:
+        return issue_key
+
+    originals = get_revision_of_links(issue)
+    if not originals:
+        return issue.key
+
+    return find_first_revision(jira, originals[0], _visited)
+
+
+def revision_chain(jira, issue_key):
+    """Every issue connected to issue_key by revision links, first to last.
+
+    Starts from the original (find_first_revision) and follows "is revised by"
+    forward, including every branch. Issues that cannot be fetched are skipped.
+    """
+    chain, queue = [], [find_first_revision(jira, issue_key)]
+    while queue:
+        key = queue.pop(0)
+        if key in chain:
+            continue
+        try:
+            issue = jira.issue(key)
+        except JIRAError:
+            continue
+        chain.append(issue.key)
+        revised_by_issues, _ = get_revised_by_links(issue)
+        queue.extend(revised_by_issues)
+    return chain
+
+
 def get_open_subtasks(issue):
     """
     Get all subtasks of an issue that are not in the "Done" status category.

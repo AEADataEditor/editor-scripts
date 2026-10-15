@@ -35,7 +35,6 @@ Usage:
 
 Environment Variables Required:
     Box Authentication:
-        BOX_FOLDER_PRIVATE - Root Box folder ID
         BOX_PRIVATE_JSON - Base64 encoded config JSON, or
         BOX_CONFIG_PATH - Directory containing *_config.json (default: ~/.config/box)
         BOX_ENTERPRISE_ID, BOX_PRIVATE_KEY_ID - Select {ENTERPRISE_ID}_{KEY_ID}_config.json
@@ -45,7 +44,8 @@ Environment Variables Required:
     Jira Authentication (for jira_purge_query.py, and for --email):
         JIRA_USERNAME - Your Jira email address
         JIRA_API_KEY - API token
-        JIRA_SERVER - Jira server URL (optional, default: https://aeadataeditors.atlassian.net)
+
+    Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
 
     Restricted-data deletion notice (--email), optional:
         DATAEDITOR_EMAIL_PASSWORD - Password for dataeditor@aeapubs.org, used if the
@@ -100,13 +100,13 @@ from aea_editor_scripts.jira_purge_query import find_last_revision
 from aea_editor_scripts.jira_comment import automated
 from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
 from aea_editor_scripts.box_auth import load_envvars, box_settings
+from aea_editor_scripts import box_config
+from aea_editor_scripts.box_config import COMPLETED_FOLDER, RESTRICTED_SUBTASK_TYPE
 
 # Configuration
 JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
-JIRA_SERVER = os.environ.get('JIRA_SERVER', 'https://aeadataeditors.atlassian.net')
 
 # Restricted-data deletion notice (--email / -e)
-RESTRICTED_SUBTASK_TYPE = 'Request confidential data'
 WAS_DATA_DELETED_FIELD = 'Was data deleted?'
 MANUSCRIPT_FIELD = 'Manuscript Central identifier'
 
@@ -215,10 +215,7 @@ class BoxCleanup:
         
         load_envvars()
 
-        self.root_folder_id = os.environ.get('BOX_FOLDER_PRIVATE')
-        if not self.root_folder_id:
-            self.logger.error("BOX_FOLDER_PRIVATE environment variable not set")
-            sys.exit(1)
+        self.root_folder_id = box_config.root_folder_id()
 
         settings = box_settings(self.logger)
         try:
@@ -458,7 +455,7 @@ class BoxCleanup:
             
             # Search for existing 1Completed folder
             for item in items:
-                if item.type == 'folder' and item.name == '1Completed':
+                if item.type == 'folder' and item.name == COMPLETED_FOLDER:
                     self.logger.debug(f"Found existing '1Completed' folder (ID: {item.id})")
                     return item.id
             
@@ -468,7 +465,7 @@ class BoxCleanup:
                 return None
             else:
                 self.logger.info("Creating '1Completed' folder...")
-                completed_folder = root_folder.create_subfolder('1Completed')
+                completed_folder = root_folder.create_subfolder(COMPLETED_FOLDER)
                 print(f"✓ Created '1Completed' folder (ID: {completed_folder.id})")
                 return completed_folder.id
                 
@@ -639,7 +636,7 @@ class BoxCleanup:
 
         try:
             self._notify_jira_client = JIRA(
-                server=JIRA_SERVER,
+                server=box_config.jira_server(),
                 basic_auth=(jira_username, jira_api_key),
                 options={'verify': True}
             )
@@ -969,7 +966,6 @@ Examples:
 
 Environment Variables Required:
   Box Authentication:
-    BOX_FOLDER_PRIVATE - Root Box folder ID
     BOX_PRIVATE_JSON - Base64 encoded config JSON, or
     BOX_CONFIG_PATH - Directory containing *_config.json (default: ~/.config/box)
     BOX_ENTERPRISE_ID, BOX_PRIVATE_KEY_ID - Select {ENTERPRISE_ID}_{KEY_ID}_config.json
@@ -979,7 +975,8 @@ Environment Variables Required:
   Jira Authentication (also used by --email):
     JIRA_USERNAME - Your Jira email address
     JIRA_API_KEY - API token
-    JIRA_SERVER - optional, default: https://aeadataeditors.atlassian.net
+
+  Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
 
   Restricted-data deletion notice (--email), optional:
     DATAEDITOR_EMAIL_PASSWORD - fallback if 1Password CLI ('op') is unavailable

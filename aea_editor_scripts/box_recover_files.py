@@ -35,7 +35,6 @@ Usage:
 
 Environment Variables Required:
     Box Authentication:
-        BOX_FOLDER_PRIVATE - Root Box folder ID
         BOX_PRIVATE_JSON - Base64 encoded config JSON, or
         BOX_CONFIG_PATH - Directory containing *_config.json (default: ~/.config/box)
         BOX_ENTERPRISE_ID, BOX_PRIVATE_KEY_ID - Select {ENTERPRISE_ID}_{KEY_ID}_config.json
@@ -45,7 +44,8 @@ Environment Variables Required:
     Jira Authentication:
         JIRA_USERNAME - Your Jira email address
         JIRA_API_KEY - API token
-        JIRA_SERVER - Jira server URL (default: https://aeadataeditors.atlassian.net)
+
+    Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
 """
 
 import os
@@ -81,6 +81,8 @@ except ImportError:
     sys.exit(1)
 
 from aea_editor_scripts.box_auth import load_envvars, box_settings
+from aea_editor_scripts import box_config
+from aea_editor_scripts.box_config import BOX_FOLDER_ID_FIELD, COMPLETED_FOLDER, REPO_FIELD
 from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
 
 
@@ -155,10 +157,7 @@ class BoxRecovery:
         
         load_envvars()
 
-        self.root_folder_id = os.environ.get('BOX_FOLDER_PRIVATE')
-        if not self.root_folder_id:
-            self.logger.error("BOX_FOLDER_PRIVATE environment variable not set")
-            sys.exit(1)
+        self.root_folder_id = box_config.root_folder_id()
 
         settings = box_settings(self.logger)
         try:
@@ -188,7 +187,7 @@ class BoxRecovery:
         
         jira_username = os.environ.get('JIRA_USERNAME')
         jira_api_key = os.environ.get('JIRA_API_KEY')
-        jira_server = os.environ.get('JIRA_SERVER', 'https://aeadataeditors.atlassian.net')
+        jira_server = box_config.jira_server()
         
         if not jira_username or not jira_api_key:
             self.logger.error("JIRA_USERNAME and JIRA_API_KEY environment variables required")
@@ -261,7 +260,7 @@ class BoxRecovery:
                 field_map[field['name']] = field['id']
             
             # Look for "Restricted data Box Folder ID" custom field
-            box_id_field_name = "Restricted data Box Folder ID"
+            box_id_field_name = BOX_FOLDER_ID_FIELD
             box_id_field_id = field_map.get(box_id_field_name)
             
             if not box_id_field_id:
@@ -294,7 +293,7 @@ class BoxRecovery:
                 return None, None
             
             # Look for "Bitbucket short name" custom field (folder name)
-            folder_name_field_name = "Bitbucket short name"
+            folder_name_field_name = REPO_FIELD
             folder_name_field_id = field_map.get(folder_name_field_name)
             folder_name = None
             
@@ -598,7 +597,7 @@ class BoxRecovery:
     
     def find_completed_folder(self) -> Optional[str]:
         """Return the ID of the '1Completed' folder in the root, or None if it does not exist."""
-        completed_id = self.check_file_exists_in_folder(self.root_folder_id, '1Completed', 'folder')
+        completed_id = self.check_file_exists_in_folder(self.root_folder_id, COMPLETED_FOLDER, 'folder')
         if completed_id:
             self.logger.debug(f"Found existing '1Completed' folder (ID: {completed_id})")
         return completed_id
@@ -666,7 +665,7 @@ class BoxRecovery:
                 return None
             else:
                 self.logger.info("Creating '1Completed' folder...")
-                completed_folder = root_folder.create_subfolder('1Completed')
+                completed_folder = root_folder.create_subfolder(COMPLETED_FOLDER)
                 self.logger.info(f"✓ Created '1Completed' folder (ID: {completed_folder.id})")
                 return completed_folder.id
                 
@@ -977,7 +976,6 @@ Examples:
 
 Environment Variables Required:
   Box Authentication:
-    BOX_FOLDER_PRIVATE - Root Box folder ID
     BOX_PRIVATE_JSON - Base64 encoded config JSON, or
     BOX_CONFIG_PATH - Directory containing *_config.json (default: ~/.config/box)
     BOX_ENTERPRISE_ID, BOX_PRIVATE_KEY_ID - Select {ENTERPRISE_ID}_{KEY_ID}_config.json
@@ -987,7 +985,8 @@ Environment Variables Required:
   Jira Authentication:
     JIRA_USERNAME - Your Jira email address
     JIRA_API_KEY - API token
-    JIRA_SERVER - Jira server URL (optional, default: https://aeadataeditors.atlassian.net)
+
+  Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
 """
     )
     
