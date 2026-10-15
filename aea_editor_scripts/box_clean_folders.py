@@ -101,14 +101,13 @@ from aea_editor_scripts.jira_comment import automated
 from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
 from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts import box_config
-from aea_editor_scripts.box_config import COMPLETED_FOLDER, RESTRICTED_SUBTASK_TYPE
+from aea_editor_scripts.box_config import COMPLETED_FOLDER, MANUSCRIPT_FIELD, RESTRICTED_SUBTASK_TYPE
 
 # Configuration
 JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
 
 # Restricted-data deletion notice (--email / -e)
 WAS_DATA_DELETED_FIELD = 'Was data deleted?'
-MANUSCRIPT_FIELD = 'Manuscript Central identifier'
 
 DATAEDITOR_EMAIL = 'dataeditor@aeapubs.org'
 SMTP_HOST = os.environ.get('DATAEDITOR_SMTP_HOST', 'mail.aeapubs.org')

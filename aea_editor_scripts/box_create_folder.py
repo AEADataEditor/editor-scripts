@@ -11,8 +11,12 @@ Given the main Jira issue of the current round (e.g. aearep-9123), this:
 4. Finds the "Request confidential data" subtask of the main issue, creating
    it if there is none.
 5. Creates a file request on the folder by copying the template file request,
-   prints its URL, and posts it as a comment on the subtask. A link already
-   posted to the subtask is reused instead.
+   records its URL in the Box folder description, prints it, and posts it as a
+   comment on the subtask. A link already recorded on the folder (or, failing
+   that, posted to the subtask) is reused instead.
+6. Writes the email to the authors into an empty subtask description, from the
+   LDI-Research-Aide "Request Restricted Access Data" template (fetched on each
+   run), with the subtask key, manuscript number, and file request link filled in.
 
 Emailing the authors and moving the subtask to "Request sent" stay manual.
 
@@ -44,6 +48,7 @@ import sys
 import logging
 from typing import Optional
 
+import requests
 from boxsdk import Client
 from boxsdk.auth.jwt_auth import JWTAuth
 from boxsdk.exception import BoxAPIException
@@ -53,11 +58,12 @@ from jira.exceptions import JIRAError
 from aea_editor_scripts import box_config, console
 from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
-from aea_editor_scripts.jira_comment import automated
+from aea_editor_scripts.jira_comment import ROBOT, automated
 from aea_editor_scripts.jira_purge_query import revision_chain
 
 from aea_editor_scripts.box_config import (
-    BOX_WEB, RESTRICTED_SUBTASK_TYPE, BOX_FOLDER_ID_FIELD, REPO_FIELD)
+    BOX_WEB, RESTRICTED_SUBTASK_TYPE, BOX_FOLDER_ID_FIELD, REPO_FIELD, MANUSCRIPT_FIELD,
+    EMAIL_TEMPLATE_URL, EMAIL_TEMPLATE_RAW_URL)
 
 FILE_REQUEST_LINK = re.compile(re.escape(BOX_WEB) + r'/f/[0-9a-f]+')
 
@@ -123,7 +129,7 @@ def folder_name_for(issue, chain: list, fields: dict) -> str:
 
 
 def find_child_folder(client, parent_id: str, name: str):
-    for item in client.folder(parent_id).get_items(limit=1000, fields=['id', 'name', 'type']):
+    for item in client.folder(parent_id).get_items(limit=1000, fields=['id', 'name', 'type', 'description']):
         if item.type == 'folder' and item.name.lower() == name.lower():
             return item
     return None
@@ -135,13 +141,79 @@ def find_restricted_subtask(jira, issue_key: str):
     return results[0] if results else None
 
 
-def posted_file_request(jira, subtask) -> Optional[str]:
-    """The file request link already posted to the subtask by this script, if any."""
-    for comment in jira.comments(subtask.key):
-        m = FILE_REQUEST_LINK.search(comment.body or '')
-        if m:
-            return m.group(0)
-    return None
+def folder_file_request(folder) -> Optional[str]:
+    """The file request link recorded in the Box folder description by this script, if any.
+
+    The Box API cannot list a folder's file requests, so the script records the
+    one it creates in the folder description.
+    """
+    m = FILE_REQUEST_LINK.search(getattr(folder, 'description', None) or '')
+    return m.group(0) if m else None
+
+
+def folder_description(url: str, request_id: Optional[str]) -> str:
+    ident = f" (file request {request_id})" if request_id else ""
+    return f"Upload link{ident}: {url}"
+
+
+def posted_file_requests(jira, subtask) -> list:
+    """File request links already posted to the subtask, oldest first."""
+    return [link for comment in jira.comments(subtask.key)
+            for link in FILE_REQUEST_LINK.findall(comment.body or '')]
+
+
+def fetch_email_template() -> str:
+    response = requests.get(EMAIL_TEMPLATE_RAW_URL, timeout=30)
+    response.raise_for_status()
+    return response.text
+
+
+def markdown_to_jira(text: str) -> str:
+    """Convert the Markdown used by the email template to Jira wiki markup."""
+    out, in_quote, in_code = [], False, False
+    for line in text.splitlines():
+        if line.strip().startswith('```'):
+            in_code = not in_code
+            out.append('{noformat}')
+            continue
+        if in_code:
+            out.append(line)
+            continue
+        if re.match(r'^\{:.*\}\s*$', line):  # kramdown attribute, e.g. {: .highlight }
+            continue
+        quoted = line.startswith('>')
+        if quoted != in_quote:
+            out.append('{quote}')
+            in_quote = quoted
+        if quoted:
+            line = line[1:]
+        line = line.strip()
+        line = re.sub(r'`([^`]+)`', r'{{\1}}', line)
+        line = re.sub(r'(?<![*\w])\*([^*\s][^*]*?)\*(?![*\w])', r'_\1_', line)
+        line = re.sub(r'^- ', '* ', line)
+        out.append(line)
+    if in_quote:
+        out.append('{quote}')
+    return '\n'.join(out).strip()
+
+
+def email_description(template_md: str, subtask_key: str, manuscript: Optional[str],
+                      url: Optional[str]) -> str:
+    """The subtask description: the email template with the case's values filled in."""
+    m = re.search(r'<!--\s*start template\s*-->(.*?)<!--\s*end template\s*-->', template_md, re.S)
+    body = m.group(1) if m else template_md
+    for placeholder, value in (('<subtask AEAREP>', subtask_key),
+                               ('<MCNumber>', manuscript),
+                               ('<Box File Request URL>', url)):
+        if value:
+            body = body.replace(placeholder, str(value))
+    body = markdown_to_jira(body)
+    todo = ['the author\'s name'] + re.findall(r'<[A-Za-z][^<>\n]*>', body)
+    todo = ' and '.join([', '.join(todo[:-1]), todo[-1]]) if len(todo) > 1 else todo[0]
+    return (f"{ROBOT} Draft of the email requesting the restricted data, adapted from "
+            f"[Request Restricted Access Data|{EMAIL_TEMPLATE_URL}]. "
+            f"Fill in {todo} before sending.\n\n----\n\n{body}\n\n----\n"
+            f"_This description was written automatically by editor-scripts._")
 
 
 def box_folder_id_value(field: dict, folder_id: str):
@@ -231,27 +303,56 @@ def run(issue_arg: str, test_mode: bool = False) -> int:
         })
         print(console.field("Subtask", f"created {subtask.key}"))
 
-    # 4. File request
-    posted = posted_file_request(jira, subtask) if subtask else None
-    if posted:
-        print(console.field("Upload", f"{posted} (already posted to {subtask.key})"))
-        return 0
-    if test_mode:
+    # 4. File request: recorded on the Box folder, else posted to the subtask, else new
+    on_box = folder_file_request(folder) if folder else None
+    posted = posted_file_requests(jira, subtask) if subtask else []
+    url = on_box or (posted[0] if posted else None)
+    if url:
+        print(console.field("Upload", f"{url} (existing)"))
+    elif test_mode:
         print(console.field("Upload", f"{dry}copy file request {template_id} to the folder"))
+    else:
+        try:
+            request = client.file_request(template_id).copy(
+                folder=folder, title=f"Restricted data for {folder_name}", status='active')
+        except BoxAPIException as e:
+            print(f"Error: could not create the file request: {e}")
+            return 1
+        url = request.url if request.url.startswith('http') else f"{BOX_WEB}{request.url}"
+        print(console.field("Upload", url))
+        folder.update_info(data={'description': folder_description(url, request.id)})
+        on_box = url
+    if url and not on_box and not test_mode:
+        folder.update_info(data={'description': folder_description(url, None)})
+        print(console.note(f"Recorded the link in the description of Box folder {folder_name}"))
+    if url and url not in posted:
+        if test_mode:
+            print(console.field("Comment", f"{dry}post the file request link to the subtask"))
+        else:
+            jira.add_comment(subtask.key, automated(file_request_comment(folder_name, folder_id, url)))
+            print(console.field("Comment", f"posted to {subtask.key}"))
+    elif not url:
         print(console.field("Comment", f"{dry}post the file request link to the subtask"))
-        return 0
-    try:
-        request = client.file_request(template_id).copy(
-            folder=folder, title=f"Restricted data for {folder_name}", status='active')
-    except BoxAPIException as e:
-        print(f"Error: could not create the file request: {e}")
-        return 1
-    url = request.url if request.url.startswith('http') else f"{BOX_WEB}{request.url}"
-    print(console.field("Upload", url))
 
-    jira.add_comment(subtask.key, automated(file_request_comment(folder_name, folder_id, url)))
-    print(console.field("Comment", f"posted to {subtask.key}"))
-    print(f"\nNext: email the authors the file request link, then move {subtask.key} to 'Request sent'.")
+    # 5. Email draft in the subtask description
+    if test_mode:
+        print(console.field("Email", f"{dry}fill the subtask description from {EMAIL_TEMPLATE_URL}"))
+        return 0
+    if (subtask.fields.description or '').strip():
+        print(console.field("Email", f"{subtask.key} already has a description, left as is"))
+    else:
+        manuscript_field = fields.get(MANUSCRIPT_FIELD)
+        manuscript = getattr(issue.fields, manuscript_field['id'], None) if manuscript_field else None
+        try:
+            template = fetch_email_template()
+        except requests.RequestException as e:
+            print(console.field("Email", f"could not fetch {EMAIL_TEMPLATE_URL}: {e}"))
+        else:
+            subtask.update(fields={'description': email_description(
+                template, subtask.key, manuscript, url)})
+            print(console.field("Email", f"draft written to the {subtask.key} description"))
+
+    print(f"\nNext: email the authors (draft in {subtask.key}), then move {subtask.key} to 'Request sent'.")
     return 0
 
 

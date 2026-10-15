@@ -29,6 +29,14 @@ DEFAULT_JIRA_SERVER = 'https://aeadataeditors.atlassian.net'
 RESTRICTED_SUBTASK_TYPE = 'Request confidential data'
 BOX_FOLDER_ID_FIELD = 'Restricted data Box Folder ID'
 REPO_FIELD = 'Bitbucket short name'
+MANUSCRIPT_FIELD = 'Manuscript Central identifier'
+
+# Email to authors requesting restricted data; the part between the
+# "start template" and "end template" comments becomes the subtask description
+EMAIL_TEMPLATE_URL = ('https://github.com/labordynamicsinstitute/LDI-Research-Aide/blob/main/'
+                      'docs/emails/Request-Restricted-Access-Data.md')
+EMAIL_TEMPLATE_RAW_URL = ('https://raw.githubusercontent.com/labordynamicsinstitute/LDI-Research-Aide/main/'
+                          'docs/emails/Request-Restricted-Access-Data.md')
 
 
 def root_folder_id() -> str:
