@@ -6,6 +6,7 @@ This script cleans up Box folders for completed Jira cases by:
 1. Scanning the Box root folder for case folders (aearep-XXXX)
 2. Querying jira_purge_query.py to check if cases are ready for purging
 3. For ready cases:
+   - Disabling the folder's upload link (file request), if one is recorded
    - Deleting data files (CSV, DTA, ZIP, etc.)
    - Moving the folder (with remaining documents) to the '1Completed' subfolder
 
@@ -102,6 +103,7 @@ from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
 from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts import box_config
 from aea_editor_scripts.box_config import COMPLETED_FOLDER, MANUSCRIPT_FIELD, RESTRICTED_SUBTASK_TYPE
+from aea_editor_scripts.box_create_folder import recorded_file_request_id
 
 # Configuration
 JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
@@ -441,6 +443,32 @@ class BoxCleanup:
 
         return deleted_ids
     
+    def disable_file_request(self, folder_id: str, folder_name: str):
+        """
+        Deactivate the folder's upload link (file request), so authors can no longer
+        add files. The Box API cannot list a folder's file requests; the ID is the one
+        aea-box-create-folder recorded in the folder description.
+        """
+        try:
+            description = self.client.folder(folder_id).get(fields=['description']).description
+        except BoxAPIException as e:
+            self.logger.error(f"  Could not read the description of {folder_name}: {e}")
+            self.stats['errors'] += 1
+            return
+        request_id = recorded_file_request_id(description)
+        if not request_id:
+            self.logger.info("  No upload link recorded on the folder - disable any in the Box web interface")
+            return
+        if self.test_mode:
+            self.logger.info(f"  [DRY RUN] Would disable upload link (file request {request_id})")
+            return
+        try:
+            self.client.file_request(request_id).update_info(data={'status': 'inactive'})
+            print(f"  ✓ Disabled upload link (file request {request_id})")
+        except BoxAPIException as e:
+            self.logger.error(f"  Failed to disable upload link (file request {request_id}): {e}")
+            self.stats['errors'] += 1
+
     def get_or_create_completed_folder(self) -> Optional[str]:
         """
         Get or create the '1Completed' folder in the root.
@@ -552,6 +580,8 @@ class BoxCleanup:
         self.logger.info(f"  Found {len(document_files)} document(s) to keep")
         self._log_extension_summary(document_files)
         
+        self.disable_file_request(folder_id, folder_name)
+
         # Move folder to 1Completed FIRST (before deleting files)
         # This ensures the folder is archived even if deletion fails
         self.logger.info(f"  Moving folder to '1Completed'...")

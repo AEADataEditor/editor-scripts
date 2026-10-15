@@ -156,6 +156,12 @@ def folder_description(url: str, request_id: Optional[str]) -> str:
     return f"Upload link{ident}: {url}"
 
 
+def recorded_file_request_id(description: Optional[str]) -> Optional[str]:
+    """The file request ID in a folder description written by folder_description()."""
+    m = re.search(r'\(file request (\d+)\)', description or '')
+    return m.group(1) if m else None
+
+
 def posted_file_requests(jira, subtask) -> list:
     """File request links already posted to the subtask, oldest first."""
     return [link for comment in jira.comments(subtask.key)

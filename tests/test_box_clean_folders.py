@@ -51,3 +51,30 @@ def test_force_delete_in_test_mode_does_not_prompt_or_delete(cleanup, monkeypatc
     monkeypatch.setattr('builtins.input', mock.Mock(side_effect=AssertionError))
     cleanup._force_delete_kept_files(KEPT)
     cleanup.client.file.assert_not_called()
+
+
+# --- upload link ------------------------------------------------------------
+
+def _folder_description(cleanup, description):
+    cleanup.client.folder.return_value.get.return_value.description = description
+
+
+def test_recorded_upload_link_is_disabled(cleanup):
+    _folder_description(cleanup, "Upload link (file request 42): https://cornell.app.box.com/f/ab")
+    cleanup.disable_file_request('9', 'aearep-1')
+    cleanup.client.file_request.assert_called_once_with('42')
+    cleanup.client.file_request.return_value.update_info.assert_called_once_with(
+        data={'status': 'inactive'})
+
+
+def test_folder_without_recorded_upload_link_is_left_alone(cleanup):
+    _folder_description(cleanup, "Upload link: https://cornell.app.box.com/f/ab")
+    cleanup.disable_file_request('9', 'aearep-1')
+    cleanup.client.file_request.assert_not_called()
+
+
+def test_upload_link_is_not_disabled_in_test_mode(cleanup):
+    cleanup.test_mode = True
+    _folder_description(cleanup, "Upload link (file request 42): https://cornell.app.box.com/f/ab")
+    cleanup.disable_file_request('9', 'aearep-1')
+    cleanup.client.file_request.assert_not_called()

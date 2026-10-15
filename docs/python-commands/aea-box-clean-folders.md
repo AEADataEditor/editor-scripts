@@ -10,8 +10,14 @@ Cleans up Box folders for completed Jira cases:
 
 1. Scans the Box root folder for case folders (`aearep-XXXX`).
 2. Checks whether each case is ready for purging via its Jira status.
-3. For ready cases: deletes data files (CSV, DTA, ZIP, …), keeps documents (PDF,
-   DOCX, TXT, …), and moves the folder into the `1Completed` subfolder.
+3. For ready cases: disables the folder's upload link, deletes data files (CSV,
+   DTA, ZIP, …), keeps documents (PDF, DOCX, TXT, …), and moves the folder into
+   the `1Completed` subfolder.
+
+The upload link is the file request whose ID
+[`aea-box-create-folder`](aea-box-create-folder.md) recorded in the folder
+description. Folders without a recorded ID are reported; disable their upload
+link in the Box web interface.
 
 ```bash
 aea-box-clean-folders --test          # dry run
