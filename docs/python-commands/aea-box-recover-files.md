@@ -22,6 +22,10 @@ Restores files deleted from Box folders by
 Running it again on a recovered case does nothing. A case folder still in
 `1Completed` with no deleted files left is moved back to the root folder.
 
+The upload link disabled by `aea-box-clean-folders` stays disabled. To let the
+authors upload again, re-enable the folder's file request in the Box web
+interface.
+
 ```bash
 aea-box-recover-files --case 8040 --list    # list deleted files
 aea-box-recover-files --case 8040 --test    # dry run
