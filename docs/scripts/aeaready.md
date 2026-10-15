@@ -26,6 +26,13 @@ Optional:
 - **additional comments** — any words after the required arguments and `nopdf`
   are appended verbatim to the commit message.
 
+## Branch check
+
+`aeaready` must run on the repository's main branch (the branch `origin/HEAD`
+points to). On any other branch it prints the commands to switch to the main
+branch and merge the current branch, then asks whether to override. The default
+is to exit; answer `y` to continue on the current branch.
+
 ## Jira updates
 
 After the push, `aeaready` updates the Jira issue. Each Jira command is printed
