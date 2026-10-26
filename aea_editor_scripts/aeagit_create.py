@@ -101,14 +101,21 @@ def notify_jira(repo_slug, openicpsr_id=None):
         print(f"Warning: Could not post Jira comment: {e}")
 
 
+def split_repo_ref(repo_url):
+    """Split 'URL#branch' into (URL, branch); branch is None without a '#'."""
+    url, _, branch = repo_url.partition("#")
+    return url, (branch or None)
+
+
 def populate_repo(consumer_user, consumer_key, workspace, repo_slug, import_repo_url):
     """Clone template repo and push to newly created Bitbucket repo."""
     print(f"Populating {repo_slug} from template {import_repo_url}...")
+    clone_url, branch = split_repo_ref(import_repo_url)
     tmpdir = tempfile.mkdtemp(prefix="aeagit-")
     try:
         # Clone template
         result = subprocess.run(
-            ["git", "clone", import_repo_url, tmpdir],
+            ["git", "clone"] + (["-b", branch] if branch else []) + [clone_url, tmpdir],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
         )
         if result.returncode != 0:
@@ -248,6 +255,10 @@ Environment variables (from environment or ~/.envvars):
                          and as fallback for P_BITBUCKET_EMAIL)
   JIRA_API_KEY           Jira API token (for posting comments and
                          looking up openICPSR field)
+  DEBUG_REPO             Git URL to populate the new repository from instead of
+                         the default replication-template. Append '#branch' to
+                         use a branch other than the remote's default.
+                         Environment only (not read from ~/.envvars).
 
 Required Bitbucket API token scopes:
   admin:repository:bitbucket   Create repositories
@@ -299,6 +310,9 @@ Examples:
         repo_slug = f"aearep-{repo_slug}"
     args.repo_slug = repo_slug
 
+    # Read before load_dotenv() so that a value in ~/.envvars is not picked up
+    debug_repo = os.getenv('DEBUG_REPO')
+
     # Load credentials: environment takes precedence, fall back to ~/.envvars
     consumer_key = os.getenv('P_BITBUCKET_PAT')
     consumer_user = os.getenv('P_BITBUCKET_EMAIL') or os.getenv('JIRA_USERNAME')
@@ -311,13 +325,17 @@ Examples:
         print("Error: P_BITBUCKET_PAT and P_BITBUCKET_EMAIL (or JIRA_USERNAME) must be set")
         sys.exit(1)
 
+    template_url = debug_repo or import_repo_url
+    if template_url != import_repo_url:
+        print(f"DEBUG_REPO set: populating from {template_url}")
+
     if args.delete:
         delete_repo(consumer_user, consumer_key, workspace, args.repo_slug)
         return
 
     # Create and populate repository
     success = initialize_repo(consumer_user, consumer_key, workspace,
-                              args.project, args.repo_slug, import_repo_url)
+                              args.project, args.repo_slug, template_url)
     if not success:
         sys.exit(1)
 
