@@ -270,7 +270,9 @@ fi
 tmpmain=$(mktemp)
 tmpapp=$(mktemp)
 
-cat REPLICATION.md > $tmpmain
+# Fill (or refresh) the generated fragments in the main body as well. The
+# replacement is idempotent: unchanged content leaves the file as it was.
+$pythonbin tools/replace_placeholders.py --infile REPLICATION.md --indir "generated" --outfile $tmpmain
 
 if grep -q "Automatically Generated Appendices" $tmpmain
 then
