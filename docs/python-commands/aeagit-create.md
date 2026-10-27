@@ -17,3 +17,17 @@ aeagit-create -r aearep-NNNN [--openicpsr [ID]] [--big]
 
 With `-b` / `--big`, the `w-big-populate-from-icpsr` pipeline is triggered
 instead of `1-populate-from-icpsr`.
+
+## Debugging the template
+
+Set the environment variable `DEBUG_REPO` to a git URL to populate the new
+repository from that repository instead of the default `replication-template`.
+Append `#branch` to use a branch other than the remote's default:
+
+```
+DEBUG_REPO=git@github.com:AEADataEditor/replication-template-development.git#my-branch \
+  aeagit-create -r aearep-NNNN
+```
+
+It is read from the environment only (not from `~/.envvars`) and has no
+command-line flag.
