@@ -35,6 +35,7 @@ is to exit; answer `y` to continue on the current branch.
 
 ## Jira updates
 
+If the commit or the push fails, `aeaready` exits without updating Jira.
 After the push, `aeaready` updates the Jira issue. Each Jira command is printed
 before it runs, so it can be copied and run by hand if `aeaready` is aborted.
 

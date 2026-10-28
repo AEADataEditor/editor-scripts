@@ -490,7 +490,9 @@ echo "::: Msg:"
 echo "    $commitmsg"
 read
 git commit -m "$commitmsg"
+exit_on_error $? "Failed to commit the report (nothing to commit, or commit error)"
 git push
+exit_on_error $? "Failed to push the report"
 
 # Before the final Approved transition, verify that the reasons checked in
 # REPLICATION.md's "Reason for incomplete reproducibility" section match the
