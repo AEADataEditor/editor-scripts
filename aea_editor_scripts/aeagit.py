@@ -38,6 +38,7 @@ Usage:
 import os
 import sys
 import platform
+import re
 import shutil
 import subprocess
 import argparse
@@ -59,6 +60,8 @@ REPO_FIELD = "Bitbucket short name"
 
 FINALIZE_SKILL = "/aea-report-finalize"
 FINALIZE_DELAY = 4  # seconds for the new window to open and the extension to activate
+AEA_CLAUDE_DIR = ".claude-aea"  # Claude config dir under $HOME used when present
+STATUS_TIMEOUT = 15  # seconds to wait for `code --status`
 
 
 def detect_method() -> str:
@@ -140,7 +143,7 @@ def open_in_vscode(repo_dir: Path) -> bool:
     if replication_md.is_file():
         args.append(str(replication_md))
 
-    subprocess.Popen(args)
+    subprocess.Popen(args, env=_vscode_env(code, repo_dir))
     return True
 
 
@@ -156,7 +159,68 @@ def open_claude_finalize() -> None:
     if code is None:
         return
     time.sleep(FINALIZE_DELAY)
-    subprocess.run([code, "--open-url", finalize_url()])
+    subprocess.run([code, "--open-url", finalize_url()], env=_vscode_env())
+
+
+def _vscode_env(code: str | None = None, repo_dir: Path | None = None) -> dict:
+    """Environment for launching VS Code.
+
+    Sets CLAUDE_CONFIG_DIR to ~/.claude-aea when that directory exists, so
+    Claude Code uses the AEA configuration. Given repo_dir, tells the user
+    which configuration is in use, and warns when VS Code already has a window
+    open on repo_dir: that window is reused and keeps its own settings.
+    """
+    env = os.environ.copy()
+    aea_dir = Path.home() / AEA_CLAUDE_DIR
+    if aea_dir.is_dir():
+        env["CLAUDE_CONFIG_DIR"] = str(aea_dir)
+        if repo_dir is None:
+            return env
+        if code and _vscode_has_folder_open(code, repo_dir):
+            _banner("=", f"WARNING: VS Code already has {repo_dir.name} open; that "
+                         "window is reused with the settings it was started with, "
+                         f"not ~/{AEA_CLAUDE_DIR}. Close it and rerun to use the "
+                         "AEA settings.")
+        else:
+            _banner("-", f"INFO: Using AEA Claude settings (CLAUDE_CONFIG_DIR={aea_dir})")
+    elif repo_dir is not None:
+        _banner("=", f"WARNING: ~/{AEA_CLAUDE_DIR} not found; Claude Code uses "
+                     "default settings")
+    return env
+
+
+def _banner(char: str, message: str) -> None:
+    """Print message between two rules of char."""
+    print(char * 60)
+    print(message)
+    print(char * 60)
+
+
+def _vscode_has_folder_open(code: str, repo_dir: Path) -> bool:
+    """Whether a running VS Code has a window open on repo_dir.
+
+    Parses `code --status`, which names each window's folder (by basename only)
+    and lists window titles; it reports nothing when VS Code is not running.
+    """
+    try:
+        status = subprocess.run([code, "--status"], capture_output=True,
+                                text=True, timeout=STATUS_TIMEOUT).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return _status_has_folder(status, repo_dir.resolve().name)
+
+
+def _status_has_folder(status: str, name: str) -> bool:
+    """Whether `code --status` output shows a window on a folder called name."""
+    if any(m == name for m in re.findall(r"Folder \((.+?)\):", status)):
+        return True
+    # Titles are "file - folder - app" (" \u2014 " on macOS); a remote window's
+    # folder carries a suffix such as "[WSL: Ubuntu]" or "[SSH: host]".
+    for title in re.findall(r"window \[\d+\] \((.*)\)", status):
+        parts = re.split(r"\s[-\u2014]\s", title)
+        if name in (re.sub(r"\s*\[[^\]]*\]$", "", p) for p in parts):
+            return True
+    return False
 
 
 def _find_vscode() -> str | None:

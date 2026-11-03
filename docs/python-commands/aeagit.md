@@ -32,6 +32,17 @@ aeagit --all [method]
   `code --open-url`, after a 4-second wait for the window to open). Overrides
   `AEAGIT_NO_EDITOR`; cannot be combined with `--all` or `--no-editor`.
 
+## Claude Code settings
+
+When `~/.claude-aea` exists, VS Code is launched with
+`CLAUDE_CONFIG_DIR=~/.claude-aea`, so the Claude Code extension uses the AEA
+configuration, and an info notice is printed. Otherwise a warning notes that
+Claude Code uses its default settings.
+
+If a running VS Code already has a window on the repository directory (checked
+via `code --status`, by folder name), that window is reused with the settings
+it was started with; a warning says so and suggests closing it and rerunning.
+
 ## All pre-approved cases
 
 `--all` clones or updates the repository of every AEAREP ticket currently in

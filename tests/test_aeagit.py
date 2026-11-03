@@ -118,3 +118,65 @@ def test_finalize_opens_editor_then_claude(monkeypatch):
     A.main()
 
     assert calls == [("editor", "aearep-1234"), ("claude",)]
+
+
+def test_vscode_env_uses_aea_dir(monkeypatch, tmp_path, capsys):
+    (tmp_path / ".claude-aea").mkdir()
+    monkeypatch.setattr(A.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(A, "_vscode_has_folder_open", lambda c, d: False)
+    env = A._vscode_env("code", tmp_path / "aearep-1234")
+    assert env["CLAUDE_CONFIG_DIR"] == str(tmp_path / ".claude-aea")
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].startswith("---") and out[2].startswith("---")
+    assert "INFO" in out[1]
+
+
+def test_vscode_env_default(monkeypatch, tmp_path, capsys):
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    monkeypatch.setattr(A.Path, "home", lambda: tmp_path)
+    env = A._vscode_env("code", tmp_path / "aearep-1234")
+    assert "CLAUDE_CONFIG_DIR" not in env
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].startswith("===") and out[2].startswith("===")
+    assert "WARNING" in out[1]
+
+
+def test_vscode_env_warns_when_folder_already_open(monkeypatch, tmp_path, capsys):
+    (tmp_path / ".claude-aea").mkdir()
+    monkeypatch.setattr(A.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(A, "_vscode_has_folder_open", lambda c, d: True)
+    A._vscode_env("code", tmp_path / "aearep-1234")
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].startswith("===") and out[2].startswith("===")
+    assert "already has aearep-1234 open" in out[1]
+
+
+STATUS = """\
+CPU %\tMem MB\t   PID\tProcess
+    0\t   123\t 12345\twindow [1] (REPLICATION.md - aearep-1234 - Visual Studio Code)
+
+Workspace Stats:
+|  Window (REPLICATION.md - aearep-1234 - Visual Studio Code)
+|    Folder (aearep-1234): 120 files
+"""
+
+
+@pytest.mark.parametrize("name,expected", [
+    ("aearep-1234", True),
+    ("aearep-123", False),
+    ("aearep-12345", False),
+])
+def test_status_has_folder(name, expected):
+    assert A._status_has_folder(STATUS, name) is expected
+
+
+def test_status_has_folder_from_title_only():
+    status = "    0\t 1\t 2\twindow [2] (README.md \u2014 aearep-99 \u2014 Visual Studio Code)\n"
+    assert A._status_has_folder(status, "aearep-99")
+    assert not A._status_has_folder("", "aearep-99")
+
+
+def test_status_has_folder_remote_wsl_title():
+    status = "    0\t 1\t 2\twindow [3] (REPLICATION.md - aearep-77 [WSL: Ubuntu] - Visual Studio Code)\n"
+    assert A._status_has_folder(status, "aearep-77")
+    assert not A._status_has_folder(status, "aearep-7")
