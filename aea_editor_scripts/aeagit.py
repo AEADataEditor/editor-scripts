@@ -49,7 +49,7 @@ from urllib.parse import quote
 from aea_editor_scripts import console
 
 
-AEASRC = "git@bitbucket.org:aeaverification"
+AEASRC = "git@ssh.bitbucket.org:aeaverification"
 AEAHSRC = "bitbucket.org/aeaverification"
 DEPTH = 50
 
