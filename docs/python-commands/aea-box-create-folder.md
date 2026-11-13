@@ -19,7 +19,10 @@ except the email). Takes the main Jira issue of the current round:
    issue by revision links, from the first case to the last.
 4. Finds the "Request confidential data" subtask of the main issue, or creates
    it as "Request Restricted Access Data for AEAREP-xxxx".
-5. Creates a file request on the folder, records its link and ID in the Box
+5. Creates a file request on the folder, titled "Restricted data for
+   MANUSCRIPT (Tracking ID: main: AEAREP-xxxx, this request: AEAREP-yyyy)",
+   with the main issue's "Manuscript Central identifier", the main issue, and
+   the subtask (the main issue stands in for a missing manuscript number). Records its link and ID in the Box
    folder description, prints the link, and posts it as an automated comment on
    the subtask.
 6. Writes a draft of the email to the authors into the subtask description, if
@@ -57,7 +60,9 @@ Running the command again creates nothing new: the folder, the subtask, and a
 non-empty subtask description are kept. The Box API cannot list a folder's
 file requests, so the link recorded in the folder description (or, for older
 folders, the one posted to the subtask) identifies the existing file request; it
-is posted to a new subtask if the earlier one was deleted. Editing or clearing
+is posted to a new subtask if the earlier one was deleted, and its title is
+updated for the current round. A file request known only from a subtask comment
+has no recorded ID; its title must be changed by hand. Editing or clearing
 that folder description makes the next run create another file request.
 
 ## Environment

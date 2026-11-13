@@ -11,9 +11,10 @@ Given the main Jira issue of the current round (e.g. aearep-9123), this:
 4. Finds the "Request confidential data" subtask of the main issue, creating
    it if there is none.
 5. Creates a file request on the folder by copying the template file request,
+   titled with the manuscript number and the main and subtask issue keys,
    records its URL in the Box folder description, prints it, and posts it as a
    comment on the subtask. A link already recorded on the folder (or, failing
-   that, posted to the subtask) is reused instead.
+   that, posted to the subtask) is reused instead, and retitled for this round.
 6. Writes the email to the authors into an empty subtask description, from the
    LDI-Research-Aide "Request Restricted Access Data" template (fetched on each
    run), with the subtask key, manuscript number, and file request link filled in.
@@ -83,6 +84,27 @@ def normalize_issue(value: str) -> Optional[str]:
 
 def subtask_summary(issue_key: str) -> str:
     return f"Request Restricted Access Data for {issue_key}"
+
+
+def upload_title(manuscript: Optional[str], main_key: str, subtask_key: str) -> str:
+    """Title of the Box upload page, naming the manuscript and both Jira tracking IDs."""
+    return (f"Restricted data for {manuscript or main_key} "
+            f"(Tracking ID: main: {main_key}, this request: {subtask_key})")
+
+
+def retitle_file_request(client, request_id: str, title: str, test_mode: bool):
+    """Set the title of an existing file request, which may name an earlier round."""
+    try:
+        request = client.file_request(request_id).get()
+        if request.title == title:
+            return
+        if test_mode:
+            print(console.field("Upload", f"[TEST] Would retitle file request {request_id} to '{title}'"))
+            return
+        request.update_info(data={'title': title})
+        print(console.field("Upload", f"retitled to '{title}'"))
+    except BoxAPIException as e:
+        print(console.note(f"could not retitle file request {request_id}: {e}"))
 
 
 def file_request_comment(folder_name: str, folder_id: str, url: str) -> str:
@@ -310,17 +332,25 @@ def run(issue_arg: str, test_mode: bool = False) -> int:
         print(console.field("Subtask", f"created {subtask.key}"))
 
     # 4. File request: recorded on the Box folder, else posted to the subtask, else new
+    manuscript_field = fields.get(MANUSCRIPT_FIELD)
+    manuscript = getattr(issue.fields, manuscript_field['id'], None) if manuscript_field else None
+    title = upload_title(manuscript, issue_key, subtask.key if subtask else "(new subtask)")
     on_box = folder_file_request(folder) if folder else None
     posted = posted_file_requests(jira, subtask) if subtask else []
     url = on_box or (posted[0] if posted else None)
     if url:
         print(console.field("Upload", f"{url} (existing)"))
+        request_id = recorded_file_request_id(folder.description) if on_box else None
+        if request_id:
+            retitle_file_request(client, request_id, title, test_mode)
+        else:
+            print(console.note(f"file request ID unknown; set its title by hand to '{title}'"))
     elif test_mode:
         print(console.field("Upload", f"{dry}copy file request {template_id} to the folder"))
     else:
         try:
             request = client.file_request(template_id).copy(
-                folder=folder, title=f"Restricted data for {folder_name}", status='active')
+                folder=folder, title=title, status='active')
         except BoxAPIException as e:
             print(f"Error: could not create the file request: {e}")
             return 1
@@ -347,8 +377,6 @@ def run(issue_arg: str, test_mode: bool = False) -> int:
     if (subtask.fields.description or '').strip():
         print(console.field("Email", f"{subtask.key} already has a description, left as is"))
     else:
-        manuscript_field = fields.get(MANUSCRIPT_FIELD)
-        manuscript = getattr(issue.fields, manuscript_field['id'], None) if manuscript_field else None
         try:
             template = fetch_email_template()
         except requests.RequestException as e:

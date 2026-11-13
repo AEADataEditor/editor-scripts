@@ -290,7 +290,7 @@ def test_run_reuses_the_link_recorded_on_the_box_folder_for_a_new_subtask(env):
 
     assert C.run("3") == 0
 
-    env.client.file_request.assert_not_called()
+    env.client.file_request.return_value.copy.assert_not_called()
     folder.update_info.assert_not_called()
     key, body = env.jira.add_comment.call_args.args
     assert key == "AEAREP-4" and link in body
@@ -316,3 +316,39 @@ def test_settings_default_to_box_config_and_yield_to_the_environment(monkeypatch
     assert box_config.file_request_template() == box_config.DEFAULT_FILE_REQUEST_TEMPLATE
     monkeypatch.setenv('BOX_FILE_REQUEST_TEMPLATE', '1')
     assert box_config.file_request_template() == '1'
+
+
+def test_upload_title_names_the_manuscript_and_both_tracking_ids():
+    assert C.upload_title("AER-2025-2153.R3", "AEAREP-10534", "AEAREP-10540") == (
+        "Restricted data for AER-2025-2153.R3 "
+        "(Tracking ID: main: AEAREP-10534, this request: AEAREP-10540)")
+    assert C.upload_title(None, "AEAREP-3", "AEAREP-4").startswith("Restricted data for AEAREP-3 ")
+
+
+def test_run_titles_a_new_file_request_with_the_manuscript_and_tracking_ids(env):
+    env.jira.fields.return_value.append({'name': C.MANUSCRIPT_FIELD, 'id': 'customfield_ms'})
+    env.main.fields.customfield_ms = "AER-2025-2153.R3"
+    assert C.run("3") == 0
+    assert env.client.file_request.return_value.copy.call_args.kwargs['title'] == (
+        "Restricted data for AER-2025-2153.R3 (Tracking ID: main: AEAREP-3, this request: AEAREP-4)")
+
+
+def test_run_retitles_a_reused_file_request_for_the_current_round(env):
+    folder = box_folder('888', description=f"Upload link (file request 7): {C.BOX_WEB}/f/0c0d")
+    env.client.folder.return_value.get_items.return_value = [folder]
+    request = env.client.file_request.return_value.get.return_value
+    request.title = "Restricted data for aearep-1"
+
+    assert C.run("3") == 0
+
+    env.client.file_request.assert_called_with("7")
+    env.client.file_request.return_value.copy.assert_not_called()
+    request.update_info.assert_called_once_with(data={'title': C.upload_title(None, "AEAREP-3", "AEAREP-4")})
+
+
+def test_run_in_test_mode_does_not_retitle(env):
+    folder = box_folder('888', description=f"Upload link (file request 7): {C.BOX_WEB}/f/0c0d")
+    env.client.folder.return_value.get_items.return_value = [folder]
+    env.jira.search_issues.return_value = [subtask("AEAREP-5")]
+    assert C.run("3", test_mode=True) == 0
+    env.client.file_request.return_value.get.return_value.update_info.assert_not_called()
