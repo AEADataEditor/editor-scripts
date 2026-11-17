@@ -23,6 +23,7 @@ project:
         - file: python-commands/aea-box-create-folder.md
         - file: python-commands/aea-box-recover-files.md
         - file: python-commands/aea-parse-tags.md
+        - file: python-commands/aea-pdf-append.md
         - file: python-commands/aeagit.md
         - file: python-commands/aeagit-create.md
         - file: python-commands/jira-approval-manager.md
@@ -35,7 +36,6 @@ project:
       title: Scripts
       children:
         - file: scripts/aeaclean.md
-        - file: scripts/aeamerge.md
         - file: scripts/aeaopen.md
         - file: scripts/aeaready.md
         - file: scripts/aearevision.md

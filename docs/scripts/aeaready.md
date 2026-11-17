@@ -7,7 +7,7 @@ Run once the report is edited and ready for sign-off. Compiles the PDF from
 files, and updates the Jira issue. Sign-off itself is done manually in Jira.
 
 ```
-aeaready (issue) (pre|approve) [nopdf] [additional comments]
+aeaready (issue) (pre|approve) [nopdf] [--append FILE] [additional comments]
 ```
 
 ## Arguments
@@ -23,6 +23,11 @@ Optional:
 
 - **nopdf** — on systems that cannot build the PDF automatically (Windows, some
   Macs), generate it by hand first and pass `nopdf` to skip the build.
+- **--append FILE** — append the PDF `FILE` (for example, an external
+  reviewer's report) to `REPLICATION.pdf` before committing, using
+  [`aea-pdf-append`](../python-commands/aea-pdf-append.md). May appear anywhere
+  in the arguments; `--append=FILE` also works. With `nopdf`, `FILE` is
+  appended to the existing `REPLICATION.pdf`.
 - **additional comments** — any words after the required arguments and `nopdf`
   are appended verbatim to the commit message.
 
@@ -48,4 +53,4 @@ before it runs, so it can be copied and run by hand if `aeaready` is aborted.
 ## Dependencies
 
 PDF generation needs `pandoc` and either `wkhtmltopdf` or `docker`. On Windows,
-use `nopdf`.
+use `nopdf`. `--append` needs `aea-pdf-append` from the Python package on `PATH`.
