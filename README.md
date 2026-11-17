@@ -11,8 +11,8 @@ They may not work in all environments.
 
 ![Tested on Linux](https://img.shields.io/badge/Tested-on%20Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Partially Tested on Windows](https://img.shields.io/badge/Partially%20Tested-on%20Windows-yellow)
 
-Some scripts have additional dependencies (`pandoc`, `wkhtmltopdf` or `docker`,
-`qpdf`); each script's documentation page lists its own requirements and platform
+Some scripts have additional dependencies (`pandoc`, `wkhtmltopdf` or `docker`);
+each script's documentation page lists its own requirements and platform
 support.
 
 ## Installation
