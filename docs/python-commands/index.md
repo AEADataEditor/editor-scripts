@@ -22,6 +22,7 @@ all platforms, including Windows.
 
 ## Jira credentials
 
-Commands that use Jira read `JIRA_USERNAME` and `JIRA_API_KEY`. On connecting,
+Commands that use Jira read `JIRA_USERNAME` and `JIRA_API_KEY` (see
+[API tokens](../api-tokens.md)). On connecting,
 each one confirms that Jira accepts these credentials, and stops with an error
 naming them if it does not (for example, when the API token has expired).

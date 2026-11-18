@@ -56,9 +56,8 @@ import argparse
 import time
 import re
 import threading
-from jira import JIRA
 
-from aea_editor_scripts.jira_auth import verify_auth
+from aea_editor_scripts.jira_auth import GATEWAY_URL, connect
 
 from aea_editor_scripts import console
 
@@ -143,18 +142,11 @@ def get_jira_client(verbose=False):
         print("Error: JIRA_USERNAME and JIRA_API_KEY environment variables must be set")
         sys.exit(1)
 
-    jira_url = "https://aeadataeditors.atlassian.net"
-
     if verbose:
-        print(f"Connecting to {jira_url} as {jira_username}...")
+        print(f"Connecting to {GATEWAY_URL} as {jira_username}...")
 
     try:
-        jira = JIRA(
-            server=jira_url,
-            basic_auth=(jira_username, jira_api_key),
-            options={'verify': True}
-        )
-        user_info = verify_auth(jira)
+        jira, user_info = connect(jira_username, jira_api_key)
         if verbose:
             print(f"✓ Successfully authenticated as {user_info.get('displayName', jira_username)}")
         return jira

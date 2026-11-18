@@ -13,4 +13,4 @@ available transitions and executes them by keyword or number.
 jira-status-manager aearep-NNNN [action] [recommendation]
 ```
 
-Requires `JIRA_USERNAME` and `JIRA_API_KEY`.
+Requires `JIRA_USERNAME` and `JIRA_API_KEY` (see [API tokens](../api-tokens.md)).

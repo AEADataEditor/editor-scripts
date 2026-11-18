@@ -39,7 +39,7 @@ Environment Variables Required:
         JIRA_USERNAME - Your Jira email address
         JIRA_API_KEY - API token
 
-    Optional overrides of box_config: BOX_FOLDER_PRIVATE, BOX_FILE_REQUEST_TEMPLATE, JIRA_SERVER
+    Optional overrides of box_config: BOX_FOLDER_PRIVATE, BOX_FILE_REQUEST_TEMPLATE
 """
 
 import argparse
@@ -58,7 +58,7 @@ from jira.exceptions import JIRAError
 
 from aea_editor_scripts import box_config, console
 from aea_editor_scripts.box_auth import load_envvars, box_settings
-from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
+from aea_editor_scripts.jira_auth import JiraAuthError, connect
 from aea_editor_scripts.jira_comment import ROBOT, automated
 from aea_editor_scripts.jira_purge_query import revision_chain
 
@@ -120,8 +120,7 @@ def connect_jira() -> JIRA:
     if not username or not api_key:
         sys.exit("Error: JIRA_USERNAME and JIRA_API_KEY must be set")
     try:
-        jira = JIRA(server=box_config.jira_server(), basic_auth=(username, api_key))
-        verify_auth(jira)
+        jira, _ = connect(username, api_key)
         return jira
     except (JIRAError, JiraAuthError) as e:
         sys.exit(f"Error: could not connect to Jira: {e}")
@@ -403,7 +402,7 @@ Examples:
 Environment Variables Required:
   BOX_PRIVATE_JSON or BOX_CONFIG_PATH (and BOX_ENTERPRISE_ID, BOX_PRIVATE_KEY_ID)
   JIRA_USERNAME, JIRA_API_KEY
-  Optional overrides of box_config: BOX_FOLDER_PRIVATE, BOX_FILE_REQUEST_TEMPLATE, JIRA_SERVER
+  Optional overrides of box_config: BOX_FOLDER_PRIVATE, BOX_FILE_REQUEST_TEMPLATE
   Variables not in the environment are read from ~/.envvars.
 """)
     parser.add_argument('issue', help='Main Jira issue of the current round (1234 or aearep-1234)')

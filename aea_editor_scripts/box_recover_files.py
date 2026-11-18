@@ -45,7 +45,7 @@ Environment Variables Required:
         JIRA_USERNAME - Your Jira email address
         JIRA_API_KEY - API token
 
-    Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
+    Optional overrides of box_config: BOX_FOLDER_PRIVATE
 """
 
 import os
@@ -83,7 +83,7 @@ except ImportError:
 from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts import box_config
 from aea_editor_scripts.box_config import BOX_FOLDER_ID_FIELD, COMPLETED_FOLDER, REPO_FIELD
-from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
+from aea_editor_scripts.jira_auth import JiraAuthError, connect
 
 
 class BoxRecovery:
@@ -187,20 +187,13 @@ class BoxRecovery:
         
         jira_username = os.environ.get('JIRA_USERNAME')
         jira_api_key = os.environ.get('JIRA_API_KEY')
-        jira_server = box_config.jira_server()
         
         if not jira_username or not jira_api_key:
             self.logger.error("JIRA_USERNAME and JIRA_API_KEY environment variables required")
             sys.exit(1)
         
         try:
-            self.jira_client = JIRA(
-                server=jira_server,
-                basic_auth=(jira_username, jira_api_key),
-                options={'verify': True}
-            )
-            
-            myself = verify_auth(self.jira_client)
+            self.jira_client, myself = connect(jira_username, jira_api_key)
             self.logger.info(f"✓ Authenticated to Jira as: {myself['displayName']}")
             return self.jira_client
             
@@ -986,7 +979,7 @@ Environment Variables Required:
     JIRA_USERNAME - Your Jira email address
     JIRA_API_KEY - API token
 
-  Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
+  Optional overrides of box_config: BOX_FOLDER_PRIVATE
 """
     )
     

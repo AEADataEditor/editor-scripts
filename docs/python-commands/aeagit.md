@@ -22,7 +22,9 @@ aeagit --all [method]
 - **name** — a value with non-numeric characters (e.g. `aeagit train-123`) is
   cloned as given, with no prefix.
 - **method** — `ssh` or `https` (abbreviable). Defaults to `ssh` on Linux/macOS
-  and `https` on Windows/Codespaces.
+  and `https` on Windows/Codespaces. HTTPS uses a Bitbucket entry in
+  `~/.git-credentials`, else `P_BITBUCKET_USERNAME` and `P_BITBUCKET_PAT` (see
+  [API tokens](../api-tokens.md)), else git's own credential helper.
 - **`-a` / `--all`** — process every pre-approved case instead of a single
   repository (see below).
 - **`-n` / `--no-editor`** — skip opening VS Code. Also honored via the
@@ -60,4 +62,4 @@ No editor is opened, and a repository that fails to clone or pull does not stop
 the others: each is reported as it is processed, the failures are listed at the
 end, and the exit code is 1 if there were any.
 
-This mode reads Jira and needs `JIRA_USERNAME` and `JIRA_API_KEY` to be set.
+This mode reads Jira and needs `JIRA_USERNAME` and `JIRA_API_KEY` to be set (see [API tokens](../api-tokens.md)).

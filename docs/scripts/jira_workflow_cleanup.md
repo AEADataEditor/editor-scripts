@@ -36,8 +36,9 @@ be kept (e.g. Box).
 
 ## Authentication
 
-A scoped Atlassian API token with the *Workflow management* scopes (`read` /
-`write` / `delete` for `workflow`, `workflow-scheme`, `workflow.property`), used
+A scoped Atlassian API token (see [API tokens](../api-tokens.md)) with the
+granular scopes `read:workflow:jira` (listing and archiving) and
+`delete:workflow:jira` (deleting), used
 as Basic auth against the Atlassian gateway
 `https://api.atlassian.com/ex/jira/{cloudId}` — not the site URL, since the
 classic `.../rest/api/3/workflow/search` endpoint rejects scoped tokens.
