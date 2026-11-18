@@ -19,4 +19,4 @@ Issues that qualify but still have subtasks that are not Done are reported as
 `WARNING` rather than `OK`: they count as ready for purge but are listed in a
 separate section instead of on the `READY:` line.
 
-Requires `JIRA_USERNAME` and `JIRA_API_KEY`.
+Requires `JIRA_USERNAME` and `JIRA_API_KEY` (see [API tokens](../api-tokens.md)).

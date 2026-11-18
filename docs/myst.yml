@@ -16,6 +16,8 @@ project:
       title: Home
     - file: installation/index.md
       title: Installation
+    - file: api-tokens.md
+      title: API tokens
     - file: python-commands/index.md
       title: Python commands
       children:

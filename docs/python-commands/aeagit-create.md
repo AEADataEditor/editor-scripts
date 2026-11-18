@@ -31,3 +31,13 @@ DEBUG_REPO=git@github.com:AEADataEditor/replication-template-development.git#my-
 
 It is read from the environment only (not from `~/.envvars`) and has no
 command-line flag.
+
+## Environment
+
+Variables not set in the environment are read from `~/.envvars`.
+
+- Bitbucket: `P_BITBUCKET_PAT`, `P_BITBUCKET_USERNAME`, optionally `P_BITBUCKET_EMAIL`
+- Jira: `JIRA_USERNAME`, `JIRA_API_KEY`
+
+See [API tokens](../api-tokens.md) for how to create the tokens and the scopes
+they need.

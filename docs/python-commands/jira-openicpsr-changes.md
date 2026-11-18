@@ -129,4 +129,4 @@ jira-openicpsr-changes --apply --reassess-after 14   # also re-report reports 14
 
 Requires `JIRA_USERNAME`, `JIRA_API_KEY`, `ICPSR_EMAIL`, `ICPSR_PASS`, and — for
 pipeline triggering — `P_BITBUCKET_PAT` and `P_BITBUCKET_EMAIL`. `ICPSR_TOKEN` is
-used if set.
+used if set. See [API tokens](../api-tokens.md) for the Jira and Bitbucket tokens.

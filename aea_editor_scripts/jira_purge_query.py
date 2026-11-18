@@ -47,14 +47,12 @@ Examples:
 import os
 import sys
 import argparse
-from jira import JIRA
 from jira.exceptions import JIRAError
 
-from aea_editor_scripts.jira_auth import verify_auth
+from aea_editor_scripts.jira_auth import SITE_URL, connect
 
 from aea_editor_scripts import console
 
-JIRA_BASE_URL = "https://aeadataeditors.atlassian.net"
 
 
 def get_jira_client():
@@ -67,12 +65,7 @@ def get_jira_client():
         sys.exit(1)
 
     try:
-        jira = JIRA(
-            server=JIRA_BASE_URL,
-            basic_auth=(jira_username, jira_api_key),
-            options={'verify': True}
-        )
-        verify_auth(jira)
+        jira, _ = connect(jira_username, jira_api_key)
         return jira
     except Exception as e:
         print(f"Error connecting to Jira: {e}")
@@ -586,7 +579,7 @@ Environment Variables Required:
             print(f"{label}: {' '.join(issue.lower() for issue in issues)}")
             if args.with_link:
                 for issue_key in issues:
-                    print(f"{JIRA_BASE_URL}/browse/{issue_key}")
+                    print(f"{SITE_URL}/browse/{issue_key}")
 
         print(f"\n{'='*60}")
         total_ready = len(ready_issues) + len(warning_issues)
