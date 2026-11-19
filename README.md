@@ -62,6 +62,8 @@ The helper script always installs with `--upgrade`, so running it is both instal
 ./install.sh --uv   # uses uv
 ```
 
+`install.sh` also installs the user-level Claude Code skills published in `AEADataEditor/replication-template` (currently `aea-multi-agent-report-review`) into `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/`. Rerunning it updates them. Use `--no-skills` to skip this step, or `--skills-only` to update the skills without running pip.
+
 To uninstall:
 
 ```bash
