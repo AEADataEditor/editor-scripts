@@ -15,7 +15,7 @@ See also the AGENTS.md file at the root of this site.
 :class: site-footer-compact
 
 &copy; 2021&ndash;CURRENTYEAR Lars Vilhuber.
-Documentation licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/);
+Documentation licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/);
 scripts under the BSD 3-Clause License (see [LICENSE](https://github.com/AEADataEditor/editor-scripts/blob/main/LICENSE)).
 Internal resource for the AEA Data Editor and staff.
 

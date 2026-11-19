@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) Lars Vilhuber and contributors.
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """Terminal niceties: wrapped label/value lines and a spinner.
 
 Everything here degrades to plain text when the stream is not a terminal or

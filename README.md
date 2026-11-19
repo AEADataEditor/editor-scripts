@@ -81,3 +81,17 @@ git pull
 Per-script reference, cloud setup, and maintenance scripts are documented at
 <https://aeadataeditor.github.io/editor-scripts/>, built from [`docs/`](docs/)
 with [MyST](https://mystmd.org/).
+
+## License
+
+- **Code** (scripts and programs created in this repository): [BSD 3-Clause License](LICENSE). Each script carries an `SPDX-License-Identifier: BSD-3-Clause` header.
+- **Documentation** (the `docs/` site, README files, and other Markdown/text documents): [CC BY-NC 4.0](LICENSE-docs.md).
+
+  [![License: CC BY-NC 4.0](https://licensebuttons.net/l/by-nc/4.0/80x15.png)](https://creativecommons.org/licenses/by-nc/4.0/)
+
+Third-party components keep their own licenses and are not covered by the above:
+
+- `.github/scripts/inject_banner.py`: adapted from [SIVACOR/documentation](https://github.com/SIVACOR/documentation), CC BY 4.0.
+- `.aeaready.css`: derived from Microsoft's VS Code Markdown styles, MIT License.
+- `.local.css`: includes [normalize.css](https://necolas.github.io/normalize.css/), MIT License.
+- `rsync-bin.tar.gz`: MSYS2 builds of rsync and its libraries, GPL-3.0 and the respective library licenses.
