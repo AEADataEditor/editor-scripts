@@ -39,5 +39,5 @@ Variables not set in the environment are read from `~/.envvars`.
 - Bitbucket: `P_BITBUCKET_PAT`, `P_BITBUCKET_USERNAME`, optionally `P_BITBUCKET_EMAIL`
 - Jira: `JIRA_USERNAME`, `JIRA_API_KEY`
 
-See [API tokens](../api-tokens.md) for how to create the tokens and the scopes
+See [Authentication](../authentication.md) for how to create the tokens and the scopes
 they need.

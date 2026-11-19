@@ -76,8 +76,9 @@ unconditionally, including under `--test` (which only previews the notice).
 
 Variables not set in the environment are read from `~/.envvars`.
 
-- Box: the Box app credentials (see [Box setup](#box-setup))
-- Jira: `JIRA_USERNAME`, `JIRA_API_KEY` (see [API tokens](../api-tokens.md))
+- Box: the Box app credentials (see [Authentication](../authentication.md#box)); folder and template
+  settings in [Shared settings](#box-settings)
+- Jira: `JIRA_USERNAME`, `JIRA_API_KEY` (see [Authentication](../authentication.md))
 - For `--email`: `DATAEDITOR_EMAIL_PASSWORD` (fallback if the 1Password CLI
   `op` has no session, e.g. when running remotely; otherwise read from the
   1Password item "Email for AEA Dataeditor"), optionally `DATAEDITOR_SMTP_HOST`
@@ -85,37 +86,8 @@ Variables not set in the environment are read from `~/.envvars`.
 
 Deleted files can be restored with [`aea-box-recover-files`](aea-box-recover-files.md).
 
-(box-setup)=
-## Box setup
-
-The scripts authenticate as a Box JWT app. Its credentials are a JSON file named
-`<ENTERPRISE_ID>_<KEY_ID>_config.json`, available at 🔒
-[this private Box link](https://cornell.box.com/s/ee8ovhdeaz6eqgs7tnzv36sztnvw6lhc).
-
-1. Download the JSON file and store it in `~/.config/box/`, readable only by you:
-
-   ```bash
-   mkdir -p ~/.config/box
-   mv ~/Downloads/*_config.json ~/.config/box/
-   chmod 600 ~/.config/box/*_config.json
-   ```
-
-To keep the JSON file elsewhere, also add its directory to `~/.envvars`:
-
-```bash
-BOX_CONFIG_PATH=/path/to/directory
-```
-
-Credentials are looked up in this order:
-
-| Variable | Use |
-|---|---|
-| `BOX_PRIVATE_JSON` | Base64-encoded content of the JSON file (`base64 -w0 <file>`). When set, all other credential variables are ignored. Suited to CI or remote runs. |
-| `BOX_CONFIG_PATH` | Directory with the JSON file. Default: `~/.config/box`. The single `*_config.json` file there is used. |
-| `BOX_ENTERPRISE_ID`, `BOX_PRIVATE_KEY_ID` | Only needed if that directory holds several config files: selects `<BOX_ENTERPRISE_ID>_<BOX_PRIVATE_KEY_ID>_config.json`. |
-
 (box-settings)=
-### Shared settings
+## Shared settings
 
 The non-confidential settings of the Box scripts are in [`box_config.py`](https://github.com/AEADataEditor/editor-scripts/blob/main/aea_editor_scripts/box_config.py). An environment
 variable (or `~/.envvars` entry) overrides the corresponding setting:
