@@ -19,6 +19,10 @@ for pre-approvers and approvers.
   with `[REQUIRED]` before `[SUGGESTED]` within a tier, and strips the
   `{{ ... }}` markers.
 - Removes remaining `> INSTRUCTION(S)` lines.
+- Rewrites single-source wording in the checklists, where it no longer sits
+  under a data source: "source location for this dataset" becomes "for all
+  datasets", and "Please provide this dataset" becomes "Please provide missing
+  datasets". Tags in the body of the report are not changed.
 
 The deposit checklist is inserted at the `-----action items go here------`
 marker, which is then removed, so it works regardless of the deposit section's
