@@ -10,8 +10,8 @@ They are tightly integrated with that workflow and of limited independent value.
 
 - **[Installation](installation/index.md)** — how to install the bash and Python
   scripts, and how to configure authentication in the cloud.
-- **[API tokens](api-tokens.md)** — creating the Jira and Bitbucket API tokens,
-  and the scopes each command needs.
+- **[Authentication](authentication.md)** — the Jira and Bitbucket API tokens, the scopes
+  each command needs, and the Box JWT app credentials.
 - **[Python commands](python-commands/index.md)** — tools installed as
   command-line programs by `pip install`.
 - **[Scripts](scripts/index.md)** — bash scripts placed on `PATH` by the bash

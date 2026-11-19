@@ -74,7 +74,7 @@ environment.
   available.
 
 In the cloud, set `P_BITBUCKET_PAT` and `P_BITBUCKET_USERNAME` (see
-[API tokens](../api-tokens.md)) as
+[Authentication](../authentication.md)) as
 [Codespaces secrets](https://github.com/settings/codespaces), or with `gh`:
 
 ```bash

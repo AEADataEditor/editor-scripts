@@ -34,4 +34,4 @@ computed in Python, so the option works the same under Linux, macOS, and Windows
 (cmd, PowerShell, Git Bash); symlinks and junctions are not followed. Large
 directories make the run slower.
 
-Requires `JIRA_USERNAME` and `JIRA_API_KEY` (see [API tokens](../api-tokens.md)).
+Requires `JIRA_USERNAME` and `JIRA_API_KEY` (see [Authentication](../authentication.md)).

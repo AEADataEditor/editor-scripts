@@ -36,7 +36,7 @@ be kept (e.g. Box).
 
 ## Authentication
 
-A scoped Atlassian API token (see [API tokens](../api-tokens.md)) with the
+A scoped Atlassian API token (see [Authentication](../authentication.md)) with the
 granular scopes `read:workflow:jira` (listing and archiving) and
 `delete:workflow:jira` (deleting), used
 as Basic auth against the Atlassian gateway
