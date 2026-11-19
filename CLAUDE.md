@@ -10,6 +10,22 @@ version in the commit subject, e.g. trailing `(v0.3.6)`.
 Documentation-only or non-code changes (e.g. README, CLAUDE.md) do not require a
 version bump.
 
+## Licensing
+
+Code is BSD-3-Clause ([LICENSE](LICENSE)); documentation is CC BY-NC 4.0
+([LICENSE-docs.md](LICENSE-docs.md)). Every new bash/python script created here
+starts (after the shebang/encoding line) with:
+
+```
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) Lars Vilhuber and contributors.
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+```
+
+Code ingested from an external codebase keeps its upstream license: give it an
+SPDX line naming that license and its source instead, and list it under
+"License" in README.md.
+
 ## Documentation
 
 The reference documentation lives in `docs/` (a MyST site published to GitHub

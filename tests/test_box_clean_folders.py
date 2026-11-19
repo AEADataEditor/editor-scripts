@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) Lars Vilhuber and contributors.
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """Tests for the kept-file report and --force-delete in aea-box-clean-folders."""
 
 from unittest import mock

@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) Lars Vilhuber and contributors.
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """Tests for parsing REPLICATION.md's reproducibility-reason checklist."""
 from aea_editor_scripts.jira_reason_sync import parse_replication_reasons, report
 
