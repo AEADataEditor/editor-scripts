@@ -81,7 +81,7 @@ jobs:
       # preview is served from the root of its own Cloudflare Pages host.
       - name: Build MyST documentation
         env:
-          BASE_URL: ${{ github.event_name == 'pull_request' && '' || '/editor-scripts' }}
+          BASE_URL: ${{ github.event_name != 'pull_request' && '/editor-scripts' || '' }}
         run: |
           cd docs && myst build --html
 
