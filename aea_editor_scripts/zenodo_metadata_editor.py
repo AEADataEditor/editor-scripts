@@ -18,10 +18,14 @@ import argparse
 from typing import Dict, List, Optional
 
 from aea_editor_scripts import console
+from aea_editor_scripts import with_docs
 
 def parse_arguments():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description='Update Zenodo deposit metadata')
+    parser = argparse.ArgumentParser(
+        description=with_docs('Update Zenodo deposit metadata'),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument('--config', type=str, help='Path to YAML configuration file')
     parser.add_argument('--zenodo-token', type=str, help='Zenodo access token')
     parser.add_argument('--deposit-id', type=int, help='Zenodo deposit ID')

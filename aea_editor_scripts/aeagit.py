@@ -52,6 +52,7 @@ from urllib.parse import quote
 
 from aea_editor_scripts import console
 from aea_editor_scripts.bitbucket_auth import bitbucket_username
+from aea_editor_scripts import DOCS_LINE
 
 
 AEASRC = "git@ssh.bitbucket.org:aeaverification"
@@ -360,6 +361,8 @@ def clone_all(repos: list[str], method: str) -> list[str]:
 
 def print_help(prog: str) -> None:
     print(f"""
+  {DOCS_LINE}
+
   {prog} (number|name) [(method)] [--no-editor | --finalize]
   {prog} --all [(method)]
 

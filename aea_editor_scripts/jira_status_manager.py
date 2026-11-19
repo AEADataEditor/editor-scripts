@@ -38,6 +38,7 @@ import argparse
 from aea_editor_scripts.jira_auth import GATEWAY_URL, connect
 
 from aea_editor_scripts import console
+from aea_editor_scripts import with_docs
 
 
 def get_jira_client(verbose=False):
@@ -220,7 +221,7 @@ def update_recommendation(jira, issue, field_id, field_name, new_value):
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Manage Jira issue status based on MC recommendations',
+        description=with_docs('Manage Jira issue status based on MC recommendations'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

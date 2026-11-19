@@ -28,6 +28,7 @@ import tempfile
 
 from pypdf import PdfWriter
 from pypdf.errors import PdfReadError
+from aea_editor_scripts import with_docs
 
 
 def append_pdfs(base, extras, output=None):
@@ -62,7 +63,8 @@ def append_pdfs(base, extras, output=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Append one or more PDFs to a base PDF."
+        description=with_docs("Append one or more PDFs to a base PDF."),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("base", help="PDF that comes first (overwritten unless -o is given)")
     parser.add_argument("extras", nargs="+", metavar="extra", help="PDF(s) to append, in order")

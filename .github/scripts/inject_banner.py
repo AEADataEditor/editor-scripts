@@ -353,7 +353,11 @@ def inject(html_dir: Path, snippet: str, marker: str = MARKER) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(
+        description="Documentation: https://aeadataeditor.github.io/editor-scripts/\n\n"
+        + __doc__.splitlines()[0],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--config", type=Path, default=Path("docs/banner.yml"))
     parser.add_argument("--html-dir", type=Path, default=Path("docs/_build/html"))
     parser.add_argument(
