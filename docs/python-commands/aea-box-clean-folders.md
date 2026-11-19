@@ -77,7 +77,7 @@ unconditionally, including under `--test` (which only previews the notice).
 Variables not set in the environment are read from `~/.envvars`.
 
 - Box: the Box app credentials (see [Box setup](#box-setup))
-- Jira: `JIRA_USERNAME`, `JIRA_API_KEY`
+- Jira: `JIRA_USERNAME`, `JIRA_API_KEY` (see [API tokens](../api-tokens.md))
 - For `--email`: `DATAEDITOR_EMAIL_PASSWORD` (fallback if the 1Password CLI
   `op` has no session, e.g. when running remotely; otherwise read from the
   1Password item "Email for AEA Dataeditor"), optionally `DATAEDITOR_SMTP_HOST`
@@ -124,7 +124,6 @@ variable (or `~/.envvars` entry) overrides the corresponding setting:
 |---|---|---|
 | Root folder holding the `aearep-NNNN` case folders (Restricted-Access-Data) | `144685329952` | `BOX_FOLDER_PRIVATE` |
 | File request copied onto new case folders (on the `template` folder) | `24714815504` | `BOX_FILE_REQUEST_TEMPLATE` |
-| Jira server | `https://aeadataeditors.atlassian.net` | `JIRA_SERVER` |
 | Box web address used in links | `https://cornell.app.box.com` | — |
 | Folder for cleaned-up cases | `1Completed` | — |
 | Jira subtask type and field names | `Request confidential data`, `Restricted data Box Folder ID`, `Bitbucket short name` | — |

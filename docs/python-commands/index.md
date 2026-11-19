@@ -10,6 +10,7 @@ all platforms, including Windows.
 | [`aea-box-create-folder`](aea-box-create-folder.md) | Create a case's restricted-data Box folder, file request, and Jira subtask. |
 | [`aea-box-recover-files`](aea-box-recover-files.md) | Restore files deleted from Box folders. |
 | [`aea-parse-tags`](aea-parse-tags.md) | Consolidate `[REQUIRED]`/`[SUGGESTED]` tags into the Action Items checklists. |
+| [`aea-pdf-append`](aea-pdf-append.md) | Append PDFs to a base PDF, e.g. an external report to `REPLICATION.pdf`. |
 | [`aeagit`](aeagit.md) | Clone or update a Bitbucket replication repository — one, or all pre-approved cases. |
 | [`aeagit-create`](aeagit-create.md) | Create a new Bitbucket replication repository. |
 | [`jira-approval-manager`](jira-approval-manager.md) | Run approval transitions and set the MC Recommendation. |
@@ -21,6 +22,7 @@ all platforms, including Windows.
 
 ## Jira credentials
 
-Commands that use Jira read `JIRA_USERNAME` and `JIRA_API_KEY`. On connecting,
+Commands that use Jira read `JIRA_USERNAME` and `JIRA_API_KEY` (see
+[API tokens](../api-tokens.md)). On connecting,
 each one confirms that Jira accepts these credentials, and stops with an error
 naming them if it does not (for example, when the API token has expired).

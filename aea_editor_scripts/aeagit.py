@@ -47,13 +47,13 @@ from pathlib import Path
 from urllib.parse import quote
 
 from aea_editor_scripts import console
+from aea_editor_scripts.bitbucket_auth import bitbucket_username
 
 
 AEASRC = "git@ssh.bitbucket.org:aeaverification"
 AEAHSRC = "bitbucket.org/aeaverification"
 DEPTH = 50
 
-JIRA_URL = "https://aeadataeditors.atlassian.net"
 PROJECT = "AEAREP"
 PRE_APPROVED_STATUS = "Pre-Approved"
 REPO_FIELD = "Bitbucket short name"
@@ -103,7 +103,7 @@ def get_https_auth() -> str | None:
                     return authinfo
 
     pat = os.environ.get("P_BITBUCKET_PAT")
-    username = os.environ.get("P_BITBUCKET_USERNAME")
+    username = bitbucket_username()
     if pat and username:
         return f"{username}:{pat}"
 
@@ -309,8 +309,7 @@ def get_jira_client():
     The import is deferred so that cloning a single repo — the common case —
     neither needs Jira credentials nor pays for loading the Jira library.
     """
-    from jira import JIRA
-    from aea_editor_scripts.jira_auth import verify_auth
+    from aea_editor_scripts.jira_auth import connect
 
     username = os.environ.get("JIRA_USERNAME")
     api_key = os.environ.get("JIRA_API_KEY")
@@ -319,9 +318,7 @@ def get_jira_client():
         sys.exit(1)
 
     try:
-        jira = JIRA(server=JIRA_URL, basic_auth=(username, api_key),
-                    options={"verify": True})
-        verify_auth(jira)
+        jira, _ = connect(username, api_key)
         return jira
     except Exception as exc:
         print(f"Error connecting to Jira: {exc}")

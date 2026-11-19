@@ -11,6 +11,7 @@ import requests
 from requests.exceptions import ConnectionError
 
 from aea_editor_scripts import bitbucket_pipelines as bb
+from aea_editor_scripts.bitbucket_auth import bitbucket_username
 from aea_editor_scripts import console
 from aea_editor_scripts.jira_comment import automated
 
@@ -28,8 +29,7 @@ env_file = os.path.join(home_dir, ".envvars")
 def get_jira_client():
     """Initialize and return authenticated Jira client, or None if credentials missing."""
     try:
-        from jira import JIRA
-        from aea_editor_scripts.jira_auth import verify_auth
+        from aea_editor_scripts.jira_auth import connect
     except ImportError:
         print("Warning: jira package not installed, skipping Jira integration")
         return None
@@ -42,12 +42,7 @@ def get_jira_client():
         return None
 
     try:
-        jira = JIRA(
-            server="https://aeadataeditors.atlassian.net",
-            basic_auth=(jira_username, jira_api_key),
-            options={'verify': True}
-        )
-        verify_auth(jira)
+        jira, _ = connect(jira_username, jira_api_key)
         return jira
     except Exception as e:
         print(f"Warning: Could not connect to Jira: {e}")
@@ -122,8 +117,11 @@ def populate_repo(consumer_user, consumer_key, workspace, repo_slug, import_repo
             print(f"Error cloning template: {result.stderr}")
             return False
 
-        # Set new remote; git HTTPS uses Bitbucket username (P_BITBUCKET_USER), not email
-        git_user = os.getenv('P_BITBUCKET_USER')
+        # Set new remote; git HTTPS uses the Bitbucket username, not the email
+        git_user = bitbucket_username()
+        if not git_user:
+            print("Error: P_BITBUCKET_USERNAME must be set to push the template")
+            return False
         new_remote = (
             f"https://{quote(git_user, safe='')}:{quote(consumer_key, safe='')}"
             f"@bitbucket.org/{workspace}/{repo_slug}.git"
@@ -247,7 +245,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Environment variables (from environment or ~/.envvars):
-  P_BITBUCKET_USER       Bitbucket username (used for git push)
+  P_BITBUCKET_USERNAME   Bitbucket username (used for git push;
+                         P_BITBUCKET_USER is accepted but deprecated)
   P_BITBUCKET_PAT        Bitbucket API token (see scopes below)
   P_BITBUCKET_EMAIL      Atlassian account email for REST API auth
                          (falls back to JIRA_USERNAME if not set)

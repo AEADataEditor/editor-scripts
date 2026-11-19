@@ -73,7 +73,8 @@ environment.
 - **HTTPS** uses other authentication on the machine (e.g. GitHub Desktop) when
   available.
 
-In the cloud, set `P_BITBUCKET_PAT` and `P_BITBUCKET_USERNAME` as
+In the cloud, set `P_BITBUCKET_PAT` and `P_BITBUCKET_USERNAME` (see
+[API tokens](../api-tokens.md)) as
 [Codespaces secrets](https://github.com/settings/codespaces), or with `gh`:
 
 ```bash

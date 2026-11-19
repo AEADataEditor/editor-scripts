@@ -23,8 +23,6 @@ DEFAULT_FILE_REQUEST_TEMPLATE = '24714815504'
 # Subfolder of the root holding cleaned-up cases
 COMPLETED_FOLDER = '1Completed'
 
-DEFAULT_JIRA_SERVER = 'https://aeadataeditors.atlassian.net'
-
 # Jira names
 RESTRICTED_SUBTASK_TYPE = 'Request confidential data'
 BOX_FOLDER_ID_FIELD = 'Restricted data Box Folder ID'
@@ -49,6 +47,3 @@ def file_request_template() -> str:
     return os.environ.get('BOX_FILE_REQUEST_TEMPLATE') or DEFAULT_FILE_REQUEST_TEMPLATE
 
 
-def jira_server() -> str:
-    """Jira server URL (JIRA_SERVER)."""
-    return os.environ.get('JIRA_SERVER') or DEFAULT_JIRA_SERVER

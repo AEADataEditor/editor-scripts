@@ -72,4 +72,4 @@ Variables not set in the environment are read from `~/.envvars`.
 - Box: the Box app credentials (see
   [Box setup](aea-box-clean-folders.md#box-setup)); folder and template
   settings in [Shared settings](aea-box-clean-folders.md#box-settings)
-- Jira: `JIRA_USERNAME`, `JIRA_API_KEY`
+- Jira: `JIRA_USERNAME`, `JIRA_API_KEY` (see [API tokens](../api-tokens.md))
