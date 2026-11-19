@@ -43,6 +43,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from aea_editor_scripts import with_docs
 
 
 REPLICATION = "REPLICATION.md"
@@ -199,8 +200,9 @@ def process(text: str) -> tuple[str, int, int]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Consolidate [REQUIRED]/[SUGGESTED] tags in REPLICATION.md "
-                    "into the Action Items checklists."
+        description=with_docs("Consolidate [REQUIRED]/[SUGGESTED] tags in REPLICATION.md "
+                              "into the Action Items checklists."),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("force", nargs="?", choices=["force"],
                         help="run even if the 'action items go here' marker is missing")

@@ -65,6 +65,7 @@ from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts.jira_auth import JiraAuthError, connect
 from aea_editor_scripts.jira_comment import ROBOT, automated
 from aea_editor_scripts.jira_purge_query import revision_chain
+from aea_editor_scripts import with_docs
 
 from aea_editor_scripts.box_config import (
     BOX_WEB, RESTRICTED_SUBTASK_TYPE, BOX_FOLDER_ID_FIELD, REPO_FIELD, MANUSCRIPT_FIELD,
@@ -396,7 +397,7 @@ def run(issue_arg: str, test_mode: bool = False) -> int:
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Create the Box folder that receives restricted-access data for a case',
+        description=with_docs('Create the Box folder that receives restricted-access data for a case'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

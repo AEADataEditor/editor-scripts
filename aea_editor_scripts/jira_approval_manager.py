@@ -64,6 +64,7 @@ import threading
 from aea_editor_scripts.jira_auth import GATEWAY_URL, connect
 
 from aea_editor_scripts import console
+from aea_editor_scripts import with_docs
 
 # Configuration
 COUNTDOWN_SECONDS = 8  # Delay before executing transition
@@ -351,7 +352,7 @@ def get_recommendation_options(jira, issue, field_id):
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Manage Jira approval transitions with recommendation updates',
+        description=with_docs('Manage Jira approval transitions with recommendation updates'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

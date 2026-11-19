@@ -88,6 +88,7 @@ from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts import box_config
 from aea_editor_scripts.box_config import BOX_FOLDER_ID_FIELD, COMPLETED_FOLDER, REPO_FIELD
 from aea_editor_scripts.jira_auth import JiraAuthError, connect
+from aea_editor_scripts import with_docs
 
 
 class BoxRecovery:
@@ -955,7 +956,7 @@ def main():
     """Main entry point."""
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Recover deleted Box files for completed Jira cases',
+        description=with_docs('Recover deleted Box files for completed Jira cases'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

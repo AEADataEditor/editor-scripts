@@ -18,6 +18,7 @@ from aea_editor_scripts import bitbucket_pipelines as bb
 from aea_editor_scripts.bitbucket_auth import bitbucket_username
 from aea_editor_scripts import console
 from aea_editor_scripts.jira_comment import automated
+from aea_editor_scripts import with_docs
 
 # defaults
 workspace = "aeaverification"
@@ -245,7 +246,7 @@ def trigger_pipeline(consumer_user, consumer_key, workspace, repo_slug, openicps
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Initialize AEA Bitbucket repository',
+        description=with_docs('Initialize AEA Bitbucket repository'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Environment variables (from environment or ~/.envvars):

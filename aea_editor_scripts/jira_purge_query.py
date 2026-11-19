@@ -59,6 +59,7 @@ from jira.exceptions import JIRAError
 from aea_editor_scripts.jira_auth import SITE_URL, connect
 
 from aea_editor_scripts import console
+from aea_editor_scripts import with_docs
 
 
 
@@ -496,7 +497,7 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Check if Jira issues are ready for purging based on status history',
+        description=with_docs('Check if Jira issues are ready for purging based on status history'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

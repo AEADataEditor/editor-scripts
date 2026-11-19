@@ -2,7 +2,8 @@
 
 Tools installed as command-line programs by `pip install` (see
 [Installation](../installation/index.md#python-scripts)). They are on `PATH` on
-all platforms, including Windows.
+all platforms, including Windows. Each command's `-h`/`--help` output starts
+with a link to this documentation site.
 
 | Command | Purpose |
 | --- | --- |

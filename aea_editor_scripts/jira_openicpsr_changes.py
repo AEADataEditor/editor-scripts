@@ -40,6 +40,7 @@ from aea_editor_scripts.aeagit_create import workspace
 from aea_editor_scripts.jira_comment import automated
 from aea_editor_scripts.jira_purge_query import find_last_revision
 from aea_editor_scripts.openicpsr_activity import OPENICPSR_URL, fetch_activity, login
+from aea_editor_scripts import with_docs
 
 PROJECT = "AEAREP"
 DEPOSIT_FIELD = "openICPSR Project Number"
@@ -773,7 +774,7 @@ def _describe(result, verbose, show_url=False, header_printed=False):
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description=f'Detect openICPSR activity on tickets in "{PENDING_STATUS}"',
+        description=with_docs(f'Detect openICPSR activity on tickets in "{PENDING_STATUS}"'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 By default nothing is written; pass --apply to comment, transition and trigger

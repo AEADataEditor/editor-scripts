@@ -206,7 +206,8 @@ def cmd_delete(s: requests.Session, args) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        description="Documentation: https://aeadataeditor.github.io/editor-scripts/\n\n" + __doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list", help="show active/inactive workflows (read-only)")

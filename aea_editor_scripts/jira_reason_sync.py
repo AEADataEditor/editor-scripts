@@ -41,6 +41,7 @@ import sys
 
 
 from aea_editor_scripts.jira_auth import connect
+from aea_editor_scripts import with_docs
 
 FIELD_NAME = "Reason for Failure to be Fully Reproduced"
 SECTION_HEADING = "### Reason for incomplete reproducibility"
@@ -178,7 +179,10 @@ def sync_reasons(issue_key, replication_md, execute):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sync REPLICATION.md reproducibility reasons with Jira.")
+    parser = argparse.ArgumentParser(
+        description=with_docs("Sync REPLICATION.md reproducibility reasons with Jira."),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument('issue_key', help="Jira issue key (e.g., aearep-8361)")
     parser.add_argument('--replication-md', default='REPLICATION.md', help="Path to REPLICATION.md (default: ./REPLICATION.md)")
     parser.add_argument('--execute', action='store_true', help="Update Jira to match REPLICATION.md if misaligned (default: query only)")

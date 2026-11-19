@@ -108,6 +108,7 @@ from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts import box_config
 from aea_editor_scripts.box_config import COMPLETED_FOLDER, MANUSCRIPT_FIELD, RESTRICTED_SUBTASK_TYPE
 from aea_editor_scripts.box_create_folder import recorded_file_request_id
+from aea_editor_scripts import with_docs
 
 # Configuration
 JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
@@ -965,7 +966,7 @@ def main():
     """Main entry point."""
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Clean up Box folders for completed Jira cases',
+        description=with_docs('Clean up Box folders for completed Jira cases'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
