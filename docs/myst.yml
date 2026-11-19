@@ -16,12 +16,6 @@ project:
   toc:
     - file: index.md
       title: Home
-    - title: Related sites
-      children:
-        - url: 'https://labordynamicsinstitute.github.io/LDI-Research-Aide/'
-          title: LDI Replication Lab Research Aide Manual
-        - url: 'https://aeadataeditor.github.io/replication-template/'
-          title: AEA Replication Template
     - file: installation/index.md
       title: Installation
     - file: api-tokens.md
@@ -53,6 +47,10 @@ project:
         - file: scripts/jira_workflow_cleanup.md
         - file: scripts/stata.md
         - file: scripts/system-info.md
+    - url: 'https://labordynamicsinstitute.github.io/LDI-Research-Aide/'
+      title: LDI Replication Lab Research Aide Manual
+    - url: 'https://aeadataeditor.github.io/replication-template/'
+      title: AEA Replication Template
 
 site:
   template: book-theme
