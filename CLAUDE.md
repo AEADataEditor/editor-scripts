@@ -13,18 +13,19 @@ version bump.
 ## Licensing
 
 Code is BSD-3-Clause ([LICENSE](LICENSE)); documentation is CC BY-NC 4.0
-([LICENSE-docs.md](LICENSE-docs.md)). Every new bash/python script created here
-starts (after the shebang/encoding line) with:
-
-```
-# SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) Lars Vilhuber and contributors.
-# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
-```
+([LICENSE-docs.md](LICENSE-docs.md)). Every script written here (bash, Python,
+PowerShell, JS, ...) starts, after any shebang/encoding line and in its
+language's comment syntax, with a four-line header: SPDX identifier, copyright
+years, `Author(s):`, and the license pointer. Never write it by hand: run
+`python3 .github/scripts/license_headers.py` after adding a script (years and
+authors come from git history; map new git identities to names under `aliases`
+in `.license-headers.json`). `tests/test_license_headers.py` runs its
+`--check`. The tool is identical to `tools/license_headers.py` in
+replication-template-development; keep the copies identical.
 
 Code ingested from an external codebase keeps its upstream license: give it an
-SPDX line naming that license and its source instead, and list it under
-"License" in README.md.
+SPDX line naming that license, its copyright and its source instead (the tool
+then leaves it alone), and list it under "License" in README.md.
 
 ## Documentation
 

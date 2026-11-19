@@ -86,7 +86,7 @@ with [MyST](https://mystmd.org/).
 
 ## License
 
-- **Code** (scripts and programs created in this repository): [BSD 3-Clause License](LICENSE). Each script carries an `SPDX-License-Identifier: BSD-3-Clause` header.
+- **Code** (scripts and programs created in this repository): [BSD 3-Clause License](LICENSE). Each script carries a header with its SPDX license identifier, copyright years, and authors, maintained by `.github/scripts/license_headers.py`.
 - **Documentation** (the `docs/` site, README files, and other Markdown/text documents): [CC BY-NC 4.0](LICENSE-docs.md).
 
   [![License: CC BY-NC 4.0](https://licensebuttons.net/l/by-nc/4.0/80x15.png)](https://creativecommons.org/licenses/by-nc/4.0/)

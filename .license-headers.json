@@ -1,0 +1,13 @@
+{
+  "holder": "Lars Vilhuber and contributors",
+  "include": [""],
+  "exclude": [],
+  "default_author": "Lars Vilhuber",
+  "aliases": {
+    "lars.vilhuber@cornell.edu": "Lars Vilhuber",
+    "lars@vilhuber.com": "Lars Vilhuber",
+    "lars+git+automation@vilhuber.com": "Lars Vilhuber"
+  },
+  "bots": ["\\[bot\\]", "noreply@anthropic\\.com"],
+  "ignore_commits": ["9c2f848"]
+}
