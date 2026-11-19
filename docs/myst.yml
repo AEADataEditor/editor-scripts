@@ -10,10 +10,17 @@ project:
   license: CC-BY-4.0
   exclude:
     - superpowers/**
+    - _parts/**
   index: index.md
   toc:
     - file: index.md
       title: Home
+    - title: Related sites
+      children:
+        - url: 'https://labordynamicsinstitute.github.io/LDI-Research-Aide/'
+          title: LDI Replication Lab Research Aide Manual
+        - url: 'https://aeadataeditor.github.io/replication-template/'
+          title: AEA Replication Template
     - file: installation/index.md
       title: Installation
     - file: api-tokens.md
@@ -50,5 +57,12 @@ site:
   template: book-theme
   title: AEA Editor Scripts
   options:
+    logo: "images/logo-cornell-aea.png"
+    logo_dark: "images/logo-cornell-aea-dark.png"
     logo_text: AEA Data Editor
+    logo_alt: "Cornell University seal behind the AEA Data Editor logo"
+    style: "_static/custom.css"
     folders: true
+  parts:
+    banner: _parts/internal-notice.md
+    primary_sidebar_footer: _parts/llm-notice.md
