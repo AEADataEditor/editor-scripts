@@ -238,15 +238,27 @@ def copy_to_clipboard(text: str) -> None:
     """Best-effort clipboard copy.
 
     Tries, in order:
-      - tkinter (cross-platform, stdlib; works on Linux/macOS/Windows when a
-        display is available)
+      - clip          (Windows; Tk crashes with an access violation in
+                       clipboard_clear on some Windows Pythons, e.g. 3.14)
+      - tkinter (stdlib; Linux/macOS when a display is available)
       - pyperclip (third-party, optional)
       - xclip / xsel  (Linux fallback)
       - pbcopy        (macOS fallback)
-      - clip.exe      (Windows / WSL fallback)
+      - clip.exe      (WSL fallback)
     Silently skips if nothing is available.
     """
-    # --- tkinter (stdlib, cross-platform) -----------------------------------
+    system = platform.system()
+    encoded = text.encode()
+
+    # --- Windows: native clip, never tkinter ---------------------------------
+    if system == "Windows":
+        try:
+            subprocess.run(["clip"], input=encoded, capture_output=True)
+        except OSError:
+            pass
+        return
+
+    # --- tkinter (stdlib) ----------------------------------------------------
     try:
         import tkinter as tk
         root = tk.Tk()
@@ -270,8 +282,6 @@ def copy_to_clipboard(text: str) -> None:
         pass
 
     # --- platform-specific CLI fallbacks ------------------------------------
-    system = platform.system()
-    encoded = text.encode()
     if system == "Linux":
         for cmd in (["xclip", "-selection", "clipboard"],
                     ["xsel", "--clipboard", "--input"]):
@@ -283,8 +293,6 @@ def copy_to_clipboard(text: str) -> None:
             subprocess.run(["clip.exe"], input=encoded, capture_output=True)
     elif system == "Darwin":
         subprocess.run(["pbcopy"], input=encoded, capture_output=True)
-    elif system == "Windows":
-        subprocess.run(["clip"], input=encoded, capture_output=True)
 
 
 def clone_or_update(repo: str, git_url: str) -> bool:
