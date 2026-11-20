@@ -34,6 +34,21 @@ aeagit --all [method]
   `code --open-url`, after a 4-second wait for the window to open). Overrides
   `AEAGIT_NO_EDITOR`; cannot be combined with `--all` or `--no-editor`.
 
+## Clipboard
+
+After a single-repository clone or update, `aeagit` prints `cd <repo>` and
+copies that command to the clipboard, so it can be pasted to enter the
+directory. The copy is best-effort and skipped silently if no clipboard tool
+works:
+
+- **Windows** — `clip`. Tk is not used: it crashes with an access violation in
+  `clipboard_clear` on some Windows Pythons (e.g. 3.14).
+- **Linux / macOS** — `tkinter` when a display is available, then `pyperclip`
+  if installed, then `xclip` / `xsel` (or `clip.exe` under WSL) on Linux and
+  `pbcopy` on macOS.
+
+`--all` does not copy anything.
+
 ## Claude Code settings
 
 When `~/.claude-aea` exists, VS Code is launched with
