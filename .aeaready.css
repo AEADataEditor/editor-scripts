@@ -241,6 +241,60 @@ blockquote p:not(:last-child) {
 	margin-bottom: 16px !important;
 }
 
+/* GitHub-style alerts ("> [!NOTE]", "> [!IMPORTANT]", ...), also accepted by
+   MyST. Pandoc's gfm reader (>= 3.1.10, "alerts" extension) renders them as
+   <div class="important"><div class="title"><p>Important</p></div>...</div>.
+   All alert types look like a regular blockquote; IMPORTANT and CAUTION are red. */
+div.note,
+div.tip,
+div.important,
+div.warning,
+div.caution {
+	background-color: #f0f8ff;
+	border-left: 4px solid #0969da;
+	margin: 16px 0;
+	padding: 16px 20px;
+	border-radius: 4px;
+	color: #24292f;
+	page-break-inside: avoid;
+}
+
+div.important,
+div.caution {
+	background-color: #ffebe9; /* Light red background */
+	border-left-color: #cf222e; /* Red left border */
+}
+
+div.note > div.title p,
+div.tip > div.title p,
+div.important > div.title p,
+div.warning > div.title p,
+div.caution > div.title p {
+	font-weight: 600;
+	margin: 0 0 8px 0;
+}
+
+div.important > div.title p,
+div.caution > div.title p {
+	color: #cf222e;
+}
+
+div.note p,
+div.tip p,
+div.important p,
+div.warning p,
+div.caution p {
+	margin: 0;
+}
+
+div.note p:not(:last-child),
+div.tip p:not(:last-child),
+div.important p:not(:last-child),
+div.warning p:not(:last-child),
+div.caution p:not(:last-child) {
+	margin-bottom: 16px;
+}
+
 code {
 	font-family: var(--vscode-editor-font-family, "SF Mono", Monaco, Menlo, Consolas, "Ubuntu Mono", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace);
 	font-size: 1em;
