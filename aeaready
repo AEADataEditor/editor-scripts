@@ -198,6 +198,14 @@ case $os in
 		    ;;
 esac
 
+# GitHub-style alerts ("> [!IMPORTANT]") need pandoc >= 3.1.10
+if [[ -n "$pandoc" && -f "$pandoc" ]] && ! "$pandoc" --list-extensions=gfm 2>/dev/null | grep -q 'alerts'
+then
+   echo "WARNING: $pandoc ($("$pandoc" --version | head -1)) does not support"
+   echo "         GitHub-style alerts; '> [!IMPORTANT]' blocks will render as plain"
+   echo "         blockquotes. Upgrade to pandoc >= 3.1.10."
+fi
+
 # update the CSS
 
 if [[ -f $CSSLOCAL ]]
