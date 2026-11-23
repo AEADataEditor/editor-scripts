@@ -24,7 +24,8 @@ Improvements over `aeareq`:
 The deposit checklist is inserted at the `-----action items go here------`
 marker (then the marker is removed). The marker-based anchor is kept because
 the deposit section heading varies (openICPSR, Dataverse, ...). Manuscript
-items are appended at the end of the `### Action Items (manuscript)` section.
+items go into the `### Action Items (manuscript)` section above its fixed
+`>` blockquotes (at the end of an existing checklist there, if any).
 
 Usage:
     aea-parse-tags [force]
@@ -51,6 +52,7 @@ TAG_LINE_RE = re.compile(r"^(?:>|-)")
 BRACKET_TAG_RE = re.compile(r"\[(?:STRONGLY )?(?:REQUIRED|SUGGESTED)\]")
 INSTRUCTION_RE = re.compile(r"^\s*(?:[>-]\s*)*INSTRUCTIONS?\s*:")
 MARKER_RE = re.compile(r"\{\{\s*(\S+)(?:\s+(\S+))?\s*\}\}")
+CHECKLIST_RE = re.compile(r"^-\s*\[\s*[xX ]?\s*\]")
 LEVEL_ORDER = ["[REQUIRED]", "[STRONGLY SUGGESTED]", "[SUGGESTED]"]
 
 
@@ -157,14 +159,27 @@ def process(text: str) -> tuple[str, int, int]:
               f"{len(deposit)} deposit tag(s) not inserted.")
         deposit = []
 
-    # Append manuscript items at the end of the manuscript section.
+    # Manuscript items go above the section's fixed blockquotes: after an
+    # existing checklist there, else just before the first blockquote. A
+    # section without blockquotes gets them at its end.
     if manuscript:
         bounds = section_bounds(out, MANUSCRIPT_HEADING)
         if bounds:
-            end = bounds[1]
-            while end > bounds[0] + 1 and not out[end - 1].strip():
-                end -= 1
-            out[end:end] = [""] + [t.checklist_line() for t in manuscript]
+            items = [t.checklist_line() for t in manuscript]
+            start, end = bounds
+            quote = next((i for i in range(start + 1, end)
+                          if out[i].startswith(">")), None)
+            if quote is None:
+                while end > start + 1 and not out[end - 1].strip():
+                    end -= 1
+                out[end:end] = [""] + items
+            else:
+                checklist = [i for i in range(start + 1, quote)
+                             if CHECKLIST_RE.match(out[i])]
+                if checklist:
+                    out[checklist[-1] + 1:checklist[-1] + 1] = items
+                else:
+                    out[quote:quote] = items + [""]
         else:
             print(f":: WARNING: '{MANUSCRIPT_HEADING}' section not found; "
                   f"{len(manuscript)} manuscript item(s) not inserted.")

@@ -24,3 +24,8 @@ The deposit checklist is inserted at the `-----action items go here------`
 marker, which is then removed, so it works regardless of the deposit section's
 name (openICPSR, Dataverse, …). Without the marker the tool refuses to run
 unless called with `force`.
+
+The manuscript checklist is inserted in `### Action Items (manuscript)` above
+the section's fixed `>` blockquotes, which stay in place after it. On a rerun,
+new items are added at the end of the existing checklist. A section without
+blockquotes gets the checklist at its end.
