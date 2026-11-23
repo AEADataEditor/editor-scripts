@@ -1,10 +1,14 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """Tests for the shared Jira authentication check."""
 
 import pytest
 from jira.exceptions import JIRAError
 
 from aea_editor_scripts import jira_auth as A
-
 
 class FakeJira:
     def __init__(self, result=None, error=None):
@@ -15,20 +19,21 @@ class FakeJira:
             raise self.error
         return self.result
 
-
 def test_accepted_credentials_return_the_user_record():
     user = {"displayName": "Someone"}
     assert A.verify_auth(FakeJira(result=user)) == user
-
 
 @pytest.mark.parametrize("status", A.REJECTED)
 def test_rejected_credentials_raise_an_auth_error(status):
     with pytest.raises(A.JiraAuthError, match=f"HTTP {status}"):
         A.verify_auth(FakeJira(error=JIRAError(status_code=status)))
 
-
 def test_other_jira_errors_pass_through_unchanged():
     error = JIRAError(status_code=503)
     with pytest.raises(JIRAError) as caught:
         A.verify_auth(FakeJira(error=error))
     assert caught.value is error
+
+def test_rejection_names_the_token_page():
+    with pytest.raises(A.JiraAuthError, match=A.TOKEN_URL):
+        A.verify_auth(FakeJira(error=JIRAError(status_code=401)))

@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """Archive and delete INACTIVE Jira Cloud workflows (aeadataeditors site).
 
 Standalone maintenance script. Deliberately NOT part of the `aea_editor_scripts`
@@ -202,7 +207,8 @@ def cmd_delete(s: requests.Session, args) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        description="Documentation: https://aeadataeditor.github.io/editor-scripts/\n\n" + __doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list", help="show active/inactive workflows (read-only)")

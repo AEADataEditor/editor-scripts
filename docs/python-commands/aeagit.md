@@ -22,7 +22,9 @@ aeagit --all [method]
 - **name** — a value with non-numeric characters (e.g. `aeagit train-123`) is
   cloned as given, with no prefix.
 - **method** — `ssh` or `https` (abbreviable). Defaults to `ssh` on Linux/macOS
-  and `https` on Windows/Codespaces.
+  and `https` on Windows/Codespaces. HTTPS uses a Bitbucket entry in
+  `~/.git-credentials`, else `P_BITBUCKET_USERNAME` and `P_BITBUCKET_PAT` (see
+  [Authentication](../authentication.md)), else git's own credential helper.
 - **`-a` / `--all`** — process every pre-approved case instead of a single
   repository (see below).
 - **`-n` / `--no-editor`** — skip opening VS Code. Also honored via the
@@ -31,6 +33,21 @@ aeagit --all [method]
   in that window with the `/aea-report-finalize` skill as the prompt (via
   `code --open-url`, after a 4-second wait for the window to open). Overrides
   `AEAGIT_NO_EDITOR`; cannot be combined with `--all` or `--no-editor`.
+
+## Clipboard
+
+After a single-repository clone or update, `aeagit` prints `cd <repo>` and
+copies that command to the clipboard, so it can be pasted to enter the
+directory. The copy is best-effort and skipped silently if no clipboard tool
+works:
+
+- **Windows** — `clip`. Tk is not used: it crashes with an access violation in
+  `clipboard_clear` on some Windows Pythons (e.g. 3.14).
+- **Linux / macOS** — `tkinter` when a display is available, then `pyperclip`
+  if installed, then `xclip` / `xsel` (or `clip.exe` under WSL) on Linux and
+  `pbcopy` on macOS.
+
+`--all` does not copy anything.
 
 ## Claude Code settings
 
@@ -60,4 +77,4 @@ No editor is opened, and a repository that fails to clone or pull does not stop
 the others: each is reported as it is processed, the failures are listed at the
 end, and the exit code is 1 if there were any.
 
-This mode reads Jira and needs `JIRA_USERNAME` and `JIRA_API_KEY` to be set.
+This mode reads Jira and needs `JIRA_USERNAME` and `JIRA_API_KEY` to be set (see [Authentication](../authentication.md)).

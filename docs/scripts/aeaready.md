@@ -7,7 +7,7 @@ Run once the report is edited and ready for sign-off. Compiles the PDF from
 files, and updates the Jira issue. Sign-off itself is done manually in Jira.
 
 ```
-aeaready (issue) (pre|approve) [nopdf] [additional comments]
+aeaready (issue) (pre|approve) [nopdf] [--append FILE] [additional comments]
 ```
 
 ## Arguments
@@ -23,6 +23,11 @@ Optional:
 
 - **nopdf** — on systems that cannot build the PDF automatically (Windows, some
   Macs), generate it by hand first and pass `nopdf` to skip the build.
+- **--append FILE** — append the PDF `FILE` (for example, an external
+  reviewer's report) to `REPLICATION.pdf` before committing, using
+  [`aea-pdf-append`](../python-commands/aea-pdf-append.md). May appear anywhere
+  in the arguments; `--append=FILE` also works. With `nopdf`, `FILE` is
+  appended to the existing `REPLICATION.pdf`.
 - **additional comments** — any words after the required arguments and `nopdf`
   are appended verbatim to the commit message.
 
@@ -45,7 +50,21 @@ before it runs, so it can be copied and run by hand if `aeaready` is aborted.
 - It then runs [`jira-approval-manager`](../python-commands/jira-approval-manager.md)
   after a confirmation prompt.
 
+## Highlighting important messages
+
+A blockquote that starts with `[!IMPORTANT]` (GitHub alert syntax, also
+understood by MyST and VS Code) renders with a red background in the PDF;
+plain `>` blockquotes stay blue. `[!CAUTION]` is also red; `[!NOTE]`, `[!TIP]`
+and `[!WARNING]` look like plain blockquotes with a title.
+
+```markdown
+> [!IMPORTANT]
+> The openICPSR deposit must be updated before acceptance.
+```
+
+This needs pandoc >= 3.1.10; `aeaready` warns if the pandoc it found is older.
+
 ## Dependencies
 
 PDF generation needs `pandoc` and either `wkhtmltopdf` or `docker`. On Windows,
-use `nopdf`.
+use `nopdf`. `--append` needs `aea-pdf-append` from the Python package on `PATH`.

@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """
 aeagit - Clone or update an AEA replication repository.
 
@@ -47,13 +52,14 @@ from pathlib import Path
 from urllib.parse import quote
 
 from aea_editor_scripts import console
+from aea_editor_scripts.bitbucket_auth import bitbucket_username
+from aea_editor_scripts import DOCS_LINE
 
 
 AEASRC = "git@ssh.bitbucket.org:aeaverification"
 AEAHSRC = "bitbucket.org/aeaverification"
 DEPTH = 50
 
-JIRA_URL = "https://aeadataeditors.atlassian.net"
 PROJECT = "AEAREP"
 PRE_APPROVED_STATUS = "Pre-Approved"
 REPO_FIELD = "Bitbucket short name"
@@ -103,7 +109,7 @@ def get_https_auth() -> str | None:
                     return authinfo
 
     pat = os.environ.get("P_BITBUCKET_PAT")
-    username = os.environ.get("P_BITBUCKET_USERNAME")
+    username = bitbucket_username()
     if pat and username:
         return f"{username}:{pat}"
 
@@ -232,15 +238,27 @@ def copy_to_clipboard(text: str) -> None:
     """Best-effort clipboard copy.
 
     Tries, in order:
-      - tkinter (cross-platform, stdlib; works on Linux/macOS/Windows when a
-        display is available)
+      - clip          (Windows; Tk crashes with an access violation in
+                       clipboard_clear on some Windows Pythons, e.g. 3.14)
+      - tkinter (stdlib; Linux/macOS when a display is available)
       - pyperclip (third-party, optional)
       - xclip / xsel  (Linux fallback)
       - pbcopy        (macOS fallback)
-      - clip.exe      (Windows / WSL fallback)
+      - clip.exe      (WSL fallback)
     Silently skips if nothing is available.
     """
-    # --- tkinter (stdlib, cross-platform) -----------------------------------
+    system = platform.system()
+    encoded = text.encode()
+
+    # --- Windows: native clip, never tkinter ---------------------------------
+    if system == "Windows":
+        try:
+            subprocess.run(["clip"], input=encoded, capture_output=True)
+        except OSError:
+            pass
+        return
+
+    # --- tkinter (stdlib) ----------------------------------------------------
     try:
         import tkinter as tk
         root = tk.Tk()
@@ -264,8 +282,6 @@ def copy_to_clipboard(text: str) -> None:
         pass
 
     # --- platform-specific CLI fallbacks ------------------------------------
-    system = platform.system()
-    encoded = text.encode()
     if system == "Linux":
         for cmd in (["xclip", "-selection", "clipboard"],
                     ["xsel", "--clipboard", "--input"]):
@@ -277,8 +293,6 @@ def copy_to_clipboard(text: str) -> None:
             subprocess.run(["clip.exe"], input=encoded, capture_output=True)
     elif system == "Darwin":
         subprocess.run(["pbcopy"], input=encoded, capture_output=True)
-    elif system == "Windows":
-        subprocess.run(["clip"], input=encoded, capture_output=True)
 
 
 def clone_or_update(repo: str, git_url: str) -> bool:
@@ -309,8 +323,7 @@ def get_jira_client():
     The import is deferred so that cloning a single repo — the common case —
     neither needs Jira credentials nor pays for loading the Jira library.
     """
-    from jira import JIRA
-    from aea_editor_scripts.jira_auth import verify_auth
+    from aea_editor_scripts.jira_auth import connect
 
     username = os.environ.get("JIRA_USERNAME")
     api_key = os.environ.get("JIRA_API_KEY")
@@ -319,9 +332,7 @@ def get_jira_client():
         sys.exit(1)
 
     try:
-        jira = JIRA(server=JIRA_URL, basic_auth=(username, api_key),
-                    options={"verify": True})
-        verify_auth(jira)
+        jira, _ = connect(username, api_key)
         return jira
     except Exception as exc:
         print(f"Error connecting to Jira: {exc}")
@@ -359,6 +370,8 @@ def clone_all(repos: list[str], method: str) -> list[str]:
 
 def print_help(prog: str) -> None:
     print(f"""
+  {DOCS_LINE}
+
   {prog} (number|name) [(method)] [--no-editor | --finalize]
   {prog} --all [(method)]
 

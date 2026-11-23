@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """
 aea-parse-tags - Consolidate [REQUIRED]/[SUGGESTED] tags in REPLICATION.md.
 
@@ -20,6 +25,9 @@ Improvements over `aeareq`:
   alphabetically, with REQUIRED before SUGGESTED as a tiebreaker.
 - `{{ ... }}` markers are stripped from the final checklist text.
 - Any remaining `> INSTRUCTION(S)` lines are removed (like `aeaclean`).
+- Tag wording that refers to a single data source ("this dataset") is
+  rewritten for the consolidated checklist, where it no longer sits under
+  that source (see CHECKLIST_REWRITES).
 
 The deposit checklist is inserted at the `-----action items go here------`
 marker (then the marker is removed). The marker-based anchor is kept because
@@ -37,6 +45,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from aea_editor_scripts import with_docs
 
 
 REPLICATION = "REPLICATION.md"
@@ -54,6 +63,17 @@ INSTRUCTION_RE = re.compile(r"^\s*(?:[>-]\s*)*INSTRUCTIONS?\s*:")
 MARKER_RE = re.compile(r"\{\{\s*(\S+)(?:\s+(\S+))?\s*\}\}")
 CHECKLIST_RE = re.compile(r"^-\s*\[\s*[xX ]?\s*\]")
 LEVEL_ORDER = ["[REQUIRED]", "[STRONGLY SUGGESTED]", "[SUGGESTED]"]
+
+# Standard tags are written to sit under one data source in the report body,
+# so they say "this dataset". In the consolidated checklist they are detached
+# from that source (and usually merged across several), so the singular has
+# no referent. Applied to checklist lines only; the body tags are untouched.
+CHECKLIST_REWRITES = [
+    (re.compile(r"(access modality and source location for) this dataset\."),
+     r"\1 all datasets."),
+    (re.compile(r"^(\[REQUIRED\] Please provide) this dataset\.?$"),
+     r"\1 missing datasets"),
+]
 
 
 class Tag:
@@ -83,8 +103,14 @@ class Tag:
                 return i
         return len(LEVEL_ORDER)
 
+    def checklist_text(self) -> str:
+        text = self.text
+        for pattern, replacement in CHECKLIST_REWRITES:
+            text = pattern.sub(replacement, text)
+        return text
+
     def checklist_line(self) -> str:
-        return f"- [ ] {self.text}"
+        return f"- [ ] {self.checklist_text()}"
 
 
 def collect_tags(lines: list[str]) -> list[Tag]:
@@ -190,8 +216,9 @@ def process(text: str) -> tuple[str, int, int]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Consolidate [REQUIRED]/[SUGGESTED] tags in REPLICATION.md "
-                    "into the Action Items checklists."
+        description=with_docs("Consolidate [REQUIRED]/[SUGGESTED] tags in REPLICATION.md "
+                              "into the Action Items checklists."),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("force", nargs="?", choices=["force"],
                         help="run even if the 'action items go here' marker is missing")

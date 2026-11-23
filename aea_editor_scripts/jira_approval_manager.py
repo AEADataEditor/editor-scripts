@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025-2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """
 Jira Approval Manager for AEA Data Editor
 Manages approval transitions with recommendation field updates.
@@ -56,11 +61,11 @@ import argparse
 import time
 import re
 import threading
-from jira import JIRA
 
-from aea_editor_scripts.jira_auth import verify_auth
+from aea_editor_scripts.jira_auth import GATEWAY_URL, connect
 
 from aea_editor_scripts import console
+from aea_editor_scripts import with_docs
 
 # Configuration
 COUNTDOWN_SECONDS = 8  # Delay before executing transition
@@ -143,18 +148,11 @@ def get_jira_client(verbose=False):
         print("Error: JIRA_USERNAME and JIRA_API_KEY environment variables must be set")
         sys.exit(1)
 
-    jira_url = "https://aeadataeditors.atlassian.net"
-
     if verbose:
-        print(f"Connecting to {jira_url} as {jira_username}...")
+        print(f"Connecting to {GATEWAY_URL} as {jira_username}...")
 
     try:
-        jira = JIRA(
-            server=jira_url,
-            basic_auth=(jira_username, jira_api_key),
-            options={'verify': True}
-        )
-        user_info = verify_auth(jira)
+        jira, user_info = connect(jira_username, jira_api_key)
         if verbose:
             print(f"✓ Successfully authenticated as {user_info.get('displayName', jira_username)}")
         return jira
@@ -355,7 +353,7 @@ def get_recommendation_options(jira, issue, field_id):
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Manage Jira approval transitions with recommendation updates',
+        description=with_docs('Manage Jira approval transitions with recommendation updates'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

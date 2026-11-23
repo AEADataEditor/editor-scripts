@@ -38,6 +38,6 @@ aea-box-recover-files --case 8040 --days 14 # look back 14 days
 Variables not set in the environment are read from `~/.envvars`.
 
 - Box: the Box app credentials (see
-  [Box setup](aea-box-clean-folders.md#box-setup)); folder settings in
+  [Authentication](../authentication.md#box)); folder settings in
   [Shared settings](aea-box-clean-folders.md#box-settings)
-- Jira: `JIRA_USERNAME`, `JIRA_API_KEY`
+- Jira: `JIRA_USERNAME`, `JIRA_API_KEY` (see [Authentication](../authentication.md))

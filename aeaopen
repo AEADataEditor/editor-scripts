@@ -1,4 +1,9 @@
 #!/bin/bash
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2021 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 baseURL=https://aeadataeditors.atlassian.net/browse/AEAREP-
 issue=$1
 if [[ -z $issue ]]
@@ -7,7 +12,7 @@ then
 	gitchk=$(git remote -v  2>/dev/null | head -1  )
 	if [[ ! -z $gitchk ]]
 	then
-		issue=$(echo $gitchk | cut -d. -f 2 | cut -d- -f 2)
+		issue=$(echo "$gitchk" | grep -oiE 'aearep-[0-9]+' | head -1 | cut -d- -f 2)
 	fi
 fi
 [[ -z $issue ]] && exit 2

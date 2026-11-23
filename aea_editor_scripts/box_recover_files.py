@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """
 Box File Recovery Script for AEA Data Editor
 
@@ -45,7 +50,7 @@ Environment Variables Required:
         JIRA_USERNAME - Your Jira email address
         JIRA_API_KEY - API token
 
-    Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
+    Optional overrides of box_config: BOX_FOLDER_PRIVATE
 """
 
 import os
@@ -83,7 +88,8 @@ except ImportError:
 from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts import box_config
 from aea_editor_scripts.box_config import BOX_FOLDER_ID_FIELD, COMPLETED_FOLDER, REPO_FIELD
-from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
+from aea_editor_scripts.jira_auth import JiraAuthError, connect
+from aea_editor_scripts import with_docs
 
 
 class BoxRecovery:
@@ -187,20 +193,13 @@ class BoxRecovery:
         
         jira_username = os.environ.get('JIRA_USERNAME')
         jira_api_key = os.environ.get('JIRA_API_KEY')
-        jira_server = box_config.jira_server()
         
         if not jira_username or not jira_api_key:
             self.logger.error("JIRA_USERNAME and JIRA_API_KEY environment variables required")
             sys.exit(1)
         
         try:
-            self.jira_client = JIRA(
-                server=jira_server,
-                basic_auth=(jira_username, jira_api_key),
-                options={'verify': True}
-            )
-            
-            myself = verify_auth(self.jira_client)
+            self.jira_client, myself = connect(jira_username, jira_api_key)
             self.logger.info(f"✓ Authenticated to Jira as: {myself['displayName']}")
             return self.jira_client
             
@@ -958,7 +957,7 @@ def main():
     """Main entry point."""
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Recover deleted Box files for completed Jira cases',
+        description=with_docs('Recover deleted Box files for completed Jira cases'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -986,7 +985,7 @@ Environment Variables Required:
     JIRA_USERNAME - Your Jira email address
     JIRA_API_KEY - API token
 
-  Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
+  Optional overrides of box_config: BOX_FOLDER_PRIVATE
 """
     )
     

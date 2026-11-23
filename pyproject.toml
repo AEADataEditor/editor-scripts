@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aea-editor-scripts"
-version = "0.3.65"
+version = "0.3.73"
 description = "Scripts for AEA Data Editor workflow"
 readme = "README.md"
+license = {text = "BSD-3-Clause"}
 requires-python = ">=3.11"
 dependencies = [
     "python-dotenv",
@@ -14,6 +15,7 @@ dependencies = [
     "jira",
     "pyyaml",
     "boxsdk[jwt]==3.14.0",
+    "pypdf",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +23,7 @@ dev = ["pytest"]
 
 [project.scripts]
 aea-parse-tags         = "aea_editor_scripts.parse_tags:main"
+aea-pdf-append         = "aea_editor_scripts.pdf_append:main"
 aeagit                 = "aea_editor_scripts.aeagit:main"
 aeagit-create          = "aea_editor_scripts.aeagit_create:main"
 aea-box-clean-folders  = "aea_editor_scripts.box_clean_folders:main"

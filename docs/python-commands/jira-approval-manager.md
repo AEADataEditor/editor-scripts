@@ -14,4 +14,4 @@ and updates the MC Recommendation field. Auto-detects the recommendation from
 jira-approval-manager aearep-NNNN (approve|pre-approve) [recommendation]
 ```
 
-Requires `JIRA_USERNAME` and `JIRA_API_KEY`.
+Requires `JIRA_USERNAME` and `JIRA_API_KEY` (see [Authentication](../authentication.md)).

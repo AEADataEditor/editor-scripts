@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """
 Box Folder Cleanup Script for AEA Data Editor
 
@@ -46,7 +51,7 @@ Environment Variables Required:
         JIRA_USERNAME - Your Jira email address
         JIRA_API_KEY - API token
 
-    Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
+    Optional overrides of box_config: BOX_FOLDER_PRIVATE
 
     Restricted-data deletion notice (--email), optional:
         DATAEDITOR_EMAIL_PASSWORD - Password for dataeditor@aeapubs.org, used if the
@@ -99,11 +104,12 @@ except ImportError:
 from aea_editor_scripts import console
 from aea_editor_scripts.jira_purge_query import find_last_revision
 from aea_editor_scripts.jira_comment import automated
-from aea_editor_scripts.jira_auth import JiraAuthError, verify_auth
+from aea_editor_scripts.jira_auth import JiraAuthError, connect
 from aea_editor_scripts.box_auth import load_envvars, box_settings
 from aea_editor_scripts import box_config
 from aea_editor_scripts.box_config import COMPLETED_FOLDER, MANUSCRIPT_FIELD, RESTRICTED_SUBTASK_TYPE
 from aea_editor_scripts.box_create_folder import recorded_file_request_id
+from aea_editor_scripts import with_docs
 
 # Configuration
 JIRA_PURGE_QUERY_CMD = 'jira-purge-query'
@@ -664,12 +670,7 @@ class BoxCleanup:
             sys.exit(1)
 
         try:
-            self._notify_jira_client = JIRA(
-                server=box_config.jira_server(),
-                basic_auth=(jira_username, jira_api_key),
-                options={'verify': True}
-            )
-            verify_auth(self._notify_jira_client)
+            self._notify_jira_client, _ = connect(jira_username, jira_api_key)
             return self._notify_jira_client
         except (JIRAError, JiraAuthError) as e:
             self.logger.error(f"Failed to authenticate to Jira for --email: {e}")
@@ -966,7 +967,7 @@ def main():
     """Main entry point."""
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Clean up Box folders for completed Jira cases',
+        description=with_docs('Clean up Box folders for completed Jira cases'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -1005,7 +1006,7 @@ Environment Variables Required:
     JIRA_USERNAME - Your Jira email address
     JIRA_API_KEY - API token
 
-  Optional overrides of box_config: BOX_FOLDER_PRIVATE, JIRA_SERVER
+  Optional overrides of box_config: BOX_FOLDER_PRIVATE
 
   Restricted-data deletion notice (--email), optional:
     DATAEDITOR_EMAIL_PASSWORD - fallback if 1Password CLI ('op') is unavailable

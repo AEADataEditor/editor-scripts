@@ -27,4 +27,4 @@ jira-reason-sync aearep-NNNN [--execute] [--replication-md PATH]
 
 ## Environment
 
-Requires `JIRA_USERNAME` and `JIRA_API_KEY`.
+Requires `JIRA_USERNAME` and `JIRA_API_KEY` (see [Authentication](../authentication.md)).

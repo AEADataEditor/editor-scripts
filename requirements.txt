@@ -3,3 +3,4 @@ requests
 jira
 pyyaml
 boxsdk==3.14.0
+pypdf

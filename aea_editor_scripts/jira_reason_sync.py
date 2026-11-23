@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """
 Jira Reason-for-Failure Sync for AEA Data Editor
 
@@ -35,11 +40,10 @@ import os
 import re
 import sys
 
-from jira import JIRA
 
-from aea_editor_scripts.jira_auth import verify_auth
+from aea_editor_scripts.jira_auth import connect
+from aea_editor_scripts import with_docs
 
-JIRA_URL = "https://aeadataeditors.atlassian.net"
 FIELD_NAME = "Reason for Failure to be Fully Reproduced"
 SECTION_HEADING = "### Reason for incomplete reproducibility"
 
@@ -92,8 +96,7 @@ def get_jira_client():
         return None
 
     try:
-        jira = JIRA(server=JIRA_URL, basic_auth=(jira_username, jira_api_key), options={'verify': True})
-        verify_auth(jira)
+        jira, _ = connect(jira_username, jira_api_key)
         return jira
     except Exception as e:
         print(f"Error connecting to Jira: {e}", file=sys.stderr)
@@ -177,7 +180,10 @@ def sync_reasons(issue_key, replication_md, execute):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sync REPLICATION.md reproducibility reasons with Jira.")
+    parser = argparse.ArgumentParser(
+        description=with_docs("Sync REPLICATION.md reproducibility reasons with Jira."),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument('issue_key', help="Jira issue key (e.g., aearep-8361)")
     parser.add_argument('--replication-md', default='REPLICATION.md', help="Path to REPLICATION.md (default: ./REPLICATION.md)")
     parser.add_argument('--execute', action='store_true', help="Update Jira to match REPLICATION.md if misaligned (default: query only)")

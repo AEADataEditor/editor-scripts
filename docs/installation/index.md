@@ -50,6 +50,25 @@ installs and updates); add `--uv` to use `uv`:
 ./install.sh --uv   # uv
 ```
 
+## Claude Code skills
+
+`install.sh` also installs the user-level Claude Code skills published in
+[`AEADataEditor/replication-template`](https://github.com/AEADataEditor/replication-template)
+(branch `master`), currently `aea-multi-agent-report-review`. These skills run
+from a directory that holds several `aearep-NNNN` clones, where the skills
+inside each review repository are not loaded.
+
+- Target: `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/<skill>`.
+- Each named skill directory is replaced as a whole with the latest published
+  version; other skills in that directory are left alone. Rerun `install.sh`
+  to update.
+- Requires `curl` and `tar`.
+
+```bash
+./install.sh --no-skills     # Python package only
+./install.sh --skills-only   # skills only, no pip
+```
+
 Uninstall:
 
 ```bash
@@ -73,7 +92,8 @@ environment.
 - **HTTPS** uses other authentication on the machine (e.g. GitHub Desktop) when
   available.
 
-In the cloud, set `P_BITBUCKET_PAT` and `P_BITBUCKET_USERNAME` as
+In the cloud, set `P_BITBUCKET_PAT` and `P_BITBUCKET_USERNAME` (see
+[Authentication](../authentication.md)) as
 [Codespaces secrets](https://github.com/settings/codespaces), or with `gh`:
 
 ```bash

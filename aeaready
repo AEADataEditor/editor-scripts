@@ -1,7 +1,12 @@
 #!/bin/bash
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2021-2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 os=$(uname)
 apperror=0
-version=1.4
+version=1.5
 #
 # A few alternative looks
 # CSSURL=https://gist.githubusercontent.com/ryangray/1882525/raw/2a6e53f645b960f0bed16d686ba3df36505f839f/buttondown.css
@@ -33,6 +38,34 @@ template_app="template/REPLICATION_appendix.md"
 appendix="generated/REPLICATION_appendix.md"
 
 echo "$0 version $version"
+
+# Extract the optional '--append FILE' (or '--append=FILE') from anywhere in
+# the arguments; the remaining positional arguments are parsed below.
+appendfile=""
+positional=()
+while [[ $# -gt 0 ]]
+do
+   case $1 in
+      --append)
+         if [[ -z "$2" ]]
+         then
+            echo "--append requires a PDF file"
+            exit 2
+         fi
+         appendfile="$2"
+         shift 2
+         ;;
+      --append=*)
+         appendfile="${1#--append=}"
+         shift
+         ;;
+      *)
+         positional+=("$1")
+         shift
+         ;;
+   esac
+done
+set -- "${positional[@]}"
 
 # validating inputs
 if [[ -z $1 ]]
@@ -165,6 +198,14 @@ case $os in
 		    ;;
 esac
 
+# GitHub-style alerts ("> [!IMPORTANT]") need pandoc >= 3.1.10
+if [[ -n "$pandoc" && -f "$pandoc" ]] && ! "$pandoc" --list-extensions=gfm 2>/dev/null | grep -q 'alerts'
+then
+   echo "WARNING: $pandoc ($("$pandoc" --version | head -1)) does not support"
+   echo "         GitHub-style alerts; '> [!IMPORTANT]' blocks will render as plain"
+   echo "         blockquotes. Upgrade to pandoc >= 3.1.10."
+fi
+
 # update the CSS
 
 if [[ -f $CSSLOCAL ]]
@@ -232,6 +273,14 @@ fi
 if [[ ! -f "REPLICATION.md" ]]
 then
    exit_on_error 2 Missing REPLICATION.md -required-
+fi
+
+if [[ -n "$appendfile" ]]
+then
+   [[ -f "$appendfile" ]] || exit_on_error 2 "File to append not found: $appendfile"
+   command -v aea-pdf-append &> /dev/null \
+      || exit_on_error 2 "aea-pdf-append not found in PATH (needed for --append; install the Python package)"
+   echo "Will append $appendfile to REPLICATION.pdf"
 fi
 
 # Safeguard: the report should be committed on the repository's main branch
@@ -443,6 +492,14 @@ then
    fi
 else
    echo "Skipping PDF generation as requested"
+fi
+
+# Append an additional PDF (e.g., an external report) to the report PDF
+if [[ -n "$appendfile" ]]
+then
+   [[ -f REPLICATION.pdf ]] || exit_on_error 2 "Missing REPLICATION.pdf, cannot append $appendfile"
+   aea-pdf-append REPLICATION.pdf "$appendfile"
+   exit_on_error $? "Failed to append $appendfile to REPLICATION.pdf"
 fi
 
 rm $CSSLOCAL

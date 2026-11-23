@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025-2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """
 Jira Purge Query for AEA Data Editor
 Checks if a Jira issue has completed the full workflow and is ready for purging.
@@ -34,6 +39,9 @@ Usage:
     # Verbose mode (shows status history)
     python3 jira_purge_query.py aearep-8311 -v
 
+    # Report sizes of matching local directories (e.g. ./AEAREP-8311)
+    python3 jira_purge_query.py aearep-8311 aearep-6782 -s
+
 Environment Variables Required:
     JIRA_USERNAME - Your Jira email address
     JIRA_API_KEY  - API token from https://id.atlassian.com/manage-profile/security/api-tokens
@@ -47,14 +55,13 @@ Examples:
 import os
 import sys
 import argparse
-from jira import JIRA
 from jira.exceptions import JIRAError
 
-from aea_editor_scripts.jira_auth import verify_auth
+from aea_editor_scripts.jira_auth import SITE_URL, connect
 
 from aea_editor_scripts import console
+from aea_editor_scripts import with_docs
 
-JIRA_BASE_URL = "https://aeadataeditors.atlassian.net"
 
 
 def get_jira_client():
@@ -67,12 +74,7 @@ def get_jira_client():
         sys.exit(1)
 
     try:
-        jira = JIRA(
-            server=JIRA_BASE_URL,
-            basic_auth=(jira_username, jira_api_key),
-            options={'verify': True}
-        )
-        verify_auth(jira)
+        jira, _ = connect(jira_username, jira_api_key)
         return jira
     except Exception as e:
         print(f"Error connecting to Jira: {e}")
@@ -303,6 +305,55 @@ def get_open_subtasks(issue):
     return open_subtasks
 
 
+def find_local_dir(issue_key, base="."):
+    """Path of the directory in `base` whose name matches issue_key in any case.
+
+    Returns None when there is no such directory or `base` cannot be read.
+    """
+    target = issue_key.lower()
+    try:
+        with os.scandir(base) as entries:
+            for entry in entries:
+                if entry.name.lower() == target and entry.is_dir():
+                    return os.path.join(base, entry.name)
+    except OSError:
+        pass
+    return None
+
+
+def dir_size(path):
+    """Total size in bytes of the regular files under `path`.
+
+    Pure Python, so it behaves the same on Linux, macOS and Windows (cmd,
+    PowerShell, Git Bash). Symlinks and Windows junctions are not followed;
+    unreadable entries are skipped.
+    """
+    total = 0
+    stack = [path]
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    try:
+                        if entry.is_symlink() or getattr(entry, "is_junction", lambda: False)():
+                            continue
+                        if entry.is_dir(follow_symlinks=False):
+                            stack.append(entry.path)
+                        elif entry.is_file(follow_symlinks=False):
+                            total += entry.stat(follow_symlinks=False).st_size
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return total
+
+
+def format_mb(size_bytes):
+    """Format a byte count as megabytes (1 MB = 1024*1024 bytes)."""
+    return f"{size_bytes / (1024 * 1024):,.1f} MB"
+
+
 def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_verbose=False, _visited=None, _indent=""):
     """
     Check if issue is ready for purging based on status history.
@@ -447,7 +498,7 @@ def check_issue_ready_for_purge(jira, issue_key, field_map, verbose=False, very_
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description='Check if Jira issues are ready for purging based on status history',
+        description=with_docs('Check if Jira issues are ready for purging based on status history'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -462,6 +513,9 @@ Examples:
 
   # Include Jira browse links for ready issues in the summary
   %(prog)s aearep-8311 aearep-6782 aearep-6126 -l
+
+  # Report sizes of local directories named after each issue (e.g. ./aearep-8311)
+  %(prog)s aearep-8311 aearep-6782 -s
 
 Result Labels:
   OK      - passed through a required status, no open subtasks
@@ -499,6 +553,12 @@ Environment Variables Required:
         action='store_true',
         help='Also print a Jira browse link for each issue ready for purge (one per line)'
     )
+    parser.add_argument(
+        '-s', '--report-size',
+        action='store_true',
+        help='Report the size of a local directory named after each issue (any case) '
+             'in the current directory, and per-category totals in the summary'
+    )
 
     args = parser.parse_args()
 
@@ -530,6 +590,7 @@ Environment Variables Required:
     all_ready = True
     ready_issues = []
     warning_issues = []
+    local_sizes = {}  # normalized key -> bytes, for issues with a local directory
 
     for issue_key in args.issue_keys:
         # Normalize issue key: add AEAREP- prefix if just a number
@@ -571,6 +632,15 @@ Environment Variables Required:
             if open_subtasks:
                 print(f"  - Open subtasks: {', '.join(open_subtasks)}")
 
+            if args.report_size:
+                local_dir = find_local_dir(normalized_key)
+                if local_dir:
+                    local_sizes[normalized_key] = dir_size(local_dir)
+                    print(f"  - Local directory: {os.path.basename(local_dir)} "
+                          f"({format_mb(local_sizes[normalized_key])})")
+                else:
+                    print("  - Local directory: none")
+
         if warning:
             warning_issues.append(normalized_key)
         elif ready:
@@ -580,20 +650,25 @@ Environment Variables Required:
 
     # Summary
     if not args.quiet and len(args.issue_keys) > 1:
-        def print_section(label, issues):
+        def print_section(label, issues, size_label):
             if not issues:
                 return
             print(f"{label}: {' '.join(issue.lower() for issue in issues)}")
             if args.with_link:
                 for issue_key in issues:
-                    print(f"{JIRA_BASE_URL}/browse/{issue_key}")
+                    print(f"{SITE_URL}/browse/{issue_key}")
+            if args.report_size:
+                with_dir = [k for k in issues if k in local_sizes]
+                total = sum(local_sizes[k] for k in with_dir)
+                print(f"{size_label} local size: {format_mb(total)} "
+                      f"({len(with_dir)} of {len(issues)} with local directory)")
 
         print(f"\n{'='*60}")
         total_ready = len(ready_issues) + len(warning_issues)
         warning_note = f" ({len(warning_issues)} with open subtasks)" if warning_issues else ""
         print(f"Summary: {total_ready}/{len(args.issue_keys)} issues ready for purge{warning_note}")
-        print_section("READY", ready_issues)
-        print_section("WARNING (may have open subtasks)", warning_issues)
+        print_section("READY", ready_issues, "READY")
+        print_section("WARNING (may have open subtasks)", warning_issues, "WARNING")
 
     # Exit code: 0 if all ready, 1 otherwise
     sys.exit(0 if all_ready else 1)

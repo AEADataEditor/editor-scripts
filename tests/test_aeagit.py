@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """Tests for the --all (pre-approved) batch mode in aeagit."""
 from types import SimpleNamespace
 
@@ -180,3 +185,25 @@ def test_status_has_folder_remote_wsl_title():
     status = "    0\t 1\t 2\twindow [3] (REPLICATION.md - aearep-77 [WSL: Ubuntu] - Visual Studio Code)\n"
     assert A._status_has_folder(status, "aearep-77")
     assert not A._status_has_folder(status, "aearep-7")
+
+
+def test_copy_to_clipboard_windows_uses_clip_not_tkinter(monkeypatch):
+    """On Windows, Tk can segfault in clipboard_clear; use clip and skip tkinter."""
+    import builtins
+    monkeypatch.setattr(A.platform, "system", lambda: "Windows")
+    calls = []
+    monkeypatch.setattr(A.subprocess, "run",
+                        lambda cmd, **kw: calls.append((cmd, kw.get("input"))))
+    real_import = builtins.__import__
+    imported = []
+
+    def recording_import(name, *args, **kwargs):
+        imported.append(name)
+        if name in ("tkinter", "pyperclip"):
+            raise ImportError(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", recording_import)
+    A.copy_to_clipboard("cd aearep-1234")
+    assert "tkinter" not in imported
+    assert calls == [(["clip"], b"cd aearep-1234")]

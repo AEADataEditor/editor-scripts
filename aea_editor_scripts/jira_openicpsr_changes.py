@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 Lars Vilhuber and contributors.
+# Author(s): Lars Vilhuber
+# Licensed under the BSD 3-Clause License; see the LICENSE file at the repository root.
+
 """Detect author activity on openICPSR deposits behind "Pending openICPSR changes".
 
 For every AEAREP ticket sitting in that status, this asks openICPSR what has
@@ -26,9 +31,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 import requests
-from jira import JIRA
 
-from aea_editor_scripts.jira_auth import verify_auth
+from aea_editor_scripts.jira_auth import connect
 
 from aea_editor_scripts import bitbucket_pipelines as pipelines
 from aea_editor_scripts import console
@@ -37,8 +41,8 @@ from aea_editor_scripts.aeagit_create import workspace
 from aea_editor_scripts.jira_comment import automated
 from aea_editor_scripts.jira_purge_query import find_last_revision
 from aea_editor_scripts.openicpsr_activity import OPENICPSR_URL, fetch_activity, login
+from aea_editor_scripts import with_docs
 
-JIRA_URL = "https://aeadataeditors.atlassian.net"
 PROJECT = "AEAREP"
 DEPOSIT_FIELD = "openICPSR Project Number"
 REPO_FIELD = "Bitbucket short name"
@@ -394,8 +398,7 @@ def get_jira_client():
     api_key = os.environ.get("JIRA_API_KEY")
     if not username or not api_key:
         raise RuntimeError("JIRA_USERNAME and JIRA_API_KEY must be set")
-    jira = JIRA(server=JIRA_URL, basic_auth=(username, api_key), options={"verify": True})
-    verify_auth(jira)
+    jira, _ = connect(username, api_key)
     return jira
 
 
@@ -772,7 +775,7 @@ def _describe(result, verbose, show_url=False, header_printed=False):
 def main():
     console.ensure_utf8_stdio()
     parser = argparse.ArgumentParser(
-        description=f'Detect openICPSR activity on tickets in "{PENDING_STATUS}"',
+        description=with_docs(f'Detect openICPSR activity on tickets in "{PENDING_STATUS}"'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 By default nothing is written; pass --apply to comment, transition and trigger

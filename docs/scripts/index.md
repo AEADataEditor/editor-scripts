@@ -7,7 +7,6 @@ this repository rather than installed.
 | Script | Purpose |
 | --- | --- |
 | [`aeaclean`](aeaclean.md) | Strip action-item markers and `> INSTRUCTIONS` lines. |
-| [`aeamerge`](aeamerge.md) | Merge an external reviewer PDF into the AEA report. |
 | [`aeaopen`](aeaopen.md) | Open the Jira issue for a Bitbucket repository. |
 | [`aeaready`](aeaready.md) | Compile the report PDF and commit sign-off-ready files. |
 | [`aearevision`](aearevision.md) | Convert `REQUIRED` tags to `[We REQUESTED]` for revision reports. |

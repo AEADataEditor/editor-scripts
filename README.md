@@ -11,8 +11,8 @@ They may not work in all environments.
 
 ![Tested on Linux](https://img.shields.io/badge/Tested-on%20Linux-success) ![Tested on macOS](https://img.shields.io/badge/Tested-on%20macOS-success) ![Partially Tested on Windows](https://img.shields.io/badge/Partially%20Tested-on%20Windows-yellow)
 
-Some scripts have additional dependencies (`pandoc`, `wkhtmltopdf` or `docker`,
-`qpdf`); each script's documentation page lists its own requirements and platform
+Some scripts have additional dependencies (`pandoc`, `wkhtmltopdf` or `docker`);
+each script's documentation page lists its own requirements and platform
 support.
 
 ## Installation
@@ -62,6 +62,8 @@ The helper script always installs with `--upgrade`, so running it is both instal
 ./install.sh --uv   # uses uv
 ```
 
+`install.sh` also installs the user-level Claude Code skills published in `AEADataEditor/replication-template` (currently `aea-multi-agent-report-review`) into `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/`. Rerunning it updates them. Use `--no-skills` to skip this step, or `--skills-only` to update the skills without running pip.
+
 To uninstall:
 
 ```bash
@@ -81,3 +83,17 @@ git pull
 Per-script reference, cloud setup, and maintenance scripts are documented at
 <https://aeadataeditor.github.io/editor-scripts/>, built from [`docs/`](docs/)
 with [MyST](https://mystmd.org/).
+
+## License
+
+- **Code** (scripts and programs created in this repository): [BSD 3-Clause License](LICENSE). Each script carries a header with its SPDX license identifier, copyright years, and authors, maintained by `.github/scripts/license_headers.py`.
+- **Documentation** (the `docs/` site, README files, and other Markdown/text documents): [CC BY-NC 4.0](LICENSE-docs.md).
+
+  [![License: CC BY-NC 4.0](https://licensebuttons.net/l/by-nc/4.0/80x15.png)](https://creativecommons.org/licenses/by-nc/4.0/)
+
+Third-party components keep their own licenses and are not covered by the above:
+
+- `.github/scripts/inject_banner.py`: adapted from [SIVACOR/documentation](https://github.com/SIVACOR/documentation), CC BY 4.0.
+- `.aeaready.css`: derived from Microsoft's VS Code Markdown styles, MIT License.
+- `.local.css`: includes [normalize.css](https://necolas.github.io/normalize.css/), MIT License.
+- `rsync-bin.tar.gz`: MSYS2 builds of rsync and its libraries, GPL-3.0 and the respective library licenses.
