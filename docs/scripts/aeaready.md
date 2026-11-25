@@ -7,7 +7,7 @@ Run once the report is edited and ready for sign-off. Compiles the PDF from
 files, and updates the Jira issue. Sign-off itself is done manually in Jira.
 
 ```
-aeaready (issue) (pre|approve) [nopdf] [--append FILE] [additional comments]
+aeaready (issue) (pre|approve) [nopdf] [--append FILE [--append-title TITLE]] [additional comments]
 ```
 
 `aeaready -h` (or `--help`) prints the usage and a link to this documentation.
@@ -30,6 +30,13 @@ Optional:
   [`aea-pdf-append`](../python-commands/aea-pdf-append.md). May appear anywhere
   in the arguments; `--append=FILE` also works. With `nopdf`, `FILE` is
   appended to the existing `REPLICATION.pdf`.
+- **--append-title TITLE** — with `--append`, the end of `REPLICATION.md`
+  gets the section divider `## Appendix: TITLE`, which closes the report PDF
+  before the appended file. Without `--append-title`, the divider is
+  `## Appendix: Included document`. Quote titles that contain spaces;
+  `--append-title=TITLE` also works. The divider is regenerated with the
+  automatically generated appendices on each run, so it is not in a PDF
+  built by hand for `nopdf`.
 - **additional comments** — any words after the required arguments and `nopdf`
   are appended verbatim to the commit message.
 
@@ -56,12 +63,15 @@ before it runs, so it can be copied and run by hand if `aeaready` is aborted.
 
 A blockquote that starts with `[!IMPORTANT]` (GitHub alert syntax, also
 understood by MyST and VS Code) renders with a red background in the PDF;
-plain `>` blockquotes stay blue. `[!CAUTION]` is also red; `[!NOTE]`, `[!TIP]`
-and `[!WARNING]` look like plain blockquotes with a title.
+plain `>` blockquotes stay blue. `[!CAUTION]` is also red, `[!NOTE]` is
+yellow; `[!TIP]` and `[!WARNING]` look like plain blockquotes with a title.
 
 ```markdown
 > [!IMPORTANT]
 > The openICPSR deposit must be updated before acceptance.
+
+> [!NOTE]
+> The README was updated after the previous round.
 ```
 
 This needs pandoc >= 3.1.10; `aeaready` warns if the pandoc it found is older.

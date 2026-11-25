@@ -52,7 +52,7 @@ docs_url() {
 usage() {
    local url
    cat <<EOF
-Usage: $(basename $0) ISSUE {a[pprove]|p[re-approve]} [nopdf] [--append FILE] [COMMENTS...]
+Usage: $(basename $0) ISSUE {a[pprove]|p[re-approve]} [nopdf] [--append FILE [--append-title TITLE]] [COMMENTS...]
 
 Finalize a replication report: refresh REPLICATION.md (generated appendix,
 DOI, openICPSR URL, private-data notice, timestamp), build REPLICATION.pdf,
@@ -70,6 +70,10 @@ Options:
   nopdf            skip building REPLICATION.pdf (use an existing one)
   --append FILE    append the PDF FILE to REPLICATION.pdf (also --append=FILE;
                    may appear anywhere)
+  --append-title TITLE
+                   heading of the section divider added to REPLICATION.md
+                   for the appended PDF: '## Appendix: TITLE' (default:
+                   'Included document'; also --append-title=TITLE)
   COMMENTS...      words appended verbatim to the commit message
   -h, --help       show this help and exit
 
@@ -84,9 +88,11 @@ EOF
 PYTHON_MIN_MAJOR=3
 PYTHON_MIN_MINOR=11
 
-# Extract the optional '--append FILE' (or '--append=FILE') from anywhere in
-# the arguments; the remaining positional arguments are parsed below.
+# Extract the optional '--append FILE' and '--append-title TITLE' (or the
+# '--opt=VALUE' forms) from anywhere in the arguments; the remaining
+# positional arguments are parsed below.
 appendfile=""
+appendtitle=""
 positional=()
 while [[ $# -gt 0 ]]
 do
@@ -108,6 +114,19 @@ do
          appendfile="${1#--append=}"
          shift
          ;;
+      --append-title)
+         if [[ -z "$2" ]]
+         then
+            echo "--append-title requires a title"
+            exit 2
+         fi
+         appendtitle="$2"
+         shift 2
+         ;;
+      --append-title=*)
+         appendtitle="${1#--append-title=}"
+         shift
+         ;;
       *)
          positional+=("$1")
          shift
@@ -115,6 +134,12 @@ do
    esac
 done
 set -- "${positional[@]}"
+
+if [[ -n "$appendtitle" && -z "$appendfile" ]]
+then
+   echo "--append-title requires --append FILE"
+   exit 2
+fi
 
 # validating inputs
 if [[ -z $1 ]]
@@ -385,6 +410,13 @@ git add $appendix
 # Append the generated appendix to the base file
 echo "" >> $tmpapp
 cat $tmpapp $appendix > REPLICATION.md
+
+# Section divider for the PDF appended with --append (removed and re-added
+# with the generated appendix on every run)
+if [[ -n "$appendfile" ]]
+then
+   printf '\n## Appendix: %s\n' "${appendtitle:-Included document}" >> REPLICATION.md
+fi
 
 # Query JIRA API for DOI information and inject it into REPLICATION.md
 if [[ -f "tools/jira_get_info.py" ]]
