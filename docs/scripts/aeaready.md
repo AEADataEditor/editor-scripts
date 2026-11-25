@@ -10,6 +10,8 @@ files, and updates the Jira issue. Sign-off itself is done manually in Jira.
 aeaready (issue) (pre|approve) [nopdf] [--append FILE] [additional comments]
 ```
 
+`aeaready -h` (or `--help`) prints the usage and a link to this documentation.
+
 ## Arguments
 
 Required:
