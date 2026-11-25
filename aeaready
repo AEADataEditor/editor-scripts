@@ -6,7 +6,7 @@
 
 os=$(uname)
 apperror=0
-version=1.5
+version=1.6
 #
 # A few alternative looks
 # CSSURL=https://gist.githubusercontent.com/ryangray/1882525/raw/2a6e53f645b960f0bed16d686ba3df36505f839f/buttondown.css
@@ -39,6 +39,51 @@ appendix="generated/REPLICATION_appendix.md"
 
 echo "$0 version $version"
 
+# The documentation URL is defined once, in the aea_editor_scripts package.
+docs_url() {
+   local candidate
+   for candidate in python3 python
+   do
+      command -v $candidate &> /dev/null || continue
+      $candidate -c 'from aea_editor_scripts import DOCS_URL; print(DOCS_URL)' 2>/dev/null && return 0
+   done
+}
+
+usage() {
+   local url
+   cat <<EOF
+Usage: $(basename $0) ISSUE {a[pprove]|p[re-approve]} [nopdf] [--append FILE] [COMMENTS...]
+
+Finalize a replication report: refresh REPLICATION.md (generated appendix,
+DOI, openICPSR URL, private-data notice, timestamp), build REPLICATION.pdf,
+commit and push it (with 'for openICPSR.md', if present), then update the
+Jira issue AEAREP-ISSUE. Run from the root of the report repository, on its
+main branch.
+
+Arguments:
+  ISSUE            numeric part of the Jira issue (e.g. 1234 for AEAREP-1234)
+  a, approve       report is approved; checks REPLICATION.md reasons against
+                   Jira (jira-reason-sync) before updating Jira
+  p, pre-approve   report is pre-approved
+
+Options:
+  nopdf            skip building REPLICATION.pdf (use an existing one)
+  --append FILE    append the PDF FILE to REPLICATION.pdf (also --append=FILE;
+                   may appear anywhere)
+  COMMENTS...      words appended verbatim to the commit message
+  -h, --help       show this help and exit
+
+Requires pandoc and docker (for the PDF), Python >= ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR},
+and jira-approval-manager, jira-reason-sync, aea-pdf-append on PATH.
+EOF
+   url=$(docs_url)
+   [[ -n "$url" ]] && printf '\nDocumentation: %s\n' "$url"
+}
+
+# Minimum Python version required by the tools called from this script
+PYTHON_MIN_MAJOR=3
+PYTHON_MIN_MINOR=11
+
 # Extract the optional '--append FILE' (or '--append=FILE') from anywhere in
 # the arguments; the remaining positional arguments are parsed below.
 appendfile=""
@@ -46,6 +91,10 @@ positional=()
 while [[ $# -gt 0 ]]
 do
    case $1 in
+      -h|--help)
+         usage
+         exit 0
+         ;;
       --append)
          if [[ -z "$2" ]]
          then
@@ -71,6 +120,7 @@ set -- "${positional[@]}"
 if [[ -z $1 ]]
 then
 	echo "Please add issue number"
+	usage >&2
 	exit 2
 fi
 num=$1
@@ -88,6 +138,7 @@ case $1 in
      ;;
   *)
     echo "Please define approval status: [a]pproved or [p]reapproved"
+    usage >&2
     exit 2
     ;;
 esac
@@ -110,10 +161,6 @@ exit_on_error() {
 }
 
 set -o history -o histexpand
-
-# Minimum Python version required by the tools called from this script
-PYTHON_MIN_MAJOR=3
-PYTHON_MIN_MINOR=11
 
 # Locate a Python interpreter of at least $PYTHON_MIN_MAJOR.$PYTHON_MIN_MINOR
 # and set $pythonbin. Exits if none is found, since the Python tools below
