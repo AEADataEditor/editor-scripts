@@ -244,7 +244,8 @@ blockquote p:not(:last-child) {
 /* GitHub-style alerts ("> [!NOTE]", "> [!IMPORTANT]", ...), also accepted by
    MyST. Pandoc's gfm reader (>= 3.1.10, "alerts" extension) renders them as
    <div class="important"><div class="title"><p>Important</p></div>...</div>.
-   All alert types look like a regular blockquote; IMPORTANT and CAUTION are red. */
+   IMPORTANT and CAUTION are red, NOTE is yellow; the others look like a
+   regular blockquote. */
 div.note,
 div.tip,
 div.important,
@@ -265,6 +266,11 @@ div.caution {
 	border-left-color: #cf222e; /* Red left border */
 }
 
+div.note {
+	background-color: #fff8c5; /* Light yellow background */
+	border-left-color: #bf8700; /* Amber left border */
+}
+
 div.note > div.title p,
 div.tip > div.title p,
 div.important > div.title p,
@@ -277,6 +283,10 @@ div.caution > div.title p {
 div.important > div.title p,
 div.caution > div.title p {
 	color: #cf222e;
+}
+
+div.note > div.title p {
+	color: #9a6700;
 }
 
 div.note p,
