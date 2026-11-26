@@ -93,10 +93,17 @@ def test_adopting_the_previous_openicpsr_number_writes_it_to_the_issue():
     assert jira.updates == [("AEAREP-10662", {"customfield_1": 245943})]
 
 
+def test_an_empty_answer_accepts_the_previous_openicpsr_number():
+    jira = FieldJira()
+    assert adopt_previous_openicpsr(jira, "AEAREP-10662", "AEAREP-8970", "245943",
+                                    ask=lambda prompt: "") == "245943"
+    assert jira.updates == [("AEAREP-10662", {"customfield_1": 245943})]
+
+
 def test_declining_the_previous_openicpsr_number_writes_nothing():
     jira = FieldJira()
     assert adopt_previous_openicpsr(jira, "AEAREP-10662", "AEAREP-8970", "245943",
-                                    ask=lambda prompt: "") is None
+                                    ask=lambda prompt: "n") is None
     assert jira.updates == []
 
 

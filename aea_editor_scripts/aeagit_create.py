@@ -146,14 +146,14 @@ def adopt_previous_openicpsr(jira, jira_key, previous_key, openicpsr_id, ask=inp
     """Offer the previous issue's openICPSR number; on confirmation, write it to jira_key.
 
     A revision normally keeps its deposit. Returns the number if confirmed,
-    else None. Anything but y/yes (including no terminal) declines.
+    else None. An empty answer accepts; n/no, or no terminal, declines.
     """
     try:
         answer = ask(f"{jira_key} has no {DEPOSIT_FIELD}. Use {openicpsr_id} from "
-                     f"{previous_key} and record it on {jira_key}? [y/N]: ")
+                     f"{previous_key} and record it on {jira_key}? [Y/n]: ")
     except EOFError:
-        answer = ""
-    if answer.strip().lower() not in ("y", "yes"):
+        return None
+    if answer.strip().lower() in ("n", "no"):
         return None
     try:
         jira.issue(jira_key).update(fields={_field_id(jira, DEPOSIT_FIELD): int(openicpsr_id)})
