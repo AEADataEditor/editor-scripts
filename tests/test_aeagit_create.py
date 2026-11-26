@@ -6,7 +6,7 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from aea_editor_scripts.aeagit_create import (link_revision, manuscript_base, old_commits,
+from aea_editor_scripts.aeagit_create import (adopt_previous_openicpsr, link_revision, manuscript_base, old_commits,
                                               pick_previous, split_repo_ref)
 
 
@@ -70,6 +70,43 @@ def test_link_revision_does_not_duplicate_an_existing_link():
     jira = FakeJira(links=[existing])
     link_revision(jira, "AEAREP-8977", "AEAREP-10663")
     assert jira.created == []
+
+
+class FieldJira:
+    """Records field updates; knows only the openICPSR field."""
+
+    def __init__(self):
+        self.updates = []
+
+    def fields(self):
+        return [{"name": "openICPSR Project Number", "id": "customfield_1"}]
+
+    def issue(self, key):
+        return SimpleNamespace(update=lambda fields: self.updates.append((key, fields)))
+
+
+def test_adopting_the_previous_openicpsr_number_writes_it_to_the_issue():
+    jira = FieldJira()
+    pid = adopt_previous_openicpsr(jira, "AEAREP-10662", "AEAREP-8970", "245943",
+                                   ask=lambda prompt: "y")
+    assert pid == "245943"
+    assert jira.updates == [("AEAREP-10662", {"customfield_1": 245943})]
+
+
+def test_declining_the_previous_openicpsr_number_writes_nothing():
+    jira = FieldJira()
+    assert adopt_previous_openicpsr(jira, "AEAREP-10662", "AEAREP-8970", "245943",
+                                    ask=lambda prompt: "") is None
+    assert jira.updates == []
+
+
+def test_no_terminal_declines_the_previous_openicpsr_number():
+    def no_tty(prompt):
+        raise EOFError
+    jira = FieldJira()
+    assert adopt_previous_openicpsr(jira, "AEAREP-10662", "AEAREP-8970", "245943",
+                                    ask=no_tty) is None
+    assert jira.updates == []
 
 
 # --- delete gate --------------------------------------------------------------
