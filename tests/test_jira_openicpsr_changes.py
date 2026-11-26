@@ -839,3 +839,10 @@ def test_reingest_skips_the_refresh_even_when_later_runs_followed_a_fresh_one(mo
     triggered, _, refresh = run_pipeline(bb, monkeypatch)
     assert bb.triggered == [J.pipelines.BIG_INGEST_PIPELINE]
     assert refresh == "not-needed"
+
+
+def test_force_refresh_runs_refresh_tools_even_after_a_fresh_one(monkeypatch):
+    bb = FakeBitbucket(runs=[done("4-refresh-tools")])
+    triggered, detail, refresh = run_pipeline(bb, monkeypatch, force_refresh=True)
+    assert bb.triggered == ["4-refresh-tools", J.pipelines.BIG_INGEST_PIPELINE]
+    assert refresh == "ran"
