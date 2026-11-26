@@ -473,7 +473,7 @@ def transition_by_name(jira, issue, name):
 
 
 def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None,
-                   refresh_max_age=None, spinner=console.Spinner):
+                   refresh_max_age=None, spinner=console.Spinner, force_refresh=False):
     """Refresh the repository's tools if needed, then start the re-ingest.
 
     The tooling inside a repository goes stale, so unless it has been refreshed
@@ -482,6 +482,8 @@ def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None,
     completion before starting the re-ingest. A refresh that does not succeed
     means no re-ingest: the ticket still moves, and the comment says a human
     has to start the re-ingest by hand.
+
+    With force_refresh, the refresh runs whatever the age of the last one.
 
     Returns (triggered, detail, refresh) where detail is a sentence fragment
     for the comment and refresh records what happened to the pre-run.
@@ -514,7 +516,7 @@ def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None,
                       f"no re-ingest was started.", "busy"
 
     refresh = "not-needed"
-    if state == pipelines.REFRESH_NEEDED:
+    if state == pipelines.REFRESH_NEEDED or force_refresh:
         yaml_text = pipelines.pipelines_yaml(auth, workspace, slug)
         name = pipelines.find_pipeline_name(yaml_text, pipelines.REFRESH_PIPELINE) \
             if yaml_text else None
