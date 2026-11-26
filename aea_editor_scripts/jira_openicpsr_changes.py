@@ -549,9 +549,9 @@ def start_reingest(bitbucket_auth, slug, pid, key, refresh_timeout=None,
         return False, f"the re-ingest on {slug} could not be started ({why}); " \
                       f"please start it manually.", refresh
 
-    ran = f"Ran {pipelines.REFRESH_PIPELINE} first, then triggered" if refresh == "ran" \
-        else "Triggered"
-    return True, f"{ran} the {pipelines.BIG_INGEST_PIPELINE} pipeline on {slug}.", refresh
+    first = f"{pipelines.REFRESH_PIPELINE}, then " if refresh == "ran" else ""
+    return True, f"Running {first}the {pipelines.BIG_INGEST_PIPELINE} pipeline on {slug}.", \
+        refresh
 
 
 def _pipeline_note(assessment, triggered, detail):

@@ -203,12 +203,9 @@ def update_existing(jira, auth_pair, jira_key, previous_key, repo_slug, base, op
     link_revision(jira, previous_key, jira_key)
 
     if openicpsr_id:
-        triggered, detail, _ = start_reingest(auth_pair, repo_slug, openicpsr_id, jira_key,
-                                              force_refresh=True)
+        _, detail, _ = start_reingest(auth_pair, repo_slug, openicpsr_id, jira_key,
+                                      force_refresh=True)
         print(detail)
-        if triggered:
-            detail = (f"Running {bb.REFRESH_PIPELINE}, then the {bb.BIG_INGEST_PIPELINE} "
-                      f"pipeline on {repo_slug}.")
     else:
         detail = "No openICPSR project number found; no re-ingest was started."
         print(f"Warning: {detail}")
