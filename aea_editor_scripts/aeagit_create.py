@@ -28,6 +28,7 @@ workspace = "aeaverification"
 import_repo_url = "https://github.com/AEADataEditor/replication-template.git"
 
 REPO_FIELD = "Bitbucket short name"
+DEPOSIT_FIELD = "openICPSR Project Number"
 MANUSCRIPT_FIELD = "Manuscript Central identifier"
 REVISION_LINK = "Revision"  # inward "is revised by", outward "is a revision of"
 
@@ -78,9 +79,9 @@ def get_openicpsr_from_jira(jira_key):
         issue = jira.issue(jira_key)
         all_fields = jira.fields()
         field_map = {f['name']: f['id'] for f in all_fields}
-        field_id = field_map.get('openICPSR Project Number')
+        field_id = field_map.get(DEPOSIT_FIELD)
         if not field_id:
-            print("Warning: 'openICPSR Project Number' field not found in Jira")
+            print(f"Warning: '{DEPOSIT_FIELD}' field not found in Jira")
             return None
         value = getattr(issue.fields, field_id, None)
         return str(int(float(value))) if value else None
@@ -139,6 +140,27 @@ def find_previous_repo(jira, jira_key, auth):
             return key, slug, base
         print(f"{key} names repository {slug}, which does not exist; skipping")
     return None
+
+
+def adopt_previous_openicpsr(jira, jira_key, previous_key, openicpsr_id, ask=input):
+    """Offer the previous issue's openICPSR number; on confirmation, write it to jira_key.
+
+    A revision normally keeps its deposit. Returns the number if confirmed,
+    else None. An empty answer accepts; n/no, or no terminal, declines.
+    """
+    try:
+        answer = ask(f"{jira_key} has no {DEPOSIT_FIELD}. Use {openicpsr_id} from "
+                     f"{previous_key} and record it on {jira_key}? [Y/n]: ")
+    except EOFError:
+        return None
+    if answer.strip().lower() in ("n", "no"):
+        return None
+    try:
+        jira.issue(jira_key).update(fields={_field_id(jira, DEPOSIT_FIELD): int(openicpsr_id)})
+        print(f"Jira '{DEPOSIT_FIELD}' set to {openicpsr_id} on {jira_key}")
+    except Exception as e:
+        print(f"Warning: Could not update {DEPOSIT_FIELD} on {jira_key}: {e}")
+    return openicpsr_id
 
 
 def has_revision_link(jira, previous_key, jira_key):
@@ -577,10 +599,11 @@ commits more than %(hours)s hours old; such a repository is deleted by hand.
         if previous:
             openicpsr_id = args.openicpsr
             if openicpsr_id == 'FROM_JIRA':
-                # A revision keeps its deposit, so the previous issue's
-                # project number stands in until this issue has its own.
-                openicpsr_id = (get_openicpsr_from_jira(jira_key)
-                                or get_openicpsr_from_jira(previous[0]))
+                openicpsr_id = get_openicpsr_from_jira(jira_key)
+                previous_id = None if openicpsr_id else get_openicpsr_from_jira(previous[0])
+                if previous_id:
+                    openicpsr_id = adopt_previous_openicpsr(jira, jira_key, previous[0],
+                                                            previous_id)
             update_existing(jira, (consumer_user, consumer_key), jira_key, *previous,
                             openicpsr_id)
             return

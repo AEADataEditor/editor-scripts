@@ -32,8 +32,10 @@ repository, that repository is re-used:
 2. that earlier issue is linked as "is revised by" this issue;
 3. `refresh-tools` runs, then the `w-big-populate-from-icpsr` re-ingest is
    started, as in [`jira-openicpsr-changes`](jira-openicpsr-changes.md);
-   the openICPSR project number comes from `-i`, this issue, or else the
-   earlier issue;
+   the openICPSR project number comes from `-i` or this issue; if this issue
+   has none, the earlier issue's is offered (default yes; declined without a
+   terminal) and, once confirmed, written to this issue's "openICPSR Project
+   Number";
 4. a comment on the issue records the re-used repository and the pipeline
    outcome.
 
